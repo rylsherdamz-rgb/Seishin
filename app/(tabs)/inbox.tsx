@@ -34,7 +34,7 @@ export default function InboxScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="px-4 pb-2">
+      <View className="px-4 pt-3 pb-2">
         <View className="flex-row items-center justify-between mb-1">
           <View>
             <Text className="text-2xl font-semibold tracking-tight text-black">Inbox</Text>

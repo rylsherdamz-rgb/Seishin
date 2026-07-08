@@ -52,13 +52,13 @@ export default function TodoScreen() {
   const priorityColors: Record<string, string> = {
     low: "text-ink-300",
     medium: "text-black",
-    high: "text-red-500",
+    high: "text-danger",
   };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
-      <View className="px-4 pb-2 flex-row items-center justify-between">
+      <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
             <Feather name="arrow-left" size={16} color="#000000" />

@@ -24,7 +24,7 @@ export function Input({
   return (
     <View className={`mb-4 ${className}`}>
       {label && (
-        <Text className="text-sm text-gray-500 mb-1">{label}</Text>
+        <Text className="text-sm text-ink-500 mb-1">{label}</Text>
       )}
       <TextInput
         value={value}

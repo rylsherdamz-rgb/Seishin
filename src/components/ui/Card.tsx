@@ -28,10 +28,10 @@ export function Card({
         <Text className="text-base font-semibold text-black">{title}</Text>
       )}
       {description && (
-        <Text className="text-sm text-gray-700 mt-1">{description}</Text>
+        <Text className="text-sm text-ink-700 mt-1">{description}</Text>
       )}
       {caption && (
-        <Text className="text-xs text-gray-300 mt-2">{caption}</Text>
+        <Text className="text-xs text-ink-300 mt-2">{caption}</Text>
       )}
       {children}
     </Wrapper>

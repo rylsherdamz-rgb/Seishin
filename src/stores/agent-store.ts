@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { agentStorage } from "./mmkv";
 
+export interface ToolCallData {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
 export interface AgentMessage {
   id: string;
   role: "user" | "assistant" | "tool";
@@ -8,6 +14,8 @@ export interface AgentMessage {
   timestamp: string;
   toolName?: string;
   toolResult?: string;
+  toolCallId?: string;
+  toolCalls?: ToolCallData[];
 }
 
 export interface Skill {

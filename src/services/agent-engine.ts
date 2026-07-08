@@ -195,10 +195,59 @@ You have tools to manage events and todos. ALWAYS use the appropriate tool when 
 Be concise. After using a tool, confirm what was done.`;
 }
 
+function buildConversation(messages: AgentMessage[]): OpenAI.ChatCompletionMessageParam[] {
+  const result: OpenAI.ChatCompletionMessageParam[] = [];
+  for (const m of messages) {
+    if (m.role === "user") {
+      result.push({ role: "user", content: m.content });
+    } else if (m.role === "assistant") {
+      if (m.toolCalls && m.toolCalls.length > 0) {
+        result.push({
+          role: "assistant",
+          content: m.content || null,
+          tool_calls: m.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: "function" as const,
+            function: { name: tc.name, arguments: tc.arguments },
+          })),
+        });
+      } else {
+        result.push({ role: "assistant", content: m.content });
+      }
+    } else if (m.role === "tool" && m.toolCallId) {
+      result.push({
+        role: "tool",
+        tool_call_id: m.toolCallId,
+        content: m.content,
+      });
+    }
+  }
+  return result;
+}
+
 export async function runAgentLoop(userInput: string) {
   const agentStore = useAgentStore.getState();
   const { apiKeys, nimEndpoint } = useSettingsStore.getState();
+  const { currentProvider } = agentStore;
   const registry = createDefaultTools();
+
+  if (currentProvider === "local") {
+    agentStore.addMessage({
+      id: `msg-${Date.now()}`,
+      role: "user",
+      content: userInput,
+      timestamp: new Date().toISOString(),
+    });
+    agentStore.setProcessing(true);
+    agentStore.addMessage({
+      id: `msg-${Date.now()}-local`,
+      role: "assistant",
+      content: "Local GGUF mode not yet implemented. Switch to NVIDIA NIM or configure a GGUF model.",
+      timestamp: new Date().toISOString(),
+    });
+    agentStore.setProcessing(false);
+    return;
+  }
 
   const userMsg: AgentMessage = {
     id: `msg-${Date.now()}`,
@@ -221,15 +270,17 @@ export async function runAgentLoop(userInput: string) {
 
     const tools = registry.toOpenAITools();
 
+    const history = agentStore.messages.slice(-20);
+    const conversation: OpenAI.ChatCompletionMessageParam[] = [
+      { role: "system", content: createSystemPrompt(registry) },
+      ...buildConversation(history),
+    ];
+
+    console.log("[Agent] Sending to NIM:", JSON.stringify({ model: "meta/llama-3.2-3b-instruct", messages: conversation.length, tools: tools.length }));
+
     const response = await openai.chat.completions.create({
       model: "meta/llama-3.2-3b-instruct",
-      messages: [
-        { role: "system", content: createSystemPrompt(registry) },
-        ...agentStore.messages.slice(-20).map((m) => ({
-          role: (m.role === "tool" ? "assistant" : m.role) as "user" | "assistant",
-          content: m.content,
-        })),
-      ],
+      messages: conversation,
       tools,
       tool_choice: "auto",
     });
@@ -237,7 +288,25 @@ export async function runAgentLoop(userInput: string) {
     const choice = response.choices[0];
     const msg = choice.message;
 
+    console.log("[Agent] Response:", msg.tool_calls ? `tool_calls: ${msg.tool_calls.length}` : `content: ${(msg.content || "").slice(0, 100)}`);
+
     if (msg.tool_calls && msg.tool_calls.length > 0) {
+      const toolCallsData = msg.tool_calls
+        .filter((c) => c.type === "function")
+        .map((c) => ({
+          id: c.id,
+          name: c.function.name,
+          arguments: c.function.arguments,
+        }));
+
+      agentStore.addMessage({
+        id: `msg-${Date.now()}-asst`,
+        role: "assistant",
+        content: msg.content || "",
+        timestamp: new Date().toISOString(),
+        toolCalls: toolCallsData,
+      });
+
       const toolMessages: OpenAI.ChatCompletionToolMessageParam[] = [];
 
       for (const call of msg.tool_calls) {
@@ -247,6 +316,7 @@ export async function runAgentLoop(userInput: string) {
         if (tool) {
           try {
             const args = JSON.parse(call.function.arguments || "{}");
+            console.log(`[Agent] Executing tool: ${fnName}`, args);
             const result = await tool.execute(args);
             agentStore.addMessage({
               id: `tool-${Date.now()}`,
@@ -254,6 +324,7 @@ export async function runAgentLoop(userInput: string) {
               content: result,
               timestamp: new Date().toISOString(),
               toolName: tool.name,
+              toolCallId: call.id,
             });
             toolMessages.push({
               role: "tool",
@@ -268,6 +339,7 @@ export async function runAgentLoop(userInput: string) {
               content: errMsg,
               timestamp: new Date().toISOString(),
               toolName: fnName,
+              toolCallId: call.id,
             });
             toolMessages.push({
               role: "tool",
@@ -278,17 +350,16 @@ export async function runAgentLoop(userInput: string) {
         }
       }
 
+      const followMsgs: OpenAI.ChatCompletionMessageParam[] = [
+        { role: "system", content: createSystemPrompt(registry) },
+        ...buildConversation(agentStore.messages.slice(-20)),
+      ];
+
+      console.log(`[Agent] Follow-up with ${followMsgs.length} messages`);
+
       const followUp = await openai.chat.completions.create({
         model: "meta/llama-3.2-3b-instruct",
-        messages: [
-          { role: "system", content: createSystemPrompt(registry) },
-          ...agentStore.messages.slice(-20).map((m) => {
-            if (m.role === "tool") {
-              return { role: "tool" as const, content: m.content, tool_call_id: `call-${m.id}` };
-            }
-            return { role: m.role as "user" | "assistant", content: m.content };
-          }),
-        ],
+        messages: followMsgs,
       });
 
       const finalContent = followUp.choices[0]?.message?.content || "Done.";
@@ -310,6 +381,7 @@ export async function runAgentLoop(userInput: string) {
     });
     return content;
   } catch (e) {
+    console.error("[Agent] Error:", e);
     const errorMsg = e instanceof Error ? e.message : "Unknown error occurred";
     agentStore.addMessage({
       id: `msg-${Date.now()}-err`,

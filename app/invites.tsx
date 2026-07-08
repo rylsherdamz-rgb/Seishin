@@ -55,11 +55,11 @@ export default function InvitesScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
-      <View className="px-4 pb-2 flex-row items-center gap-3">
+      <View className="px-4 pt-3 pb-2 flex-row items-center gap-3">
         <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
           <Feather name="arrow-left" size={16} color="#000000" />
         </TouchableOpacity>
-        <Text className="text-xl font-semibold tracking-tight text-black">Invites</Text>
+        <Text className="text-xl font-semibold tracking-tight text-black flex-1">Invites</Text>
         <Text className="text-xs text-ink-500">{invites.length} total</Text>
       </View>
 

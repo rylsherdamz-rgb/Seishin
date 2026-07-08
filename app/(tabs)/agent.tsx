@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
@@ -16,6 +16,30 @@ const INITIAL_SUGGESTIONS = [
   { label: "Add event", query: "Add an event called Team Meeting tomorrow at 2pm" },
   { label: "System status", query: "What's my current setup?" },
 ];
+
+function ThinkingIndicator() {
+  const dot1 = useSharedValue(0.3);
+  const dot2 = useSharedValue(0.3);
+  const dot3 = useSharedValue(0.3);
+
+  useEffect(() => {
+    dot1.value = withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1);
+    setTimeout(() => dot2.value = withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1), 200);
+    setTimeout(() => dot3.value = withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1), 400);
+  }, []);
+
+  const s1 = useAnimatedStyle(() => ({ opacity: dot1.value }));
+  const s2 = useAnimatedStyle(() => ({ opacity: dot2.value }));
+  const s3 = useAnimatedStyle(() => ({ opacity: dot3.value }));
+
+  return (
+    <View className="flex-row items-center gap-1.5 px-4 py-3">
+      <Animated.View style={s1} className="w-2 h-2 rounded-full bg-ink-300" />
+      <Animated.View style={s2} className="w-2 h-2 rounded-full bg-ink-300" />
+      <Animated.View style={s3} className="w-2 h-2 rounded-full bg-ink-300" />
+    </View>
+  );
+}
 
 export default function AgentScreen() {
   const {
@@ -60,13 +84,13 @@ export default function AgentScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={90}
       >
-        <View className="px-4 pb-2">
+        <View className="px-4 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View>
               <Text className="text-2xl font-semibold tracking-tight text-black">AI Agent</Text>
               <Text className="text-sm text-ink-500 mt-0.5">
                 {currentProvider === "nim" ? "NVIDIA NIM" : "Local (offline)"}
-                {isProcessing && " · Processing..."}
+                {isProcessing && " · Thinking..."}
               </Text>
             </View>
             <View className="flex-row gap-2">
@@ -146,9 +170,15 @@ export default function AgentScreen() {
         )}
 
         {!hasKey && currentProvider === "nim" && (
-          <View className="mx-4 mb-3 bg-red-50 rounded-xl p-3 flex-row items-center gap-2">
+          <View className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
             <Feather name="alert-circle" size={14} color="#ff3b30" />
-            <Text className="text-xs text-red-500 flex-1">No API key set. Add one in Settings.</Text>
+            <Text className="text-xs text-danger flex-1">No NIM API key set. Go to Settings to add one.</Text>
+          </View>
+        )}
+        {currentProvider === "local" && (
+          <View className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
+            <Feather name="info" size={14} color="#666666" />
+            <Text className="text-xs text-ink-600 flex-1">Local GGUF mode not yet available. Switch to NVIDIA NIM.</Text>
           </View>
         )}
 
@@ -157,6 +187,7 @@ export default function AgentScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 pb-2"
+          ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
           renderItem={({ item, index }) => (
             <Animated.View
               entering={FadeInUp.duration(300).delay(index === messages.length - 1 ? 0 : 0)}
@@ -181,7 +212,7 @@ export default function AgentScreen() {
                   {item.content}
                 </Text>
                 <Text className={`text-xs mt-1.5 ${
-                  item.role === "user" ? "text-gray-400" : "text-ink-300"
+                  item.role === "user" ? "text-ink-200" : "text-ink-400"
                 }`}>
                   {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </Text>

@@ -117,7 +117,7 @@ export default function SettingsScreen() {
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-4 pb-12">
-          <View className="flex-row items-center gap-3 mb-6 pt-2">
+          <View className="flex-row items-center gap-3 mb-6 pt-3">
             <Logo size={32} />
             <View>
               <Text className="text-2xl font-semibold tracking-tight text-black">Settings</Text>
@@ -203,7 +203,7 @@ export default function SettingsScreen() {
               subtitle={notifEnabled ? "Service active" : "Tap to enable"}
               onPress={openSettings}
               right={
-                <View className={`w-2.5 h-2.5 rounded-full ${notifEnabled ? "bg-green-500" : "bg-ink-300"}`} />
+                <View className={`w-2.5 h-2.5 rounded-full ${notifEnabled ? "bg-success" : "bg-ink-300"}`} />
               }
             />
             <MenuRow

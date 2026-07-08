@@ -91,7 +91,7 @@ export default function ScanScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="px-4 pb-4">
+      <View className="px-4 pt-3 pb-4">
         <Text className="text-2xl font-semibold tracking-tight text-black">Scan Schedule</Text>
         <Text className="text-sm text-ink-500 mt-0.5">
           Capture, select, or upload a file to extract schedule data

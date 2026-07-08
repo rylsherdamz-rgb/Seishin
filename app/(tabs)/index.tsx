@@ -190,7 +190,7 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="px-4 pb-2 flex-row items-center justify-between">
+      <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View>
           <Text className="text-2xl font-semibold tracking-tight text-black">Calendar</Text>
           <Text className="text-sm text-ink-500 mt-1">
@@ -296,10 +296,10 @@ export default function CalendarScreen() {
                   </Text>
                 </View>
                 <View className={`px-2 py-0.5 rounded ${
-                  item.priority === "high" ? "bg-red-50" : "bg-ink-100"
+                  item.priority === "high" ? "bg-danger-soft" : "bg-ink-100"
                 }`}>
                   <Text className={`text-xs ${
-                    item.priority === "high" ? "text-red-500" : "text-ink-300"
+                    item.priority === "high" ? "text-danger" : "text-ink-300"
                   }`}>
                     {item.priority || "todo"}
                   </Text>
