@@ -18,6 +18,7 @@ interface SettingsState {
   apiKeys: {
     nim: string;
   };
+  nimEndpoint: string;
   modelPath: string | null;
   cleanupPolicies: CleanupPolicy;
   notificationFilter: string[];
@@ -25,6 +26,7 @@ interface SettingsState {
   loadSettings: () => void;
   setEmailConfig: (config: SettingsState["emailConfig"]) => void;
   setApiKey: (provider: "nim", key: string) => void;
+  setNimEndpoint: (endpoint: string) => void;
   setModelPath: (path: string | null) => void;
   setCleanupPolicies: (policies: Partial<CleanupPolicy>) => void;
   setNotificationFilter: (packages: string[]) => void;
@@ -40,6 +42,7 @@ const DEFAULT_CLEANUP: CleanupPolicy = {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   emailConfig: null,
   apiKeys: { nim: "" },
+  nimEndpoint: "https://integrate.api.nvidia.com/v1",
   modelPath: null,
   cleanupPolicies: DEFAULT_CLEANUP,
   notificationFilter: [],
@@ -47,12 +50,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   loadSettings: () => {
     const emailRaw = settingsStorage.getString("emailConfig");
     const apiKeysRaw = settingsStorage.getString("apiKeys");
+    const nimEndpoint = settingsStorage.getString("nimEndpoint");
     const modelPath = settingsStorage.getString("modelPath");
     const cleanupRaw = settingsStorage.getString("cleanupPolicies");
     const notifFilterRaw = settingsStorage.getString("notificationFilter");
 
     if (emailRaw) set({ emailConfig: JSON.parse(emailRaw) });
     if (apiKeysRaw) set({ apiKeys: JSON.parse(apiKeysRaw) });
+    if (nimEndpoint) set({ nimEndpoint });
     if (modelPath) set({ modelPath });
     if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
     if (notifFilterRaw) set({ notificationFilter: JSON.parse(notifFilterRaw) });
@@ -67,6 +72,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const apiKeys = { ...get().apiKeys, [provider]: key };
     settingsStorage.set("apiKeys", JSON.stringify(apiKeys));
     set({ apiKeys });
+  },
+
+  setNimEndpoint: (endpoint) => {
+    settingsStorage.set("nimEndpoint", endpoint);
+    set({ nimEndpoint: endpoint });
   },
 
   setModelPath: (path) => {

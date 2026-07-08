@@ -58,10 +58,11 @@ function MenuRow({
 }
 
 export default function SettingsScreen() {
-  const { loadSettings, cleanupPolicies, setCleanupPolicies, apiKeys, setApiKey, modelPath, setModelPath } = useSettingsStore();
+  const { loadSettings, cleanupPolicies, setCleanupPolicies, apiKeys, setApiKey, nimEndpoint, setNimEndpoint, modelPath, setModelPath } = useSettingsStore();
   const { isGranted, openSettings } = useNotifications();
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [nimKey, setNimKey] = useState("");
+  const [nimEp, setNimEp] = useState("");
   const [ggufPath, setGgufPath] = useState("");
   const [showStorage, setShowStorage] = useState(false);
   const [showAiConfig, setShowAiConfig] = useState(false);
@@ -75,8 +76,9 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     setNimKey(apiKeys.nim);
+    setNimEp(nimEndpoint);
     setGgufPath(modelPath || "");
-  }, [apiKeys.nim, modelPath]);
+  }, [apiKeys.nim, nimEndpoint, modelPath]);
 
   function confirmClear(title: string, onClear: () => void) {
     Alert.alert("Clear " + title, "This action cannot be undone.", [
@@ -102,7 +104,8 @@ export default function SettingsScreen() {
 
   function saveNimKey() {
     setApiKey("nim", nimKey);
-    Alert.alert("Saved", "NVIDIA NIM key updated. Switch to NIM mode in the Agent tab.");
+    setNimEndpoint(nimEp);
+    Alert.alert("Saved", "NVIDIA NIM key and endpoint updated. Switch to NIM mode in the Agent tab.");
   }
 
   function saveModelPath() {
@@ -159,6 +162,16 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 secureTextEntry
+              />
+              <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">NIM Endpoint</Text>
+              <TextInput
+                className="h-11 bg-white border border-ink-200 rounded-xl px-4 text-sm text-black mb-2"
+                placeholder="https://integrate.api.nvidia.com/v1"
+                placeholderTextColor="#bbbbbb"
+                value={nimEp}
+                onChangeText={setNimEp}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
               <TouchableOpacity onPress={saveNimKey} className="bg-black h-9 px-5 rounded-xl items-center justify-center self-end">
                 <Text className="text-white text-xs font-semibold">Save</Text>

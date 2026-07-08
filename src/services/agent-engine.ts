@@ -197,7 +197,7 @@ Be concise. After using a tool, confirm what was done.`;
 
 export async function runAgentLoop(userInput: string) {
   const agentStore = useAgentStore.getState();
-  const { apiKeys } = useSettingsStore.getState();
+  const { apiKeys, nimEndpoint } = useSettingsStore.getState();
   const registry = createDefaultTools();
 
   const userMsg: AgentMessage = {
@@ -215,7 +215,7 @@ export async function runAgentLoop(userInput: string) {
     }
 
     const openai = new OpenAI({
-      baseURL: "https://integrate.api.nvidia.com/v1",
+      baseURL: nimEndpoint,
       apiKey: apiKeys.nim,
     });
 

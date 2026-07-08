@@ -2,7 +2,19 @@ import { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Calendar } from "react-native-calendars";
+import { Calendar, LocaleConfig } from "react-native-calendars";
+
+LocaleConfig.locales["en"] = {
+  monthNames: [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ],
+  monthNamesShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  dayNames: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+  dayNamesShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  today: "Today",
+};
+LocaleConfig.defaultLocale = "en";
 import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { Card } from "@/components/ui/Card";
