@@ -8,6 +8,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
     scan: "📷",
     agent: "🤖",
     settings: "⚙️",
+    more: "📋",
   };
 
   return (
@@ -82,6 +83,15 @@ export default function TabLayout() {
           title: "Settings",
           tabBarIcon: ({ focused }) => (
             <TabIcon name="settings" focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{
+          title: "More",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="more" focused={focused} />
           ),
         }}
       />

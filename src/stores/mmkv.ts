@@ -7,6 +7,8 @@ export const notificationsStorage = createMMKV({ id: "notifications" });
 export const agentStorage = createMMKV({ id: "agent" });
 export const settingsStorage = createMMKV({ id: "settings" });
 export const ocrStorage = createMMKV({ id: "ocr" });
+export const todosStorage = createMMKV({ id: "todos" });
+export const invitesStorage = createMMKV({ id: "invites" });
 
 export function clearAllStorage() {
   eventsStorage.clearAll();
@@ -16,6 +18,8 @@ export function clearAllStorage() {
   agentStorage.clearAll();
   settingsStorage.clearAll();
   ocrStorage.clearAll();
+  todosStorage.clearAll();
+  invitesStorage.clearAll();
 }
 
 export function getStorageSizes(): Record<string, number> {
@@ -27,5 +31,7 @@ export function getStorageSizes(): Record<string, number> {
     agent: agentStorage.getAllKeys().length,
     settings: settingsStorage.getAllKeys().length,
     ocr: ocrStorage.getAllKeys().length,
+    todos: todosStorage.getAllKeys().length,
+    invites: invitesStorage.getAllKeys().length,
   };
 }
