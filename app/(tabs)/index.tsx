@@ -1,55 +1,76 @@
-import { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity } from "react-native";
-import { Calendar, DateData } from "react-native-calendars";
+import { useState, useEffect, useCallback } from "react";
+import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
+import { Calendar } from "react-native-calendars";
 import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import Feather from "@expo/vector-icons/Feather";
 
 export default function CalendarScreen() {
-  const { events, selectedDate, loadEvents, setSelectedDate, getEventsForDate } =
+  const { events, selectedDate, loadEvents, deleteEvent, setSelectedDate, getEventsForDate } =
     useCalendarStore();
-  const [markedDates, setMarkedDates] = useState<Record<string, any>>({});
 
   useEffect(() => {
     loadEvents();
   }, []);
 
-  useEffect(() => {
-    const marks: Record<string, any> = {};
-    events.forEach((e) => {
-      const date = e.startDate.split("T")[0];
-      marks[date] = { marked: true, dotColor: "#000000" };
-    });
-    marks[selectedDate] = {
-      ...marks[selectedDate],
+  const markedDates = events.reduce(
+    (acc, event) => {
+      const date = event.startDate.split("T")[0];
+      if (!acc[date]) acc[date] = { dots: [], marked: true };
+      const existing = acc[date];
+      if (!existing.dots) existing.dots = [];
+      existing.dots.push({ color: "#000000" });
+      return acc;
+    },
+    {} as Record<string, any>
+  );
+
+  if (selectedDate) {
+    markedDates[selectedDate] = {
+      ...(markedDates[selectedDate] || { dots: [], marked: true }),
       selected: true,
       selectedColor: "#000000",
     };
-    setMarkedDates(marks);
-  }, [events, selectedDate]);
+  }
 
   const dayEvents = getEventsForDate(selectedDate);
 
-  const sourceLabel = (s: string) => {
-    const labels: Record<string, string> = {
-      manual: "Manual",
-      ocr: "OCR",
-      email: "Email",
-      notification: "Notif",
-      chat: "Chat",
-      ai: "AI",
-    };
-    return labels[s] || s;
+  const sourceIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
+    manual: "edit-2",
+    ocr: "camera",
+    email: "mail",
+    notification: "bell",
+    chat: "message-circle",
+    ai: "cpu",
   };
+
+  const handleDeleteEvent = useCallback(
+    (id: string, title: string) => {
+      Alert.alert("Delete Event", `Delete "${title}"?`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => deleteEvent(id) },
+      ]);
+    },
+    [deleteEvent]
+  );
 
   return (
     <View className="flex-1 bg-white">
-      <View className="pt-16 px-4 pb-2">
-        <Text className="text-2xl font-semibold text-black">Calendar</Text>
+      <View className="pt-16 px-4 pb-4">
+        <Text className="text-2xl font-semibold tracking-tight text-black">
+          Calendar
+        </Text>
+        <Text className="text-sm text-ink-500 mt-1">
+          {events.length} event{events.length !== 1 ? "s" : ""}
+        </Text>
       </View>
 
       <Calendar
         current={selectedDate}
-        onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
+        onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
         markedDates={markedDates}
+        markingType="multi-dot"
         theme={{
           todayTextColor: "#000000",
           selectedDayBackgroundColor: "#000000",
@@ -57,60 +78,76 @@ export default function CalendarScreen() {
           arrowColor: "#000000",
           monthTextColor: "#000000",
           textMonthFontWeight: "600",
+          textMonthFontSize: 15,
           textDayFontSize: 14,
-          textMonthFontSize: 16,
           textDayHeaderFontSize: 12,
+        }}
+        style={{
+          borderBottomWidth: 1,
+          borderBottomColor: "#e5e5e5",
+          paddingBottom: 8,
         }}
       />
 
-      <View className="flex-1 px-4 pt-4">
-        <Text className="text-sm text-gray-500 mb-3">
-          {dayEvents.length === 0
-            ? "No events for this day"
-            : `${dayEvents.length} event${dayEvents.length > 1 ? "s" : ""}`}
+      <View className="pt-4 px-4">
+        <Text className="text-sm font-medium text-ink-700 mb-3">
+          {selectedDate
+            ? new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })
+            : "Select a date"}
         </Text>
-
-        <FlatList
-          data={dayEvents}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }: { item: CalendarEvent }) => (
-            <TouchableOpacity className="bg-ink-100 p-4 rounded-lg mb-2">
-              <View className="flex-row justify-between items-start">
-                <View className="flex-1">
-                  <Text className="text-base font-semibold text-black">
-                    {item.title}
-                  </Text>
-                  {item.description && (
-                    <Text className="text-sm text-gray-700 mt-1">
-                      {item.description}
-                    </Text>
-                  )}
-                  <Text className="text-xs text-gray-400 mt-2">
-                    {formatTime(item.startDate)} – {formatTime(item.endDate)}
-                  </Text>
-                </View>
-                <Text className="text-[10px] text-gray-400 uppercase">
-                  {sourceLabel(item.source)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center pt-16">
-              <Text className="text-base text-gray-500">No events yet</Text>
-              <Text className="text-sm text-gray-400 mt-2 text-center">
-                Events appear here from OCR scans,{"\n"}emails, notifications, and the AI agent
-              </Text>
-            </View>
-          }
-        />
       </View>
+
+      <FlatList
+        data={dayEvents}
+        keyExtractor={(item) => item.id}
+        contentContainerClassName="px-4 pb-8"
+        renderItem={({ item }) => (
+          <Card className="flex-row items-center gap-4 mb-2">
+            <View className="w-10 h-10 bg-white rounded-full items-center justify-center">
+              <Feather
+                name={sourceIcons[item.source] || "calendar"}
+                size={16}
+                color="#000000"
+              />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-medium text-black">{item.title}</Text>
+              {item.description && (
+                <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={1}>
+                  {item.description}
+                </Text>
+              )}
+              <View className="flex-row items-center gap-2 mt-1">
+                <Feather name="clock" size={10} color="#999999" />
+                <Text className="text-xs text-ink-300">
+                  {new Date(item.startDate).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
+                <Text className="text-xs text-ink-200">·</Text>
+                <Text className="text-xs text-ink-300 capitalize">{item.source}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => handleDeleteEvent(item.id, item.title)}
+              className="w-8 h-8 items-center justify-center"
+            >
+              <Feather name="trash-2" size={14} color="#999999" />
+            </TouchableOpacity>
+          </Card>
+        )}
+        ListEmptyComponent={
+          <View className="items-center justify-center py-16">
+            <Feather name="calendar" size={32} color="#cccccc" />
+            <Text className="text-base text-ink-300 mt-4">No events this day</Text>
+          </View>
+        }
+      />
     </View>
   );
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }

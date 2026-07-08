@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, Share } from 
 import { useInvitesStore, InviteCard } from "@/stores/invites-store";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import Feather from "@expo/vector-icons/Feather";
 
 type InviteTab = "cards" | "p2p" | "shared";
 
@@ -28,7 +29,6 @@ export default function InvitesScreen() {
     addInvite(invite);
     setNewCardTitle("");
     setNewCardDesc("");
-    setTab("cards");
   }
 
   async function shareInvite(invite: InviteCard) {
@@ -36,6 +36,12 @@ export default function InvitesScreen() {
       message: `Seishin Invite: ${invite.title}\n${invite.description || ""}\nCode: ${invite.code || "N/A"}`,
     });
   }
+
+  const typeIcons: Record<InviteTab, React.ComponentProps<typeof Feather>["name"]> = {
+    cards: "file-text",
+    p2p: "wifi",
+    shared: "share-2",
+  };
 
   const filtered = invites.filter((i) => {
     if (tab === "cards") return i.type === "invite-card";
@@ -46,8 +52,9 @@ export default function InvitesScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <View className="pt-16 px-4 pb-4">
-        <Text className="text-2xl font-semibold text-black">Invites</Text>
+      <View className="pt-16 px-4 pb-2">
+        <Text className="text-2xl font-semibold tracking-tight text-black">Invites</Text>
+        <Text className="text-sm text-ink-500 mt-0.5">{invites.length} total</Text>
       </View>
 
       <View className="flex-row px-4 gap-2 mb-4">
@@ -55,11 +62,16 @@ export default function InvitesScreen() {
           <TouchableOpacity
             key={t}
             onPress={() => setTab(t)}
-            className={`px-4 py-2 rounded-full border ${
-              tab === t ? "bg-black border-black" : "border-gray-300"
+            className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border ${
+              tab === t ? "bg-black border-black" : "border-ink-200"
             }`}
           >
-            <Text className={`text-sm ${tab === t ? "text-white" : "text-gray-600"}`}>
+            <Feather
+              name={typeIcons[t]}
+              size={11}
+              color={tab === t ? "#ffffff" : "#999999"}
+            />
+            <Text className={`text-xs font-medium ${tab === t ? "text-white" : "text-ink-500"}`}>
               {t === "cards" ? "Cards" : t === "p2p" ? "P2P Codes" : "Shared"}
             </Text>
           </TouchableOpacity>
@@ -69,20 +81,24 @@ export default function InvitesScreen() {
       {tab === "cards" && (
         <View className="px-4 mb-4">
           <TextInput
-            className="h-12 border border-black rounded-lg px-4 text-base text-black mb-2"
+            className="h-12 border border-ink-200 rounded-xl px-4 text-base text-black mb-2"
             placeholder="Event title..."
-            placeholderTextColor="#999"
+            placeholderTextColor="#999999"
             value={newCardTitle}
             onChangeText={setNewCardTitle}
           />
           <TextInput
-            className="h-12 border border-gray-300 rounded-lg px-4 text-base text-black mb-2"
-            placeholder="Description (optional)..."
-            placeholderTextColor="#999"
+            className="h-12 border border-ink-200 rounded-xl px-4 text-base text-black mb-3"
+            placeholder="Description (optional)"
+            placeholderTextColor="#999999"
             value={newCardDesc}
             onChangeText={setNewCardDesc}
           />
-          <Button title="Create Invitation Card" onPress={createInviteCard} />
+          <Button
+            title="Create Invitation Card"
+            onPress={createInviteCard}
+            icon={<Feather name="plus" size={14} color="#ffffff" />}
+          />
         </View>
       )}
 
@@ -92,8 +108,9 @@ export default function InvitesScreen() {
             title="Generate P2P Code"
             onPress={() => {
               const code = generateP2pCode();
-              Alert.alert("P2P Code Generated", `Share this code: ${code}`);
+              Alert.alert("Code Generated", `Share this code: ${code}`);
             }}
+            icon={<Feather name="wifi" size={14} color="#ffffff" />}
           />
         </View>
       )}
@@ -104,8 +121,9 @@ export default function InvitesScreen() {
             title="Share Todo List"
             onPress={() => {
               const code = shareTodoList([]);
-              Alert.alert("Share Code Generated", `Code: ${code}\nShare this with a friend to share your todos.`);
+              Alert.alert("Share Code", `Share this code with a friend: ${code}`);
             }}
+            icon={<Feather name="share-2" size={14} color="#ffffff" />}
           />
         </View>
       )}
@@ -116,40 +134,60 @@ export default function InvitesScreen() {
         contentContainerClassName="px-4 pb-8"
         renderItem={({ item }) => (
           <Card className="mb-2">
-            <View className="flex-row justify-between items-start">
+            <View className="flex-row items-start gap-3">
+              <View className="w-9 h-9 bg-white rounded-full items-center justify-center">
+                <Feather
+                  name={item.type === "invite-card" ? "file-text" : item.type === "p2p-code" ? "wifi" : "share-2"}
+                  size={14}
+                  color="#000000"
+                />
+              </View>
               <View className="flex-1">
                 <Text className="text-sm font-medium text-black">{item.title}</Text>
                 {item.description && (
-                  <Text className="text-xs text-gray-500 mt-1">{item.description}</Text>
+                  <Text className="text-xs text-ink-500 mt-0.5">{item.description}</Text>
                 )}
                 {item.code && (
-                  <View className="bg-ink-100 px-3 py-1 rounded mt-2 self-start">
-                    <Text className="text-sm font-mono text-black">{item.code}</Text>
+                  <View className="bg-white px-3 py-1.5 rounded border border-ink-200 mt-2 self-start">
+                    <Text className="text-sm font-mono tracking-widest text-black">{item.code}</Text>
                   </View>
                 )}
-                <Text className="text-xs text-gray-400 mt-1">
-                  {new Date(item.createdAt).toLocaleDateString()} · {item.status}
-                </Text>
+                <View className="flex-row items-center gap-3 mt-2">
+                  <View className="flex-row items-center gap-1">
+                    <Feather name="clock" size={10} color="#cccccc" />
+                    <Text className="text-xs text-ink-300">
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Text className="text-xs text-ink-200">·</Text>
+                  <Text className="text-xs text-ink-300 capitalize">{item.status}</Text>
+                </View>
               </View>
-              <View className="flex-row gap-2">
+              <View className="gap-2">
                 <TouchableOpacity onPress={() => shareInvite(item)}>
-                  <Text className="text-black text-sm">Share</Text>
+                  <Feather name="share-2" size={14} color="#666666" />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => {
-                  Alert.alert("Delete Invite", "Delete this invite?", [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Delete", style: "destructive", onPress: () => deleteInvite(item.id) },
-                  ]);
-                }}>
-                  <Text className="text-red-500 text-sm">Delete</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert("Delete Invite", "Delete this invite?", [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Delete", style: "destructive", onPress: () => deleteInvite(item.id) },
+                    ]);
+                  }}
+                >
+                  <Feather name="trash-2" size={14} color="#999999" />
                 </TouchableOpacity>
               </View>
             </View>
           </Card>
         )}
         ListEmptyComponent={
-          <View className="items-center justify-center py-12">
-            <Text className="text-gray-400 text-base">No invites yet</Text>
+          <View className="items-center justify-center py-16">
+            <View className="w-14 h-14 bg-ink-100 rounded-full items-center justify-center mb-4">
+              <Feather name="send" size={20} color="#cccccc" />
+            </View>
+            <Text className="text-base text-ink-300">No invites yet</Text>
+            <Text className="text-xs text-ink-200 mt-1">Create one above</Text>
           </View>
         }
       />

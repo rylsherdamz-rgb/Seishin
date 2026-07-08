@@ -7,6 +7,7 @@ interface ButtonProps {
   onPress: () => void;
   variant?: Variant;
   disabled?: boolean;
+  icon?: React.ReactNode;
   className?: string;
 }
 
@@ -20,7 +21,7 @@ const variantStyles: Record<Variant, string> = {
 const textStyles: Record<Variant, string> = {
   primary: "text-white",
   secondary: "text-black",
-  ghost: "text-gray-500",
+  ghost: "text-ink-500",
   destructive: "text-white",
 };
 
@@ -29,6 +30,7 @@ export function Button({
   onPress,
   variant = "primary",
   disabled,
+  icon,
   className = "",
 }: ButtonProps) {
   return (
@@ -39,13 +41,16 @@ export function Button({
         variantStyles[variant]
       } ${disabled ? "opacity-40" : ""} ${className}`}
     >
-      <Text
-        className={`text-base font-medium ${textStyles[variant]} ${
-          variant === "ghost" ? "underline" : ""
-        }`}
-      >
-        {title}
-      </Text>
+      <View className="flex-row items-center gap-2">
+        {icon && icon}
+        {title ? (
+          <Text
+            className={`text-base font-medium ${textStyles[variant]}`}
+          >
+            {title}
+          </Text>
+        ) : null}
+      </View>
     </TouchableOpacity>
   );
 }

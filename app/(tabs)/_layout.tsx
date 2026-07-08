@@ -1,24 +1,5 @@
 import { Tabs } from "expo-router";
-import { View, Text } from "react-native";
-
-function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    calendar: "📅",
-    inbox: "📥",
-    scan: "📷",
-    agent: "🤖",
-    settings: "⚙️",
-    more: "📋",
-  };
-
-  return (
-    <View className="items-center justify-center">
-      <Text className={`text-xl ${focused ? "opacity-100" : "opacity-40"}`}>
-        {icons[name] || "●"}
-      </Text>
-    </View>
-  );
-}
+import Feather from "@expo/vector-icons/Feather";
 
 export default function TabLayout() {
   return (
@@ -29,15 +10,15 @@ export default function TabLayout() {
         tabBarInactiveTintColor: "#999999",
         tabBarStyle: {
           backgroundColor: "#ffffff",
-          borderTopColor: "#cccccc",
+          borderTopColor: "#e5e5e5",
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          height: 56,
+          paddingBottom: 6,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontFamily: undefined,
+          fontWeight: "500",
         },
       }}
     >
@@ -45,54 +26,42 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Calendar",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="calendar" focused={focused} />
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="calendar" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="inbox"
         options={{
           title: "Inbox",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="inbox" focused={focused} />
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="inbox" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="scan"
         options={{
           title: "Scan",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="scan" focused={focused} />
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="camera" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="agent"
         options={{
           title: "Agent",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="agent" focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="settings" focused={focused} />
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="cpu" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: "More",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="more" focused={focused} />
-          ),
+          tabBarIcon: ({ color, size }) => <Feather name="more-horizontal" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => <Feather name="settings" size={size} color={color} />,
         }}
       />
     </Tabs>

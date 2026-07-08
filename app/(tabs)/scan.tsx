@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image, Alert } from "react-native";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 import { recognizeText, cacheOcrResult, parseScheduleText } from "@/services/ocr";
 import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
+import Feather from "@expo/vector-icons/Feather";
 
 export default function ScanScreen() {
   const [uri, setUri] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export default function ScanScreen() {
       const text = await recognizeText(imageUri);
       setOcrText(text);
       cacheOcrResult(imageUri, text, []);
-    } catch (e) {
+    } catch {
       Alert.alert("OCR Failed", "Could not recognize text in this image.");
     } finally {
       setLoading(false);
@@ -41,7 +42,7 @@ export default function ScanScreen() {
   function saveToCalendar() {
     const parsed = parseScheduleText(ocrText);
     if (parsed.length === 0) {
-      Alert.alert("No events found", "Could not detect any dates/times in the text.");
+      Alert.alert("No Events Found", "Could not detect any dates or times in the text.");
       return;
     }
 
@@ -65,26 +66,34 @@ export default function ScanScreen() {
   return (
     <View className="flex-1 bg-white">
       <View className="pt-16 px-4 pb-4">
-        <Text className="text-2xl font-semibold text-black">Scan Schedule</Text>
+        <Text className="text-2xl font-semibold tracking-tight text-black">Scan Schedule</Text>
+        <Text className="text-sm text-ink-500 mt-0.5">
+          Capture or select an image to extract schedule data
+        </Text>
       </View>
 
       {!uri ? (
         <View className="flex-1 items-center justify-center px-8">
-          <Text className="text-base text-gray-500 text-center mb-8">
+          <View className="w-16 h-16 bg-ink-100 rounded-full items-center justify-center mb-6">
+            <Feather name="camera" size={24} color="#999999" />
+          </View>
+          <Text className="text-sm text-ink-500 text-center mb-8 max-w-[240px]">
             Take a photo of your schedule or choose from your gallery
           </Text>
 
           <TouchableOpacity
             onPress={() => pickImage(true)}
-            className="bg-black h-14 w-full items-center justify-center rounded-lg mb-4"
+            className="bg-black h-12 w-full items-center justify-center rounded-lg mb-3 flex-row gap-2"
           >
+            <Feather name="camera" size={16} color="#ffffff" />
             <Text className="text-white text-base font-medium">Take Photo</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => pickImage(false)}
-            className="bg-transparent border border-black h-14 w-full items-center justify-center rounded-lg"
+            className="bg-transparent border border-black h-12 w-full items-center justify-center rounded-lg flex-row gap-2"
           >
+            <Feather name="image" size={16} color="#000000" />
             <Text className="text-black text-base font-medium">Choose from Gallery</Text>
           </TouchableOpacity>
         </View>
@@ -100,13 +109,16 @@ export default function ScanScreen() {
 
           {loading ? (
             <View className="flex-1 items-center justify-center">
-              <Text className="text-base text-gray-500">Processing...</Text>
+              <Feather name="loader" size={24} color="#999999" />
+              <Text className="text-sm text-ink-500 mt-3">Processing image...</Text>
             </View>
           ) : (
             <View className="flex-1">
-              <Text className="text-sm text-gray-500 mb-2">Extracted Text:</Text>
-              <View className="flex-1 bg-ink-100 p-4 rounded-lg">
-                <Text className="text-sm text-black">
+              <Text className="text-xs font-medium text-ink-500 uppercase tracking-wider mb-2">
+                Extracted Text
+              </Text>
+              <View className="flex-1 bg-ink-100 rounded-lg p-4">
+                <Text className="text-sm text-black leading-5">
                   {ocrText || "No text detected"}
                 </Text>
               </View>
@@ -114,21 +126,29 @@ export default function ScanScreen() {
               <View className="flex-row gap-3 py-4">
                 <TouchableOpacity
                   onPress={() => { setUri(null); setOcrText(""); }}
-                  className="flex-1 h-12 items-center justify-center rounded-lg border border-black"
+                  className="flex-1 h-12 items-center justify-center rounded-lg border border-ink-200 flex-row gap-2"
                 >
-                  <Text className="text-black text-sm font-medium">Retake</Text>
+                  <Feather name="refresh-cw" size={14} color="#666666" />
+                  <Text className="text-ink-500 text-sm font-medium">Retake</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={saveToCalendar}
                   disabled={!ocrText}
-                  className={`flex-1 h-12 items-center justify-center rounded-lg ${
-                    ocrText ? "bg-black" : "bg-gray-200"
+                  className={`flex-1 h-12 items-center justify-center rounded-lg flex-row gap-2 ${
+                    ocrText ? "bg-black" : "bg-ink-200"
                   }`}
                 >
-                  <Text className={`text-sm font-medium ${
-                    ocrText ? "text-white" : "text-gray-500"
-                  }`}>
+                  <Feather
+                    name="calendar"
+                    size={14}
+                    color={ocrText ? "#ffffff" : "#999999"}
+                  />
+                  <Text
+                    className={`text-sm font-medium ${
+                      ocrText ? "text-white" : "text-ink-300"
+                    }`}
+                  >
                     Save to Calendar
                   </Text>
                 </TouchableOpacity>
