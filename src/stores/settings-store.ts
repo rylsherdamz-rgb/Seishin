@@ -71,7 +71,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   setModelPath: (path) => {
     if (path) settingsStorage.set("modelPath", path);
-    else settingsStorage.delete("modelPath");
+    else settingsStorage.remove("modelPath");
     set({ modelPath: path });
   },
 

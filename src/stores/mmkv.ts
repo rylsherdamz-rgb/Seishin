@@ -1,12 +1,12 @@
-import { MMKV } from "react-native-mmkv";
+import { createMMKV } from "react-native-mmkv";
 
-export const eventsStorage = new MMKV({ id: "events" });
-export const messagesStorage = new MMKV({ id: "messages" });
-export const emailsStorage = new MMKV({ id: "emails" });
-export const notificationsStorage = new MMKV({ id: "notifications" });
-export const agentStorage = new MMKV({ id: "agent" });
-export const settingsStorage = new MMKV({ id: "settings" });
-export const ocrStorage = new MMKV({ id: "ocr" });
+export const eventsStorage = createMMKV({ id: "events" });
+export const messagesStorage = createMMKV({ id: "messages" });
+export const emailsStorage = createMMKV({ id: "emails" });
+export const notificationsStorage = createMMKV({ id: "notifications" });
+export const agentStorage = createMMKV({ id: "agent" });
+export const settingsStorage = createMMKV({ id: "settings" });
+export const ocrStorage = createMMKV({ id: "ocr" });
 
 export function clearAllStorage() {
   eventsStorage.clearAll();
