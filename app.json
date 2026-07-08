@@ -26,6 +26,7 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
+      "expo-dev-client",
       "expo-mlkit-ocr",
       [
         "expo-camera",

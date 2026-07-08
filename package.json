@@ -9,6 +9,7 @@
     "expo-android-notification-listener-service": "^1.1.0",
     "expo-camera": "~57.0.1",
     "expo-constants": "~57.0.3",
+    "expo-dev-client": "~57.0.5",
     "expo-image-picker": "~57.0.2",
     "expo-linking": "~57.0.2",
     "expo-mlkit-ocr": "^0.2.7",
