@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { Card } from "@/components/ui/Card";
 import Feather from "@expo/vector-icons/Feather";
@@ -32,8 +33,8 @@ export default function InboxScreen() {
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <View className="pt-16 px-4 pb-2">
+    <SafeAreaView className="flex-1 bg-white">
+      <View className="px-4 pb-2">
         <View className="flex-row items-center justify-between mb-1">
           <View>
             <Text className="text-2xl font-semibold tracking-tight text-black">Inbox</Text>
@@ -133,6 +134,6 @@ export default function InboxScreen() {
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }

@@ -10,7 +10,7 @@ export interface InviteCard {
   todoId?: string;
   code?: string;
   peerId?: string;
-  status: "draft" | "sent" | "received" | "accepted" | "declined";
+  status: "draft" | "sent" | "received" | "accepted" | "declined" | "active";
   createdAt: string;
   expiresAt?: string;
   data: Record<string, string>;

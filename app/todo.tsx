@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack, router } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
 import { Card } from "@/components/ui/Card";
 import { Logo } from "@/components/Logo";
@@ -12,7 +14,9 @@ export default function TodoScreen() {
     todos, loadTodos, addTodo, toggleTodo, deleteTodo, clearCompleted, setFilter, getFilteredTodos, getStats,
   } = useTodoStore();
   const [newTitle, setNewTitle] = useState("");
+  const [newDueDate, setNewDueDate] = useState("");
   const [filter, localFilter] = useState<TodoFilter>("all");
+  const [showAdd, setShowAdd] = useState(false);
 
   useEffect(() => { loadTodos(); }, []);
 
@@ -22,6 +26,14 @@ export default function TodoScreen() {
   function handleAdd() {
     const title = newTitle.trim();
     if (!title) return;
+    const dueDateStr = newDueDate.trim();
+    let dueDate: string | undefined;
+    if (dueDateStr) {
+      const parsed = new Date(dueDateStr);
+      if (!isNaN(parsed.getTime())) {
+        dueDate = parsed.toISOString();
+      }
+    }
     addTodo({
       id: `todo-${Date.now()}`,
       title,
@@ -30,8 +42,11 @@ export default function TodoScreen() {
       category: "general",
       tags: [],
       createdAt: new Date().toISOString(),
+      dueDate,
     });
     setNewTitle("");
+    setNewDueDate("");
+    setShowAdd(false);
   }
 
   const priorityColors: Record<string, string> = {
@@ -41,32 +56,34 @@ export default function TodoScreen() {
   };
 
   return (
-    <View className="flex-1 bg-white">
-      <View className="pt-16 px-4 pb-2">
-        <View className="flex-row items-center justify-between">
-          <View className="flex-row items-center gap-3">
-            <Logo size={36} />
-            <View>
-              <Text className="text-2xl font-semibold tracking-tight text-black">Todo List</Text>
-              <Text className="text-sm text-ink-500 mt-0.5">
-                {stats.active} pending · {stats.completed} done
-              </Text>
-            </View>
+    <SafeAreaView className="flex-1 bg-white">
+      <Stack.Screen options={{ headerShown: false }} />
+      <View className="px-4 pb-2 flex-row items-center justify-between">
+        <View className="flex-row items-center gap-3">
+          <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+            <Feather name="arrow-left" size={16} color="#000000" />
+          </TouchableOpacity>
+          <Logo size={32} />
+          <View>
+            <Text className="text-xl font-semibold tracking-tight text-black">Todo List</Text>
+            <Text className="text-xs text-ink-500 mt-0.5">
+              {stats.active} pending · {stats.completed} done
+            </Text>
           </View>
-          {stats.completed > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                Alert.alert("Clear Completed", "Delete all completed todos?", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Clear", style: "destructive", onPress: clearCompleted },
-                ]);
-              }}
-              className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
-            >
-              <Feather name="check-circle" size={14} color="#666666" />
-            </TouchableOpacity>
-          )}
         </View>
+        {stats.completed > 0 && (
+          <TouchableOpacity
+            onPress={() => {
+              Alert.alert("Clear Completed", "Delete all completed todos?", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Clear", style: "destructive", onPress: clearCompleted },
+              ]);
+            }}
+            className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
+          >
+            <Feather name="check-circle" size={14} color="#666666" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View className="flex-row px-4 gap-2 mb-4">
@@ -85,24 +102,51 @@ export default function TodoScreen() {
         ))}
       </View>
 
-      <View className="px-4 mb-4">
-        <View className="flex-row gap-2">
+      <TouchableOpacity
+        onPress={() => setShowAdd(!showAdd)}
+        className="mx-4 mb-3 h-11 border-2 border-dashed border-ink-200 rounded-xl items-center justify-center flex-row gap-2"
+      >
+        <Feather name="plus" size={16} color="#999999" />
+        <Text className="text-sm text-ink-300 font-medium">Add Todo</Text>
+      </TouchableOpacity>
+
+      {showAdd && (
+        <Card className="mx-4 mb-4">
           <TextInput
-            className="flex-1 h-12 border border-ink-200 rounded-xl px-4 text-base text-black"
-            placeholder="Add a todo..."
+            className="h-11 border border-ink-200 rounded-lg px-3 text-sm text-black mb-2"
+            placeholder="What needs to be done?"
             placeholderTextColor="#999999"
             value={newTitle}
             onChangeText={setNewTitle}
             onSubmitEditing={handleAdd}
+            autoFocus
           />
-          <TouchableOpacity
-            onPress={handleAdd}
-            className="bg-black h-12 w-12 items-center justify-center rounded-xl"
-          >
-            <Feather name="plus" size={18} color="#ffffff" />
-          </TouchableOpacity>
-        </View>
-      </View>
+          <View className="flex-row items-center gap-2 mb-3">
+            <Feather name="calendar" size={14} color="#999999" />
+            <TextInput
+              className="flex-1 h-9 border border-ink-200 rounded-lg px-3 text-sm text-black"
+              placeholder="Due date (YYYY-MM-DD)"
+              placeholderTextColor="#999999"
+              value={newDueDate}
+              onChangeText={setNewDueDate}
+            />
+          </View>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => setShowAdd(false)}
+              className="flex-1 h-9 border border-ink-200 rounded-lg items-center justify-center"
+            >
+              <Text className="text-xs text-ink-500">Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleAdd}
+              className="flex-1 h-9 bg-black rounded-lg items-center justify-center"
+            >
+              <Text className="text-xs text-white font-medium">Add</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+      )}
 
       <FlatList
         data={filtered}
@@ -122,9 +166,9 @@ export default function TodoScreen() {
                 </Text>
                 {item.dueDate && (
                   <View className="flex-row items-center gap-1 mt-0.5">
-                    <Feather name="clock" size={10} color="#cccccc" />
+                    <Feather name="clock" size={10} color="#999999" />
                     <Text className="text-xs text-ink-300">
-                      {new Date(item.dueDate).toLocaleDateString()}
+                      {new Date(item.dueDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                     </Text>
                   </View>
                 )}
@@ -147,10 +191,10 @@ export default function TodoScreen() {
               <Feather name="check-square" size={20} color="#cccccc" />
             </View>
             <Text className="text-base text-ink-300">No todos yet</Text>
-            <Text className="text-xs text-ink-200 mt-1">Add one above</Text>
+            <Text className="text-xs text-ink-200 mt-1">Tap + to add one</Text>
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }

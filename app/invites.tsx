@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, Share } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack, router } from "expo-router";
 import { useInvitesStore, InviteCard } from "@/stores/invites-store";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -51,10 +53,14 @@ export default function InvitesScreen() {
   });
 
   return (
-    <View className="flex-1 bg-white">
-      <View className="pt-16 px-4 pb-2">
-        <Text className="text-2xl font-semibold tracking-tight text-black">Invites</Text>
-        <Text className="text-sm text-ink-500 mt-0.5">{invites.length} total</Text>
+    <SafeAreaView className="flex-1 bg-white">
+      <Stack.Screen options={{ headerShown: false }} />
+      <View className="px-4 pb-2 flex-row items-center gap-3">
+        <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+          <Feather name="arrow-left" size={16} color="#000000" />
+        </TouchableOpacity>
+        <Text className="text-xl font-semibold tracking-tight text-black">Invites</Text>
+        <Text className="text-xs text-ink-500">{invites.length} total</Text>
       </View>
 
       <View className="flex-row px-4 gap-2 mb-4">
@@ -191,6 +197,6 @@ export default function InvitesScreen() {
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }
