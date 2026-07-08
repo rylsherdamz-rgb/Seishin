@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
+import {
+  View, Text, TouchableOpacity, FlatList, Alert, Modal, TextInput,
+} from "react-native";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Calendar, LocaleConfig } from "react-native-calendars";
@@ -34,7 +40,7 @@ interface CalendarItem {
 }
 
 export default function CalendarScreen() {
-  const { events, selectedDate, loadEvents, deleteEvent, setSelectedDate, getEventsForDate } =
+  const { events, selectedDate, loadEvents, addEvent, deleteEvent, setSelectedDate } =
     useCalendarStore();
   const { todos, loadTodos, toggleTodo } = useTodoStore();
 
@@ -108,6 +114,80 @@ export default function CalendarScreen() {
     ]);
   }, [deleteEvent]);
 
+  const [showModal, setShowModal] = useState(false);
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDate, setEventDate] = useState(new Date());
+  const [eventTime, setEventTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  function resetForm() {
+    setEventTitle("");
+    setEventDate(new Date());
+    setEventTime(new Date());
+  }
+
+  function showAddOptions() {
+    Alert.alert("Add to Calendar", "Choose how to add", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Add Event", onPress: () => { resetForm(); setShowModal(true); } },
+      { text: "Add Todo", onPress: () => router.push("/todo") },
+      {
+        text: "Scan Image",
+        onPress: () => { resetForm(); pickImageForOcr(); },
+      },
+    ]);
+  }
+
+  async function pickImageForOcr() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1,
+    });
+    if (result.canceled) return;
+    const uri = result.assets[0].uri;
+    try {
+      const { recognizeText } = await import("@/services/ocr");
+      const text = await recognizeText(uri);
+      if (text.trim()) {
+        setEventTitle(text.slice(0, 120));
+        setShowModal(true);
+      } else {
+        Alert.alert("No text found", "Could not extract text from image.");
+      }
+    } catch {
+      Alert.alert("Error", "OCR failed. Try again.");
+    }
+  }
+
+  function onDateChange(_: DateTimePickerEvent, d?: Date) {
+    setShowDatePicker(false);
+    if (d) setEventDate(d);
+  }
+
+  function onTimeChange(_: DateTimePickerEvent, d?: Date) {
+    setShowTimePicker(false);
+    if (d) setEventTime(d);
+  }
+
+  function saveEvent() {
+    if (!eventTitle.trim()) {
+      Alert.alert("Missing title", "Enter an event title.");
+      return;
+    }
+    const start = new Date(eventDate);
+    start.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
+    const end = new Date(start.getTime() + 3600000);
+    addEvent({
+      id: `manual-${Date.now()}`,
+      title: eventTitle.trim(),
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      source: "manual",
+    });
+    setShowModal(false);
+    resetForm();
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="px-4 pb-2 flex-row items-center justify-between">
@@ -118,7 +198,7 @@ export default function CalendarScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => router.push("/todo")}
+          onPress={showAddOptions}
           className="w-10 h-10 bg-black rounded-full items-center justify-center"
         >
           <Feather name="plus" size={16} color="#ffffff" />
@@ -232,10 +312,75 @@ export default function CalendarScreen() {
           <View className="items-center justify-center py-16">
             <Feather name="calendar" size={32} color="#cccccc" />
             <Text className="text-base text-ink-300 mt-4">Nothing this day</Text>
-            <Text className="text-xs text-ink-200 mt-1">Tap + to add a todo</Text>
+            <Text className="text-xs text-ink-200 mt-1">Tap + to add an event or todo</Text>
           </View>
         }
       />
+
+      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="bg-white rounded-t-2xl px-5 pt-6 pb-10">
+            <View className="flex-row justify-between items-center mb-5">
+              <Text className="text-lg font-semibold text-black">New Event</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)}>
+                <Feather name="x" size={20} color="#999999" />
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-xs font-medium text-ink-400 mb-1.5">Title</Text>
+            <TextInput
+              className="h-11 bg-ink-100 rounded-xl px-4 text-sm text-black mb-4"
+              placeholder="Event title"
+              placeholderTextColor="#bbbbbb"
+              value={eventTitle}
+              onChangeText={setEventTitle}
+            />
+
+            <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              className="h-11 bg-ink-100 rounded-xl px-4 items-center flex-row mb-4"
+            >
+              <Feather name="calendar" size={14} color="#666666" />
+              <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={eventDate}
+                mode="date"
+                onChange={onDateChange}
+              />
+            )}
+
+            <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
+            <TouchableOpacity
+              onPress={() => setShowTimePicker(true)}
+              className="h-11 bg-ink-100 rounded-xl px-4 items-center flex-row mb-6"
+            >
+              <Feather name="clock" size={14} color="#666666" />
+              <Text className="text-sm text-black ml-2">
+                {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </Text>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={eventTime}
+                mode="time"
+                onChange={onTimeChange}
+              />
+            )}
+
+            <TouchableOpacity
+              onPress={saveEvent}
+              className="bg-black h-12 rounded-xl items-center justify-center"
+            >
+              <Text className="text-white text-sm font-semibold">Save Event</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
