@@ -26,7 +26,20 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "nativewind"
+      "nativewind",
+      "expo-mlkit-ocr",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Seishin to access your camera to scan schedules."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Seishin to access your photos for OCR scanning."
+        }
+      ]
     ]
   }
 }
