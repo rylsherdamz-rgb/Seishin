@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, Platform } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
@@ -14,7 +15,8 @@ export default function TodoScreen() {
     todos, loadTodos, addTodo, toggleTodo, deleteTodo, clearCompleted, setFilter, getFilteredTodos, getStats,
   } = useTodoStore();
   const [newTitle, setNewTitle] = useState("");
-  const [newDueDate, setNewDueDate] = useState("");
+  const [newDueDate, setNewDueDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [filter, localFilter] = useState<TodoFilter>("all");
   const [showAdd, setShowAdd] = useState(false);
 
@@ -26,14 +28,6 @@ export default function TodoScreen() {
   function handleAdd() {
     const title = newTitle.trim();
     if (!title) return;
-    const dueDateStr = newDueDate.trim();
-    let dueDate: string | undefined;
-    if (dueDateStr) {
-      const parsed = new Date(dueDateStr);
-      if (!isNaN(parsed.getTime())) {
-        dueDate = parsed.toISOString();
-      }
-    }
     addTodo({
       id: `todo-${Date.now()}`,
       title,
@@ -42,10 +36,10 @@ export default function TodoScreen() {
       category: "general",
       tags: [],
       createdAt: new Date().toISOString(),
-      dueDate,
+      dueDate: newDueDate ? newDueDate.toISOString() : undefined,
     });
     setNewTitle("");
-    setNewDueDate("");
+    setNewDueDate(null);
     setShowAdd(false);
   }
 
@@ -121,16 +115,31 @@ export default function TodoScreen() {
             onSubmitEditing={handleAdd}
             autoFocus
           />
-          <View className="flex-row items-center gap-2 mb-3">
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            className="flex-row items-center gap-2 mb-3 h-9 border border-ink-200 rounded-lg px-3"
+          >
             <Feather name="calendar" size={14} color="#999999" />
-            <TextInput
-              className="flex-1 h-9 border border-ink-200 rounded-lg px-3 text-sm text-black"
-              placeholder="Due date (YYYY-MM-DD)"
-              placeholderTextColor="#999999"
-              value={newDueDate}
-              onChangeText={setNewDueDate}
-            />
-          </View>
+            <Text className={`text-sm flex-1 ${newDueDate ? "text-black" : "text-ink-300"}`}>
+              {newDueDate
+                ? newDueDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
+                : "Set due date"}
+            </Text>
+            {newDueDate && (
+              <TouchableOpacity onPress={() => setNewDueDate(null)}>
+                <Feather name="x-circle" size={14} color="#cccccc" />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+          {showDatePicker && (
+            <View className="mb-3">
+              <DateTimePicker
+                value={newDueDate || new Date()}
+                mode="date"
+                onChange={(_, d) => { setShowDatePicker(false); if (d) setNewDueDate(d); }}
+              />
+            </View>
+          )}
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={() => setShowAdd(false)}
