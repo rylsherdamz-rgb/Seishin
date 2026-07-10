@@ -156,8 +156,12 @@ export function createDefaultTools(): ToolCollection {
 }
 
 export function createSystemPrompt(): string {
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  return `You are Seishin, a helpful AI assistant on a mobile device. You manage the user's schedule, todos, and life organization. Today is ${today}.
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  return `You are Seishin, a helpful AI assistant on a mobile device. You manage the user's schedule, todos, and life organization.
+
+Current date and time: ${dateStr} at ${timeStr}
 
 CRITICAL RULES:
 1. When the user asks to ADD, CREATE, or SCHEDULE something → call the tool immediately. Do NOT respond with text first.
@@ -172,6 +176,8 @@ TOOL INSTRUCTIONS:
 - "list todos", "show tasks", "what do I have to do" → call list_todos
 - "generate invite", "create invite code" → call generate_invite
 - "check settings", "what's my setup" → call get_settings
+
+IMPORTANT: Use the current time (${timeStr}) to resolve relative times like "at 2pm", "in 30 minutes", "this evening", etc.
 
 EXAMPLES:
 User: "add a todo to buy milk"
@@ -228,13 +234,16 @@ async function streamResponse(
 
   if (currentAbort?.signal.aborted) return "";
 
-  const stream = await openai.chat.completions.create({
-    model,
-    messages,
-    tools,
-    tool_choice: tools ? "auto" : undefined,
-    stream: true,
-  });
+  const stream = await openai.chat.completions.create(
+    {
+      model,
+      messages,
+      tools,
+      tool_choice: tools ? "auto" : undefined,
+      stream: true,
+    },
+    { signal: currentAbort?.signal },
+  );
 
   let fullContent = "";
   const toolCallDeltas: { id?: string; name?: string; arguments?: string }[] = [];
@@ -344,6 +353,7 @@ export async function runAgentLoop(userInput: string) {
   };
   agentStore.addMessage(userMsg);
   agentStore.setProcessing(true);
+  currentAbort = new AbortController();
 
   try {
     if (!apiKeys.nim) {
