@@ -96,7 +96,7 @@ export default function AgentScreen() {
             <View className="flex-row gap-2">
               <TouchableOpacity
                 onPress={() => setShowSkills(!showSkills)}
-                className={`w-9 h-9 rounded-xl items-center justify-center ${
+                className={`w-9 h-9 rounded-full items-center justify-center ${
                   showSkills ? "bg-black" : "bg-ink-100"
                 }`}
               >
@@ -104,7 +104,7 @@ export default function AgentScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push("/settings")}
-                className="w-9 h-9 bg-ink-100 rounded-xl items-center justify-center"
+                className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
               >
                 <Feather name="settings" size={14} color="#666666" />
               </TouchableOpacity>
@@ -115,7 +115,7 @@ export default function AgentScreen() {
                     { text: "Clear", style: "destructive", onPress: clearConversation },
                   ]);
                 }}
-                className="w-9 h-9 bg-ink-100 rounded-xl items-center justify-center"
+                className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
               >
                 <Feather name="trash-2" size={14} color="#666666" />
               </TouchableOpacity>
@@ -231,7 +231,7 @@ export default function AgentScreen() {
           )}
           ListEmptyComponent={
             <View className="items-center justify-center py-16 px-8">
-              <View className="w-14 h-14 bg-ink-100 rounded-xl items-center justify-center mb-4">
+              <View className="w-14 h-14 bg-ink-100 rounded-full items-center justify-center mb-4">
                 <Feather name="cpu" size={22} color="#cccccc" />
               </View>
               <Text className="text-base text-ink-300 text-center">Ask me anything</Text>

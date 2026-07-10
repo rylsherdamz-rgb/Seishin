@@ -246,6 +246,7 @@ async function streamResponse(
     agentStore.updateAssistantMessage(msgId, fullContent, toolCalls);
 
     const tools = createDefaultTools();
+    const summary: string[] = [];
     for (const call of toolCalls) {
       const tool = tools.getTool(call.name);
       if (!tool) continue;
@@ -253,6 +254,7 @@ async function streamResponse(
         const args = JSON.parse(call.arguments);
         console.log(`[Agent] Executing tool: ${call.name}`, args);
         const result = await tool.executeWithString(args);
+        summary.push(result);
         agentStore.addMessage({
           id: `tool-${Date.now()}`,
           role: "tool",
@@ -263,6 +265,7 @@ async function streamResponse(
         });
       } catch (e) {
         const errMsg = `Tool ${call.name} error: ${e instanceof Error ? e.message : "Unknown"}`;
+        summary.push(errMsg);
         agentStore.addMessage({
           id: `tool-err-${Date.now()}`,
           role: "tool",
@@ -274,20 +277,9 @@ async function streamResponse(
       }
     }
 
-    const followMsgs: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: createSystemPrompt() },
-      ...buildConversation(agentStore.messages.slice(-20)),
-    ];
-
-    const followMsgId = `msg-${Date.now()}-resp`;
-    agentStore.addMessage({
-      id: followMsgId,
-      role: "assistant",
-      content: "",
-      timestamp: new Date().toISOString(),
-    });
-
-    return streamResponse(openai, model, followMsgs, undefined, followMsgId);
+    const resultContent = summary.join("\n");
+    agentStore.updateAssistantMessage(msgId, resultContent);
+    return resultContent;
   }
 
   return fullContent;
