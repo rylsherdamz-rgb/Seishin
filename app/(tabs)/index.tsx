@@ -93,14 +93,31 @@ export default function CalendarScreen() {
     };
   }
 
-  const dayItems = allItems
-    .filter((item) => item.date === selectedDate)
+  const dayEvents = allItems
+    .filter((item) => item.date === selectedDate && item.type === "event")
     .sort((a, b) => {
       if (a.time && b.time) return a.time.localeCompare(b.time);
       if (a.time) return -1;
       if (b.time) return 1;
       return 0;
     });
+  const dayTodos = allItems
+    .filter((item) => item.date === selectedDate && item.type === "todo")
+    .sort((a, b) => {
+      if (a.priority === "high" && b.priority !== "high") return -1;
+      if (b.priority === "high" && a.priority !== "high") return 1;
+      return a.title.localeCompare(b.title);
+    });
+
+  const sections: ({ kind: "header"; title: string; icon: React.ComponentProps<typeof Feather>["name"]; count: number } | CalendarItem)[] = [];
+  if (dayEvents.length > 0) {
+    sections.push({ kind: "header", title: "Events", icon: "calendar", count: dayEvents.length });
+    sections.push(...dayEvents);
+  }
+  if (dayTodos.length > 0) {
+    sections.push({ kind: "header", title: "Todos", icon: "check-square", count: dayTodos.length });
+    sections.push(...dayTodos);
+  }
 
   const sourceIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
     manual: "edit-2", ocr: "camera", email: "mail",
@@ -245,11 +262,22 @@ export default function CalendarScreen() {
       </View>
 
       <FlatList
-        data={dayItems}
-        keyExtractor={(item) => item.id}
+        data={sections}
+        keyExtractor={(item) => ("kind" in item ? `header-${item.title}` : item.id)}
         contentContainerClassName="px-4 pb-8"
-        renderItem={({ item }) =>
-          item.type === "event" ? (
+        renderItem={({ item }) => {
+          if ("kind" in item) {
+            return (
+              <View className="flex-row items-center gap-2 pt-4 pb-2">
+                <View className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center">
+                  <Feather name={item.icon} size={12} color="#666666" />
+                </View>
+                <Text className="text-sm font-semibold text-black flex-1">{item.title}</Text>
+                <Text className="text-xs text-ink-300">{item.count}</Text>
+              </View>
+            );
+          }
+          return item.type === "event" ? (
             <Card className="flex-row items-center gap-4 mb-2">
               <View className="w-10 h-10 bg-white rounded-full items-center justify-center">
                 <Feather
@@ -306,8 +334,8 @@ export default function CalendarScreen() {
                 </View>
               </Card>
             </TouchableOpacity>
-          )
-        }
+          );
+        }}
         ListEmptyComponent={
           <View className="items-center justify-center py-16">
             <Feather name="calendar" size={32} color="#cccccc" />
