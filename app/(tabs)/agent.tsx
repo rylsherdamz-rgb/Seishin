@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
-import { runAgentLoop } from "@/services/agent-engine";
+import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
 import Feather from "@expo/vector-icons/Feather";
 
 const INITIAL_SUGGESTIONS = [
@@ -267,15 +267,24 @@ export default function AgentScreen() {
               onSubmitEditing={handleSend}
               editable={!isProcessing}
             />
-            <TouchableOpacity
-              onPress={handleSend}
-              disabled={!input.trim() || isProcessing}
-              className={`h-12 w-12 items-center justify-center rounded-xl ${
-                input.trim() && !isProcessing ? "bg-black" : "bg-ink-200"
-              }`}
-            >
-              <Feather name="arrow-up" size={18} color={input.trim() && !isProcessing ? "#ffffff" : "#cccccc"} />
-            </TouchableOpacity>
+            {isProcessing ? (
+              <TouchableOpacity
+                onPress={stopAgentLoop}
+                className="h-12 w-12 items-center justify-center rounded-xl bg-danger"
+              >
+                <View className="w-4 h-4 bg-white rounded-sm" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleSend}
+                disabled={!input.trim()}
+                className={`h-12 w-12 items-center justify-center rounded-xl ${
+                  input.trim() ? "bg-black" : "bg-ink-200"
+                }`}
+              >
+                <Feather name="arrow-up" size={18} color={input.trim() ? "#ffffff" : "#cccccc"} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>

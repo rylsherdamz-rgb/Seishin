@@ -6,6 +6,14 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useInvitesStore } from "@/stores/invites-store";
 import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
 
+let currentAbort: AbortController | null = null;
+
+export function stopAgentLoop() {
+  currentAbort?.abort();
+  currentAbort = null;
+  useAgentStore.getState().setProcessing(false);
+}
+
 class AddEventTool extends BaseTool {
   name = "add_event";
   description = "Add an event to the calendar";
@@ -148,18 +156,35 @@ export function createDefaultTools(): ToolCollection {
 }
 
 export function createSystemPrompt(): string {
-  return `You are Seishin, an AI assistant on a mobile device. You manage the user's schedule, todos, and life organization.
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  return `You are Seishin, a helpful AI assistant on a mobile device. You manage the user's schedule, todos, and life organization. Today is ${today}.
 
-Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.
+CRITICAL RULES:
+1. When the user asks to ADD, CREATE, or SCHEDULE something → call the tool immediately. Do NOT respond with text first.
+2. When the user asks to LIST, SHOW, or VIEW something → call the tool immediately.
+3. After a tool runs, its result will be shown. Do NOT try to respond again — the result IS the response.
+4. NEVER refuse to call a tool. If the user asks, you call it.
 
-You have tools to manage events and todos. ALWAYS use the appropriate tool when the user asks you to:
-- Create an event → call add_event
-- List events → call list_events
-- Add a task → call add_todo
-- List tasks → call list_todos
-- Generate invite → call generate_invite
+TOOL INSTRUCTIONS:
+- "add a todo", "create a task", "remember to..." → call add_todo with a clear title
+- "add event", "schedule meeting", "create calendar entry" → call add_event with date/time
+- "what events", "show calendar", "what's on my schedule" → call list_events
+- "list todos", "show tasks", "what do I have to do" → call list_todos
+- "generate invite", "create invite code" → call generate_invite
+- "check settings", "what's my setup" → call get_settings
 
-Be concise. After using a tool, confirm what was done.`;
+EXAMPLES:
+User: "add a todo to buy milk"
+Assistant: [calls add_todo with title="buy milk"]
+
+User: "what events do I have"
+Assistant: [calls list_events]
+
+User: "schedule a team meeting tomorrow at 2pm"
+Assistant: [calls add_event with title="Team Meeting", date/time info]
+
+User: "hello"
+Assistant: "Hi! How can I help you today?"`;
 }
 
 function buildConversation(messages: AgentMessage[]): OpenAI.ChatCompletionMessageParam[] {
@@ -201,6 +226,8 @@ async function streamResponse(
 ): Promise<string> {
   const agentStore = useAgentStore.getState();
 
+  if (currentAbort?.signal.aborted) return "";
+
   const stream = await openai.chat.completions.create({
     model,
     messages,
@@ -213,6 +240,8 @@ async function streamResponse(
   const toolCallDeltas: { id?: string; name?: string; arguments?: string }[] = [];
 
   for await (const chunk of stream) {
+    if (currentAbort?.signal.aborted) break;
+
     const delta = chunk.choices?.[0]?.delta;
     if (!delta) continue;
 
