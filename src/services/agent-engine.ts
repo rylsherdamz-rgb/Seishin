@@ -225,11 +225,111 @@ function buildConversation(messages: AgentMessage[]): OpenAI.ChatCompletionMessa
   return result;
 }
 
+async function streamResponse(
+  openai: OpenAI,
+  model: string,
+  messages: OpenAI.ChatCompletionMessageParam[],
+  tools: OpenAI.ChatCompletionTool[] | undefined,
+  msgId: string,
+): Promise<string> {
+  const agentStore = useAgentStore.getState();
+
+  const stream = await openai.chat.completions.create({
+    model,
+    messages,
+    tools,
+    tool_choice: tools ? "auto" : undefined,
+    stream: true,
+  });
+
+  let fullContent = "";
+  let toolCallDeltas: { id?: string; name?: string; arguments?: string }[] = [];
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices?.[0]?.delta;
+    if (!delta) continue;
+
+    if (delta.content) {
+      fullContent += delta.content;
+      agentStore.updateAssistantMessage(msgId, fullContent);
+    }
+
+    if (delta.tool_calls) {
+      for (const tc of delta.tool_calls) {
+        const idx = tc.index || 0;
+        if (!toolCallDeltas[idx]) toolCallDeltas[idx] = {};
+        if (tc.id) toolCallDeltas[idx].id = tc.id;
+        if (tc.function?.name) toolCallDeltas[idx].name = tc.function.name;
+        if (tc.function?.arguments) {
+          toolCallDeltas[idx].arguments = (toolCallDeltas[idx].arguments || "") + tc.function.arguments;
+        }
+      }
+    }
+  }
+
+  const toolCalls = toolCallDeltas
+    .filter((t) => t.name && t.arguments)
+    .map((t) => ({
+      id: t.id!,
+      name: t.name!,
+      arguments: t.arguments!,
+    }));
+
+  if (toolCalls.length > 0) {
+    agentStore.updateAssistantMessage(msgId, fullContent, toolCalls);
+
+    const registry = createDefaultTools();
+    for (const call of toolCalls) {
+      const tool = registry.get(call.name);
+      if (!tool) continue;
+      try {
+        const args = JSON.parse(call.arguments);
+        console.log(`[Agent] Executing tool: ${call.name}`, args);
+        const result = await tool.execute(args);
+        agentStore.addMessage({
+          id: `tool-${Date.now()}`,
+          role: "tool",
+          content: result,
+          timestamp: new Date().toISOString(),
+          toolName: call.name,
+          toolCallId: call.id,
+        });
+      } catch (e) {
+        const errMsg = `Tool ${call.name} error: ${e instanceof Error ? e.message : "Unknown"}`;
+        agentStore.addMessage({
+          id: `tool-err-${Date.now()}`,
+          role: "tool",
+          content: errMsg,
+          timestamp: new Date().toISOString(),
+          toolName: call.name,
+          toolCallId: call.id,
+        });
+      }
+    }
+
+    const followMsgs: OpenAI.ChatCompletionMessageParam[] = [
+      { role: "system", content: createSystemPrompt(createDefaultTools()) },
+      ...buildConversation(agentStore.messages.slice(-20)),
+    ];
+
+    const followMsgId = `msg-${Date.now()}-resp`;
+    agentStore.addMessage({
+      id: followMsgId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date().toISOString(),
+    });
+
+    return streamResponse(openai, model, followMsgs, undefined, followMsgId);
+  }
+
+  return fullContent;
+}
+
 export async function runAgentLoop(userInput: string) {
   const agentStore = useAgentStore.getState();
-  const { apiKeys, nimEndpoint } = useSettingsStore.getState();
+  const { apiKeys, nimEndpoint, nimModel } = useSettingsStore.getState();
   const { currentProvider } = agentStore;
-  const registry = createDefaultTools();
 
   if (currentProvider === "local") {
     agentStore.addMessage({
@@ -238,14 +338,13 @@ export async function runAgentLoop(userInput: string) {
       content: userInput,
       timestamp: new Date().toISOString(),
     });
-    agentStore.setProcessing(true);
+    agentStore.setProcessing(false);
     agentStore.addMessage({
       id: `msg-${Date.now()}-local`,
       role: "assistant",
-      content: "Local GGUF mode not yet implemented. Switch to NVIDIA NIM or configure a GGUF model.",
+      content: "Local GGUF mode not yet available. Switch to NVIDIA NIM or configure a GGUF model.",
       timestamp: new Date().toISOString(),
     });
-    agentStore.setProcessing(false);
     return;
   }
 
@@ -268,6 +367,7 @@ export async function runAgentLoop(userInput: string) {
       apiKey: apiKeys.nim,
     });
 
+    const registry = createDefaultTools();
     const tools = registry.toOpenAITools();
 
     const history = agentStore.messages.slice(-20);
@@ -276,110 +376,17 @@ export async function runAgentLoop(userInput: string) {
       ...buildConversation(history),
     ];
 
-    console.log("[Agent] Sending to NIM:", JSON.stringify({ model: "meta/llama-3.2-3b-instruct", messages: conversation.length, tools: tools.length }));
+    console.log(`[Agent] Streaming to NIM model=${nimModel} msgs=${conversation.length} tools=${tools.length}`);
 
-    const response = await openai.chat.completions.create({
-      model: "meta/llama-3.2-3b-instruct",
-      messages: conversation,
-      tools,
-      tool_choice: "auto",
-    });
-
-    const choice = response.choices[0];
-    const msg = choice.message;
-
-    console.log("[Agent] Response:", msg.tool_calls ? `tool_calls: ${msg.tool_calls.length}` : `content: ${(msg.content || "").slice(0, 100)}`);
-
-    if (msg.tool_calls && msg.tool_calls.length > 0) {
-      const toolCallsData = msg.tool_calls
-        .filter((c) => c.type === "function")
-        .map((c) => ({
-          id: c.id,
-          name: c.function.name,
-          arguments: c.function.arguments,
-        }));
-
-      agentStore.addMessage({
-        id: `msg-${Date.now()}-asst`,
-        role: "assistant",
-        content: msg.content || "",
-        timestamp: new Date().toISOString(),
-        toolCalls: toolCallsData,
-      });
-
-      const toolMessages: OpenAI.ChatCompletionToolMessageParam[] = [];
-
-      for (const call of msg.tool_calls) {
-        if (call.type !== "function") continue;
-        const fnName = call.function.name;
-        const tool = registry.get(fnName);
-        if (tool) {
-          try {
-            const args = JSON.parse(call.function.arguments || "{}");
-            console.log(`[Agent] Executing tool: ${fnName}`, args);
-            const result = await tool.execute(args);
-            agentStore.addMessage({
-              id: `tool-${Date.now()}`,
-              role: "tool",
-              content: result,
-              timestamp: new Date().toISOString(),
-              toolName: tool.name,
-              toolCallId: call.id,
-            });
-            toolMessages.push({
-              role: "tool",
-              tool_call_id: call.id,
-              content: result,
-            });
-          } catch (e) {
-            const errMsg = `Tool ${fnName} error: ${e instanceof Error ? e.message : "Unknown"}`;
-            agentStore.addMessage({
-              id: `tool-err-${Date.now()}`,
-              role: "tool",
-              content: errMsg,
-              timestamp: new Date().toISOString(),
-              toolName: fnName,
-              toolCallId: call.id,
-            });
-            toolMessages.push({
-              role: "tool",
-              tool_call_id: call.id,
-              content: errMsg,
-            });
-          }
-        }
-      }
-
-      const followMsgs: OpenAI.ChatCompletionMessageParam[] = [
-        { role: "system", content: createSystemPrompt(registry) },
-        ...buildConversation(agentStore.messages.slice(-20)),
-      ];
-
-      console.log(`[Agent] Follow-up with ${followMsgs.length} messages`);
-
-      const followUp = await openai.chat.completions.create({
-        model: "meta/llama-3.2-3b-instruct",
-        messages: followMsgs,
-      });
-
-      const finalContent = followUp.choices[0]?.message?.content || "Done.";
-      agentStore.addMessage({
-        id: `msg-${Date.now()}-resp`,
-        role: "assistant",
-        content: finalContent,
-        timestamp: new Date().toISOString(),
-      });
-      return finalContent;
-    }
-
-    const content = msg.content || "No response generated.";
+    const msgId = `msg-${Date.now()}-asst`;
     agentStore.addMessage({
-      id: `msg-${Date.now()}-resp`,
+      id: msgId,
       role: "assistant",
-      content,
+      content: "",
       timestamp: new Date().toISOString(),
     });
-    return content;
+
+    await streamResponse(openai, nimModel, conversation, tools, msgId);
   } catch (e) {
     console.error("[Agent] Error:", e);
     const errorMsg = e instanceof Error ? e.message : "Unknown error occurred";
@@ -389,7 +396,6 @@ export async function runAgentLoop(userInput: string) {
       content: errorMsg,
       timestamp: new Date().toISOString(),
     });
-    return errorMsg;
   } finally {
     agentStore.setProcessing(false);
   }

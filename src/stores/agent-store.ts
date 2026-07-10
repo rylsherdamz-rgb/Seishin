@@ -41,6 +41,7 @@ interface AgentState {
   removeSkill: (name: string) => void;
   clearConversation: () => void;
   setProcessing: (v: boolean) => void;
+  updateAssistantMessage: (id: string, content: string, toolCalls?: ToolCallData[]) => void;
 }
 
 const MESSAGES_KEY = "conversation";
@@ -91,4 +92,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   },
 
   setProcessing: (v) => set({ isProcessing: v }),
+
+  updateAssistantMessage: (id: string, content: string, toolCalls?: ToolCallData[]) => {
+    const messages = get().messages.map((m) =>
+      m.id === id ? { ...m, content, ...(toolCalls ? { toolCalls } : {}) } : m
+    );
+    set({ messages });
+  },
 }));

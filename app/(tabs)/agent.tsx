@@ -46,7 +46,7 @@ export default function AgentScreen() {
     messages, currentProvider, installedSkills, isProcessing,
     load, setProvider, removeSkill, clearConversation,
   } = useAgentStore();
-  const { apiKeys, loadSettings } = useSettingsStore();
+  const { apiKeys, nimModel, nimEndpoint, loadSettings } = useSettingsStore();
   const [input, setInput] = useState("");
   const [showSkills, setShowSkills] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -122,7 +122,7 @@ export default function AgentScreen() {
             </View>
           </View>
 
-          <View className="flex-row gap-2">
+          <View className="flex-row gap-2 items-center">
             {(["local", "nim"] as const).map((p) => (
               <TouchableOpacity
                 key={p}
@@ -139,6 +139,16 @@ export default function AgentScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+            {currentProvider === "nim" && (
+              <TouchableOpacity
+                onPress={() => router.push("/settings")}
+                className="px-2.5 py-1 rounded-full bg-ink-100"
+              >
+                <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
+                  {nimModel.split("/").pop() || "model"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

@@ -19,6 +19,7 @@ interface SettingsState {
     nim: string;
   };
   nimEndpoint: string;
+  nimModel: string;
   modelPath: string | null;
   cleanupPolicies: CleanupPolicy;
   notificationFilter: string[];
@@ -27,6 +28,7 @@ interface SettingsState {
   setEmailConfig: (config: SettingsState["emailConfig"]) => void;
   setApiKey: (provider: "nim", key: string) => void;
   setNimEndpoint: (endpoint: string) => void;
+  setNimModel: (model: string) => void;
   setModelPath: (path: string | null) => void;
   setCleanupPolicies: (policies: Partial<CleanupPolicy>) => void;
   setNotificationFilter: (packages: string[]) => void;
@@ -43,6 +45,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   emailConfig: null,
   apiKeys: { nim: "" },
   nimEndpoint: "https://integrate.api.nvidia.com/v1",
+  nimModel: "meta/llama-3.2-1b-instruct",
   modelPath: null,
   cleanupPolicies: DEFAULT_CLEANUP,
   notificationFilter: [],
@@ -51,6 +54,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const emailRaw = settingsStorage.getString("emailConfig");
     const apiKeysRaw = settingsStorage.getString("apiKeys");
     const nimEndpoint = settingsStorage.getString("nimEndpoint");
+    const nimModel = settingsStorage.getString("nimModel");
     const modelPath = settingsStorage.getString("modelPath");
     const cleanupRaw = settingsStorage.getString("cleanupPolicies");
     const notifFilterRaw = settingsStorage.getString("notificationFilter");
@@ -58,6 +62,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (emailRaw) set({ emailConfig: JSON.parse(emailRaw) });
     if (apiKeysRaw) set({ apiKeys: JSON.parse(apiKeysRaw) });
     if (nimEndpoint) set({ nimEndpoint });
+    if (nimModel) set({ nimModel });
     if (modelPath) set({ modelPath });
     if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
     if (notifFilterRaw) set({ notificationFilter: JSON.parse(notifFilterRaw) });
@@ -77,6 +82,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setNimEndpoint: (endpoint) => {
     settingsStorage.set("nimEndpoint", endpoint);
     set({ nimEndpoint: endpoint });
+  },
+
+  setNimModel: (model) => {
+    settingsStorage.set("nimModel", model);
+    set({ nimModel: model });
   },
 
   setModelPath: (path) => {
