@@ -41,18 +41,18 @@ function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
     <View className="flex-1 bg-white">
       <View className="flex-1 items-center justify-center px-8">
         {step === 0 ? (
-          <Animated.View entering={FadeInDown.springify().damping(12)}>
+          <Animated.View entering={FadeInDown.duration(400)}>
             <Logo size={80} />
           </Animated.View>
         ) : (
-          <Animated.View key={step} entering={FadeInDown.springify().damping(12)} className="w-20 h-20 bg-ink-100 rounded-full items-center justify-center mb-6">
+          <Animated.View key={step} entering={FadeInDown.duration(400)} className="w-20 h-20 bg-ink-100 rounded-full items-center justify-center mb-6">
             <Feather name={page.icon} size={32} color="#000000" />
           </Animated.View>
         )}
-        <Animated.Text key={`title-${step}`} entering={FadeInDown.delay(100).springify().damping(12)} className="text-2xl font-semibold tracking-tight text-black text-center mt-6">
+        <Animated.Text key={`title-${step}`} entering={FadeInDown.delay(100).duration(350)} className="text-2xl font-semibold tracking-tight text-black text-center mt-6">
           {page.title}
         </Animated.Text>
-        <Animated.Text key={`desc-${step}`} entering={FadeInDown.delay(200).springify().damping(12)} className="text-base text-ink-500 text-center mt-3 leading-6">
+        <Animated.Text key={`desc-${step}`} entering={FadeInDown.delay(200).duration(350)} className="text-base text-ink-500 text-center mt-3 leading-6">
           {page.desc}
         </Animated.Text>
         <View className="flex-row gap-2 mt-12">

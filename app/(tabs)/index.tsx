@@ -199,7 +199,7 @@ export default function CalendarScreen() {
         </View>
         <TouchableOpacity
           onPress={showAddOptions}
-          className="w-10 h-10 bg-black rounded-full items-center justify-center"
+          className="w-9 h-9 bg-black rounded-full items-center justify-center"
         >
           <Feather name="plus" size={16} color="#ffffff" />
         </TouchableOpacity>
@@ -376,7 +376,7 @@ export default function CalendarScreen() {
               onPress={saveEvent}
               className="bg-black h-12 rounded-xl items-center justify-center"
             >
-              <Text className="text-white text-sm font-semibold">Save Event</Text>
+              <Text className="text-white text-base font-medium">Save Event</Text>
             </TouchableOpacity>
           </View>
         </View>

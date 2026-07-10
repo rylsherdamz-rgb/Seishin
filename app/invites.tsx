@@ -59,7 +59,7 @@ export default function InvitesScreen() {
         <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
           <Feather name="arrow-left" size={16} color="#000000" />
         </TouchableOpacity>
-        <Text className="text-xl font-semibold tracking-tight text-black flex-1">Invites</Text>
+        <Text className="text-2xl font-semibold tracking-tight text-black flex-1">Invites</Text>
         <Text className="text-xs text-ink-500">{invites.length} total</Text>
       </View>
 

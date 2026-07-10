@@ -59,8 +59,8 @@ export default function TodoScreen() {
           </TouchableOpacity>
           <Logo size={32} />
           <View>
-            <Text className="text-xl font-semibold tracking-tight text-black">Todo List</Text>
-            <Text className="text-xs text-ink-500 mt-0.5">
+            <Text className="text-2xl font-semibold tracking-tight text-black">Todo List</Text>
+            <Text className="text-sm text-ink-500 mt-0.5">
               {stats.active} pending · {stats.completed} done
             </Text>
           </View>
@@ -143,15 +143,15 @@ export default function TodoScreen() {
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={() => setShowAdd(false)}
-              className="flex-1 h-9 border border-ink-200 rounded-lg items-center justify-center"
+              className="flex-1 h-12 border border-ink-200 rounded-lg items-center justify-center"
             >
-              <Text className="text-xs text-ink-500">Cancel</Text>
+              <Text className="text-base text-ink-500 font-medium">Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAdd}
-              className="flex-1 h-9 bg-black rounded-lg items-center justify-center"
+              className="flex-1 h-12 bg-black rounded-lg items-center justify-center"
             >
-              <Text className="text-xs text-white font-medium">Add</Text>
+              <Text className="text-base text-white font-medium">Add</Text>
             </TouchableOpacity>
           </View>
         </Card>

@@ -157,7 +157,7 @@ export default function SettingsScreen() {
             <Card className="mb-4">
               <Text className="text-xs font-semibold text-ink-400 mb-2">NVIDIA NIM API Key</Text>
               <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-xl px-4 text-sm text-black mb-2"
+                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
                 placeholder="Enter your NVIDIA NIM key..."
                 placeholderTextColor="#bbbbbb"
                 value={nimKey}
@@ -168,7 +168,7 @@ export default function SettingsScreen() {
               />
               <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">NIM Endpoint</Text>
               <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-xl px-4 text-sm text-black mb-2"
+                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
                 placeholder="https://integrate.api.nvidia.com/v1"
                 placeholderTextColor="#bbbbbb"
                 value={nimEp}
@@ -178,7 +178,7 @@ export default function SettingsScreen() {
               />
               <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Model</Text>
               <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-xl px-4 text-sm text-black mb-2"
+                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
                 placeholder="meta/llama-3.2-1b-instruct"
                 placeholderTextColor="#bbbbbb"
                 value={nimMd}
@@ -186,15 +186,15 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <TouchableOpacity onPress={saveNimConfig} className="bg-black h-9 px-5 rounded-xl items-center justify-center self-end">
-                <Text className="text-white text-xs font-semibold">Save</Text>
+              <TouchableOpacity onPress={saveNimConfig} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
+                <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
 
               <View className="h-px bg-ink-100 my-4" />
 
               <Text className="text-xs font-semibold text-ink-400 mb-2">Local GGUF Model Path</Text>
               <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-xl px-4 text-sm text-black mb-2"
+                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
                 placeholder="/path/to/model.gguf"
                 placeholderTextColor="#bbbbbb"
                 value={ggufPath}
@@ -202,8 +202,8 @@ export default function SettingsScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <TouchableOpacity onPress={saveModelPath} className="bg-black h-9 px-5 rounded-xl items-center justify-center self-end">
-                <Text className="text-white text-xs font-semibold">Save</Text>
+              <TouchableOpacity onPress={saveModelPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
+                <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
             </Card>
           )}
