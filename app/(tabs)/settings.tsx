@@ -331,6 +331,9 @@ export default function SettingsScreen() {
           />
 
           <SectionHeader title="Auto-Cleanup" />
+          <Card className="mb-4">
+            <Text className="text-xs text-ink-500 mb-2">Auto-delete items older than the set number of days.</Text>
+          </Card>
           <Card className="mb-4 p-0 overflow-hidden">
             {([
               { label: "Notifications", key: "notificationsDays" as const },
@@ -350,6 +353,7 @@ export default function SettingsScreen() {
                   <Text className="text-sm font-semibold text-black w-7 text-center">
                     {cleanupPolicies[key]}
                   </Text>
+                  <Text className="text-xs text-ink-400 w-9">days</Text>
                   <TouchableOpacity
                     onPress={() => setCleanupPolicies({ [key]: Math.min(365, cleanupPolicies[key] + 1) })}
                     className="w-7 h-7 bg-ink-100 rounded-lg items-center justify-center"
