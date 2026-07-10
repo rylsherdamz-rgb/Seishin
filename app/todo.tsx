@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
 import { Card } from "@/components/ui/Card";
+import { ItemSheet } from "@/components/ItemSheet";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
 
@@ -19,6 +20,7 @@ export default function TodoScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [filter, localFilter] = useState<TodoFilter>("all");
   const [showAdd, setShowAdd] = useState(false);
+  const [sheetItem, setSheetItem] = useState<Todo | null>(null);
 
   useEffect(() => { loadTodos(); }, []);
 
@@ -162,13 +164,16 @@ export default function TodoScreen() {
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8"
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => toggleTodo(item.id)}>
+          <TouchableOpacity onPress={() => setSheetItem(item)}>
             <Card className="flex-row items-center gap-3 mb-2">
-              <View className={`w-5 h-5 rounded-sm border-2 items-center justify-center ${
-                item.completed ? "bg-black border-black" : "border-ink-300"
-              }`}>
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation(); toggleTodo(item.id); }}
+                className={`w-5 h-5 rounded-sm border-2 items-center justify-center ${
+                  item.completed ? "bg-black border-black" : "border-ink-300"
+                }`}
+              >
                 {item.completed && <Feather name="check" size={10} color="#ffffff" />}
-              </View>
+              </TouchableOpacity>
               <View className="flex-1">
                 <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
                   {item.title}
@@ -185,12 +190,7 @@ export default function TodoScreen() {
               <Text className={`text-xs font-medium ${priorityColors[item.priority]}`}>
                 {item.priority}
               </Text>
-              <TouchableOpacity
-                onPress={(e) => { e.stopPropagation(); deleteTodo(item.id); }}
-                className="w-8 h-8 items-center justify-center"
-              >
-                <Feather name="x" size={14} color="#cccccc" />
-              </TouchableOpacity>
+              <Feather name="chevron-up" size={14} color="#d0d0d0" />
             </Card>
           </TouchableOpacity>
         )}
@@ -204,6 +204,22 @@ export default function TodoScreen() {
           </View>
         }
       />
+
+      {sheetItem && (
+        <ItemSheet
+          todo={{
+            id: sheetItem.id,
+            title: sheetItem.title,
+            date: sheetItem.dueDate?.split("T")[0],
+            priority: sheetItem.priority,
+            completed: sheetItem.completed,
+            todoId: sheetItem.id,
+          }}
+          onTodoToggle={(id) => { toggleTodo(id); setSheetItem(null); }}
+          onTodoDelete={(id) => { deleteTodo(id); setSheetItem(null); }}
+          onClose={() => setSheetItem(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, withDelay, Easing, FadeInDown, FadeIn } from "react-native-reanimated";
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
@@ -176,13 +177,15 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
-        <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
-      </Stack>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
+        </Stack>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
