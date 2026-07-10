@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput } from "react-native";
+import { useState, useEffect, useCallback } from "react";
+import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput, Modal, FlatList, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import * as DocumentPicker from "expo-document-picker";
 import { useSettingsStore } from "@/stores/settings-store";
 import {
   getStorageSizes, clearAllStorage,
@@ -45,7 +46,7 @@ function MenuRow({
 }) {
   return (
     <TouchableOpacity disabled={!onPress} onPress={onPress} className="flex-row items-center gap-3 py-3.5 border-b border-ink-100 active:opacity-60">
-      <View className="w-9 h-9 bg-ink-100 rounded-xl items-center justify-center">
+      <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
         <Feather name={icon} size={14} color="#000000" />
       </View>
       <View className="flex-1">
@@ -69,6 +70,13 @@ export default function SettingsScreen() {
   const [showAiConfig, setShowAiConfig] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
 
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [models, setModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelSearch, setModelSearch] = useState("");
+
+  const [ggufFileName, setGgufFileName] = useState("");
+
   useEffect(() => {
     loadSettings();
     setSizes(getStorageSizes());
@@ -80,6 +88,10 @@ export default function SettingsScreen() {
     setNimEp(nimEndpoint);
     setNimMd(nimModel);
     setGgufPath(modelPath || "");
+    if (modelPath) {
+      const parts = modelPath.split("/");
+      setGgufFileName(parts[parts.length - 1] || "");
+    }
   }, [apiKeys.nim, nimEndpoint, nimModel, modelPath]);
 
   function confirmClear(title: string, onClear: () => void) {
@@ -116,6 +128,47 @@ export default function SettingsScreen() {
     Alert.alert("Saved", "Local model path updated.");
   }
 
+  async function openModelPicker() {
+    setShowModelPicker(true);
+    if (models.length > 0) return;
+    setLoadingModels(true);
+    try {
+      const baseUrl = nimEp.trim() || "https://integrate.api.nvidia.com/v1";
+      const key = nimKey || apiKeys.nim;
+      const res = await fetch(`${baseUrl}/models`, {
+        headers: key ? { Authorization: `Bearer ${key}` } : undefined,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const modelIds: string[] = (data.data || data.models || []).map((m: { id?: string; model?: string }) => m.id || m.model).filter(Boolean);
+      setModels(modelIds.sort());
+    } catch (e) {
+      Alert.alert("Error", `Failed to fetch models: ${e instanceof Error ? e.message : "Unknown"}`);
+    } finally {
+      setLoadingModels(false);
+    }
+  }
+
+  async function pickGgufFile() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: true,
+      });
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        setGgufPath(asset.uri);
+        setGgufFileName(asset.name || "");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Could not open file picker.");
+    }
+  }
+
+  const filteredModels = models.filter((m) =>
+    m.toLowerCase().includes(modelSearch.toLowerCase())
+  );
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -138,14 +191,14 @@ export default function SettingsScreen() {
           <TouchableOpacity onPress={() => setShowAiConfig(!showAiConfig)} activeOpacity={0.7}>
             <Card className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 bg-white rounded-xl items-center justify-center">
+                <View className="w-10 h-10 bg-white rounded-full items-center justify-center">
                   <Feather name="cpu" size={16} color="#000000" />
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-medium text-black">AI Provider</Text>
                   <Text className="text-xs text-ink-400 mt-0.5">
                     {apiKeys.nim ? "NVIDIA NIM ready" : "No key set"}
-                    {modelPath ? " · GGUF path set" : ""}
+                    {modelPath ? " · GGUF set" : ""}
                   </Text>
                 </View>
               </View>
@@ -177,31 +230,36 @@ export default function SettingsScreen() {
                 autoCorrect={false}
               />
               <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Model</Text>
-              <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
-                placeholder="meta/llama-3.2-1b-instruct"
-                placeholderTextColor="#bbbbbb"
-                value={nimMd}
-                onChangeText={setNimMd}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <TouchableOpacity
+                onPress={openModelPicker}
+                className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center justify-between mb-2"
+              >
+                <Text className={`text-sm flex-1 ${nimMd ? "text-black" : "text-ink-300"}`}>
+                  {nimMd || "Select a model..."}
+                </Text>
+                <Feather name="chevron-down" size={16} color="#bbbbbb" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={saveNimConfig} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
                 <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
 
               <View className="h-px bg-ink-100 my-4" />
 
-              <Text className="text-xs font-semibold text-ink-400 mb-2">Local GGUF Model Path</Text>
-              <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
-                placeholder="/path/to/model.gguf"
-                placeholderTextColor="#bbbbbb"
-                value={ggufPath}
-                onChangeText={setGgufPath}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <Text className="text-xs font-semibold text-ink-400 mb-2">Local GGUF Model</Text>
+              <TouchableOpacity
+                onPress={pickGgufFile}
+                className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center gap-3 mb-2"
+              >
+                <Feather name="folder" size={16} color="#999999" />
+                <Text className={`text-sm flex-1 ${ggufFileName ? "text-black" : "text-ink-300"}`}>
+                  {ggufFileName || "Tap to select a .gguf file"}
+                </Text>
+                {ggufFileName && (
+                  <TouchableOpacity onPress={() => { setGgufPath(""); setGgufFileName(""); }}>
+                    <Feather name="x-circle" size={14} color="#cccccc" />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
               <TouchableOpacity onPress={saveModelPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
                 <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
@@ -216,7 +274,7 @@ export default function SettingsScreen() {
               subtitle={notifEnabled ? "Service active" : "Tap to enable"}
               onPress={openSettings}
               right={
-                <View className={`w-2.5 h-2.5 rounded-full ${notifEnabled ? "bg-success" : "bg-ink-300"}`} />
+                <View className={`w-2.5 h-2.5 rounded-full ${notifEnabled ? "bg-green-500" : "bg-ink-300"}`} />
               }
             />
             <MenuRow
@@ -230,7 +288,7 @@ export default function SettingsScreen() {
           <TouchableOpacity onPress={() => setShowStorage(!showStorage)} activeOpacity={0.7}>
             <Card className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 bg-white rounded-xl items-center justify-center">
+                <View className="w-10 h-10 bg-white rounded-full items-center justify-center">
                   <Feather name="hard-drive" size={16} color="#000000" />
                 </View>
                 <View className="flex-1">
@@ -316,6 +374,61 @@ export default function SettingsScreen() {
           </Card>
         </View>
       </ScrollView>
+
+      <Modal visible={showModelPicker} transparent animationType="slide" onRequestClose={() => setShowModelPicker(false)}>
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="bg-white rounded-t-2xl max-h-[70%] min-h-[50%] px-5 pt-6 pb-10">
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-lg font-semibold text-black">Select Model</Text>
+              <TouchableOpacity onPress={() => setShowModelPicker(false)}>
+                <Feather name="x" size={20} color="#999999" />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              className="h-11 bg-ink-100 rounded-lg px-4 text-sm text-black mb-4"
+              placeholder="Search models..."
+              placeholderTextColor="#999999"
+              value={modelSearch}
+              onChangeText={setModelSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {loadingModels ? (
+              <View className="flex-1 items-center justify-center">
+                <ActivityIndicator size="small" color="#000000" />
+                <Text className="text-sm text-ink-400 mt-3">Loading models...</Text>
+              </View>
+            ) : filteredModels.length === 0 ? (
+              <View className="flex-1 items-center justify-center">
+                <Feather name="search" size={24} color="#cccccc" />
+                <Text className="text-sm text-ink-300 mt-2">{models.length === 0 ? "No models found" : "No matches"}</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredModels}
+                keyExtractor={(item) => item}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => { setNimMd(item); setShowModelPicker(false); setModelSearch(""); }}
+                    className={`flex-row items-center gap-3 py-3 px-3 rounded-lg mb-1 ${
+                      item === nimMd ? "bg-black" : "bg-ink-100"
+                    }`}
+                  >
+                    <Feather name="cpu" size={14} color={item === nimMd ? "#ffffff" : "#999999"} />
+                    <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
+                      {item}
+                    </Text>
+                    {item === nimMd && (
+                      <Feather name="check" size={14} color="#ffffff" />
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
