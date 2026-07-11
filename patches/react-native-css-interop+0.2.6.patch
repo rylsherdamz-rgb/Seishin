@@ -14,10 +14,26 @@ diff --git a/node_modules/react-native-css-interop/.cache/windows.js b/node_modu
 new file mode 100644
 index 0000000..e69de29
 diff --git a/node_modules/react-native-css-interop/dist/runtime/native/render-component.js b/node_modules/react-native-css-interop/dist/runtime/native/render-component.js
-index eba25ec..25a5a60 100644
+index eba25ec..bcb0e05 100644
 --- a/node_modules/react-native-css-interop/dist/runtime/native/render-component.js
 +++ b/node_modules/react-native-css-interop/dist/runtime/native/render-component.js
-@@ -131,8 +131,32 @@ function stringify(object) {
+@@ -118,7 +118,14 @@ function createAnimatedComponent(Component) {
+     return AnimatedComponent;
+ }
+ function printUpgradeWarning(warning, originalProps) {
+-    console.log(`CssInterop upgrade warning.\n\n${warning}.\n\nThis warning was caused by a component with the props:\n${stringify(originalProps)}\n\nIf adding or removing sibling components caused this warning you should add a unique "key" prop to your components. https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key\n`);
++    // Dev-only warning: it must never be able to crash rendering (e.g. when
++    // stringifying props that contain context objects with throwing getters).
++    try {
++        console.log(`CssInterop upgrade warning.\n\n${warning}.\n\nThis warning was caused by a component with the props:\n${stringify(originalProps)}\n\nIf adding or removing sibling components caused this warning you should add a unique "key" prop to your components. https://react.dev/learn/rendering-lists#keeping-list-items-in-order-with-key\n`);
++    }
++    catch {
++        // swallow — a debug warning must not break the render tree
++    }
+ }
+ function stringify(object) {
+     const seen = new WeakSet();
+@@ -131,8 +138,32 @@ function stringify(object) {
          }
          seen.add(value);
          const newValue = Array.isArray(value) ? [] : {};
