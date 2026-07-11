@@ -27,10 +27,10 @@ export function Chip({
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.7}
-      className={`flex-row items-center gap-1.5 px-3.5 py-2 rounded-full ${
+      className={`flex-row items-center gap-1.5 px-3.5 py-2 rounded-full border ${
         active
-          ? "bg-black shadow-subtle"
-          : "bg-white border border-ink-200"
+          ? "bg-black border-black"
+          : "bg-white border-ink-200"
       } ${disabled ? "opacity-40" : ""} ${className}`}
     >
       {icon ? (

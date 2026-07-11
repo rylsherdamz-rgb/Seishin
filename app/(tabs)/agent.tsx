@@ -251,8 +251,8 @@ export default function AgentScreen() {
             {isProcessing ? (
               <TouchableOpacity
                 onPress={stopAgentLoop}
-                activeOpacity={0.85}
-                className="h-12 w-12 items-center justify-center rounded-xl bg-danger shadow-raised"
+                activeOpacity={0.7}
+                className="h-12 w-12 items-center justify-center rounded-xl bg-danger"
               >
                 <View className="w-4 h-4 bg-white rounded-sm" />
               </TouchableOpacity>
@@ -260,12 +260,12 @@ export default function AgentScreen() {
               <TouchableOpacity
                 onPress={handleSend}
                 disabled={!input.trim()}
-                activeOpacity={0.85}
+                activeOpacity={0.7}
                 className={`h-12 w-12 items-center justify-center rounded-xl ${
-                  input.trim() ? "bg-black shadow-raised" : "bg-ink-100 border border-ink-200"
+                  input.trim() ? "bg-black" : "bg-ink-300"
                 }`}
               >
-                <Feather name="arrow-up" size={18} color={input.trim() ? "#ffffff" : "#999999"} />
+                <Feather name="arrow-up" size={18} color="#ffffff" />
               </TouchableOpacity>
             )}
           </View>
