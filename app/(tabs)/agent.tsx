@@ -128,6 +128,7 @@ export default function AgentScreen() {
             ))}
             {currentProvider === "nim" && (
               <TouchableOpacity
+                key="nim-model-pill"
                 onPress={() => router.push("/settings")}
                 className="px-3 py-2 rounded-full bg-white border border-ink-200"
               >
@@ -140,7 +141,7 @@ export default function AgentScreen() {
         </View>
 
         {showSkills && (
-          <Animated.View entering={FadeInDown.duration(200)} className="mx-4 mb-3 bg-ink-100 rounded-xl p-4">
+          <Animated.View key="agent-skills-panel" entering={FadeInDown.duration(200)} className="mx-4 mb-3 bg-ink-100 rounded-xl p-4">
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-sm font-medium text-black">Skills</Text>
               <Text className="text-xs text-ink-300">{installedSkills.length} installed</Text>
@@ -167,13 +168,13 @@ export default function AgentScreen() {
         )}
 
         {!hasKey && currentProvider === "nim" && (
-          <View className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
+          <View key="agent-nim-nokey-banner" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
             <Feather name="alert-circle" size={14} color="#ff3b30" />
             <Text className="text-xs text-danger flex-1">No NIM API key set. Go to Settings to add one.</Text>
           </View>
         )}
         {currentProvider === "local" && (
-          <View className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
+          <View key="agent-local-banner" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
             <Feather name="info" size={14} color="#666666" />
             <Text className="text-xs text-ink-600 flex-1">Local GGUF mode not yet available. Switch to NVIDIA NIM.</Text>
           </View>
