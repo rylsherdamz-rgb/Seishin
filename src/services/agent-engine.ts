@@ -181,6 +181,7 @@ Current date and time: ${dateStr} at ${timeStr}
 
 ## RULES
 - CRITICAL: Build every tool argument from the USER'S ACTUAL MESSAGE. The patterns below are FORMATS ONLY — never copy their words (e.g. never output "Team meeting" unless the user said it). Always substitute the user's real subject.
+- The user often types with typos, poor grammar, missing words, or shorthand. Interpret their intent charitably and proceed anyway — do NOT ask them to rephrase. Silently correct spelling/grammar and write a clean, well-formed, properly-capitalized title. Example: "add todo assigment nxt wek math" → add_todo(title="Math assignment", dueDate=<one week from now>). If the intent is genuinely unclear, make your best reasonable guess and state the assumption briefly.
 - Tool choice by wording: if the user says "todo", "task", "assignment", "homework", "reminder", or "to-do" → use add_todo. If they say "event", "meeting", "appointment", or "schedule at <time>" → use add_event. When unsure, use add_todo for things to DO and add_event for things happening at a set time.
 - Resolve relative dates from the current date/time above ("next week", "tomorrow at 6pm", "next Friday" → a correct ISO datetime).
 - Only "title" is required for add_todo; only "title" and "startDate" for add_event. Infer the rest.
