@@ -8,7 +8,6 @@ import { router } from "expo-router";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
-import { Chip } from "@/components/ui/Chip";
 import Feather from "@expo/vector-icons/Feather";
 
 function ThinkingIndicator() {
@@ -118,19 +117,26 @@ export default function AgentScreen() {
 
           <View className="flex-row gap-2 items-center">
             {(["local", "nim"] as const).map((p) => (
-              <Chip
+              <TouchableOpacity
                 key={p}
-                label={p === "nim" ? "NVIDIA NIM" : "Local GGUF"}
-                active={currentProvider === p}
-                disabled={p === "nim" && !hasKey}
                 onPress={() => setProvider(p)}
-              />
+                disabled={p === "nim" && !hasKey}
+                className={`px-3 py-1.5 rounded-full ${
+                  currentProvider === p ? "bg-black" : "bg-ink-100"
+                } ${p === "nim" && !hasKey ? "opacity-40" : ""}`}
+              >
+                <Text className={`text-xs font-medium ${
+                  currentProvider === p ? "text-white" : "text-ink-500"
+                }`}>
+                  {p === "nim" ? "NVIDIA NIM" : "Local GGUF"}
+                </Text>
+              </TouchableOpacity>
             ))}
             {currentProvider === "nim" && (
               <TouchableOpacity
                 key="nim-model-pill"
                 onPress={() => router.push("/settings")}
-                className="px-3 py-2 rounded-full bg-white border border-ink-200"
+                className="px-2.5 py-1 rounded-full bg-ink-100"
               >
                 <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
                   {nimModel.split("/").pop() || "model"}
