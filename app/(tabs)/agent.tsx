@@ -181,9 +181,10 @@ export default function AgentScreen() {
 
         <FlatList
           ref={flatListRef}
+          className="flex-1"
           data={messages}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-2"
+          contentContainerClassName="px-4 pb-2 flex-grow"
           ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
           renderItem={({ item }) => (
             <View
@@ -255,10 +256,10 @@ export default function AgentScreen() {
                 disabled={!input.trim()}
                 activeOpacity={0.85}
                 className={`h-12 w-12 items-center justify-center rounded-xl ${
-                  input.trim() ? "bg-black shadow-raised" : "bg-ink-200"
+                  input.trim() ? "bg-black shadow-raised" : "bg-ink-100 border border-ink-200"
                 }`}
               >
-                <Feather name="arrow-up" size={18} color={input.trim() ? "#ffffff" : "#cccccc"} />
+                <Feather name="arrow-up" size={18} color={input.trim() ? "#ffffff" : "#999999"} />
               </TouchableOpacity>
             )}
           </View>
