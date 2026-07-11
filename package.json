@@ -50,7 +50,15 @@
     "lint": "npx tsc --noEmit",
     "typecheck": "npx tsc --noEmit",
     "test": "echo 'No tests configured yet' && exit 0",
-    "build": "npx tsc --noEmit"
+    "build": "npx tsc --noEmit",
+    "postinstall": "patch-package"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-worklets"
+      ]
+    }
   },
   "private": true
 }
