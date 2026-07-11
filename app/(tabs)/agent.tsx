@@ -188,10 +188,9 @@ export default function AgentScreen() {
 
         <FlatList
           ref={flatListRef}
-          className="flex-1"
           data={messages}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-2 flex-grow"
+          contentContainerClassName="px-4 pb-2"
           ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
           renderItem={({ item }) => (
             <View
