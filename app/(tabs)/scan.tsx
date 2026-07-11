@@ -92,7 +92,7 @@ export default function ScanScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="px-4 pt-3 pb-4">
-        <Text className="text-2xl font-semibold tracking-tight text-black">Scan Schedule</Text>
+        <Text className="text-2xl font-semibold tracking-tightest text-black">Scan Schedule</Text>
         <Text className="text-sm text-ink-500 mt-0.5">
           Capture, select, or upload a file to extract schedule data
         </Text>
@@ -100,8 +100,8 @@ export default function ScanScreen() {
 
       {!uri ? (
         <View className="flex-1 items-center justify-center px-8">
-          <View className="w-16 h-16 bg-ink-100 rounded-full items-center justify-center mb-6">
-            <Feather name="camera" size={24} color="#999999" />
+          <View className="w-20 h-20 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-6 shadow-card">
+            <Feather name="camera" size={28} color="#999999" />
           </View>
           <Text className="text-sm text-ink-500 text-center mb-8 max-w-[240px]">
             Take a photo of your schedule, choose from gallery, or upload a file
@@ -109,18 +109,20 @@ export default function ScanScreen() {
 
           <TouchableOpacity
             onPress={() => pickImage(true)}
-            className="bg-black h-12 w-full items-center justify-center rounded-lg mb-3 flex-row gap-2"
+            activeOpacity={0.85}
+            className="bg-black h-12 w-full items-center justify-center rounded-xl mb-3 flex-row gap-2 shadow-raised"
           >
             <Feather name="camera" size={16} color="#ffffff" />
-            <Text className="text-white text-base font-medium">Take Photo</Text>
+            <Text className="text-white text-base font-semibold">Take Photo</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => pickImage(false)}
-            className="bg-transparent border border-black h-12 w-full items-center justify-center rounded-lg mb-3 flex-row gap-2"
+            activeOpacity={0.85}
+            className="bg-white border border-ink-200 h-12 w-full items-center justify-center rounded-xl mb-3 flex-row gap-2 shadow-subtle"
           >
             <Feather name="image" size={16} color="#000000" />
-            <Text className="text-black text-base font-medium">Choose from Gallery</Text>
+            <Text className="text-black text-base font-semibold">Choose from Gallery</Text>
           </TouchableOpacity>
 
           <View className="flex-row items-center gap-3 w-full mb-3">
@@ -131,7 +133,8 @@ export default function ScanScreen() {
 
           <TouchableOpacity
             onPress={pickFile}
-            className="bg-transparent border border-ink-300 h-12 w-full items-center justify-center rounded-lg flex-row gap-2"
+            activeOpacity={0.85}
+            className="bg-transparent border border-ink-200 h-12 w-full items-center justify-center rounded-xl flex-row gap-2"
           >
             <Feather name="paperclip" size={16} color="#666666" />
             <Text className="text-ink-500 text-base font-medium">Upload File</Text>
@@ -140,8 +143,10 @@ export default function ScanScreen() {
       ) : (
         <View className="flex-1 px-4">
           {uri && (fileName ? (
-            <View className="flex-row items-center gap-3 bg-ink-100 rounded-lg p-4 mb-4">
-              <Feather name="file-text" size={20} color="#666666" />
+            <View className="flex-row items-center gap-3 bg-white border border-ink-100 rounded-card p-4 mb-4 shadow-card">
+              <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
+                <Feather name="file-text" size={18} color="#000000" />
+              </View>
               <View className="flex-1">
                 <Text className="text-sm text-black font-medium" numberOfLines={1}>{fileName}</Text>
                 <Text className="text-xs text-ink-300">Imported file</Text>
@@ -150,7 +155,7 @@ export default function ScanScreen() {
           ) : (
             <Image
               source={{ uri }}
-              className="w-full h-48 rounded-lg mb-4 bg-ink-100"
+              className="w-full h-48 rounded-card mb-4 bg-ink-100"
               resizeMode="contain"
             />
           ))}
@@ -162,10 +167,10 @@ export default function ScanScreen() {
             </View>
           ) : (
             <View className="flex-1">
-              <Text className="text-xs font-medium text-ink-500 uppercase tracking-wider mb-2">
+              <Text className="text-xs font-semibold text-ink-400 uppercase tracking-widest mb-2">
                 Extracted Text
               </Text>
-              <View className="flex-1 bg-ink-100 rounded-lg p-4">
+              <View className="flex-1 bg-white border border-ink-100 rounded-card p-4 shadow-subtle">
                 <Text className="text-sm text-black leading-5">
                   {ocrText || "No text detected"}
                 </Text>
@@ -174,17 +179,19 @@ export default function ScanScreen() {
               <View className="flex-row gap-3 py-4">
                 <TouchableOpacity
                   onPress={() => { setUri(null); setOcrText(""); setFileName(null); }}
-                  className="flex-1 h-12 items-center justify-center rounded-lg border border-ink-200 flex-row gap-2"
+                  activeOpacity={0.85}
+                  className="flex-1 h-12 items-center justify-center rounded-xl bg-white border border-ink-200 flex-row gap-2 shadow-subtle"
                 >
                   <Feather name="refresh-cw" size={14} color="#666666" />
-                  <Text className="text-ink-500 text-sm font-medium">Retake</Text>
+                  <Text className="text-ink-500 text-sm font-semibold">Retake</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={saveToCalendar}
                   disabled={!ocrText}
-                  className={`flex-1 h-12 items-center justify-center rounded-lg flex-row gap-2 ${
-                    ocrText ? "bg-black" : "bg-ink-200"
+                  activeOpacity={0.85}
+                  className={`flex-1 h-12 items-center justify-center rounded-xl flex-row gap-2 ${
+                    ocrText ? "bg-black shadow-raised" : "bg-ink-200"
                   }`}
                 >
                   <Feather
@@ -193,7 +200,7 @@ export default function ScanScreen() {
                     color={ocrText ? "#ffffff" : "#999999"}
                   />
                   <Text
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-semibold ${
                       ocrText ? "text-white" : "text-ink-300"
                     }`}
                   >

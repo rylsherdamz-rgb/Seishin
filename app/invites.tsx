@@ -5,6 +5,8 @@ import { Stack, router } from "expo-router";
 import { useInvitesStore, InviteCard } from "@/stores/invites-store";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Chip } from "@/components/ui/Chip";
+import { EmptyState } from "@/components/ui/EmptyState";
 import Feather from "@expo/vector-icons/Feather";
 
 type InviteTab = "cards" | "p2p" | "shared";
@@ -59,42 +61,33 @@ export default function InvitesScreen() {
         <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
           <Feather name="arrow-left" size={16} color="#000000" />
         </TouchableOpacity>
-        <Text className="text-2xl font-semibold tracking-tight text-black flex-1">Invites</Text>
+        <Text className="text-2xl font-semibold tracking-tightest text-black flex-1">Invites</Text>
         <Text className="text-xs text-ink-500">{invites.length} total</Text>
       </View>
 
       <View className="flex-row px-4 gap-2 mb-4">
         {(["cards", "p2p", "shared"] as const).map((t) => (
-          <TouchableOpacity
+          <Chip
             key={t}
+            label={t === "cards" ? "Cards" : t === "p2p" ? "P2P Codes" : "Shared"}
+            icon={typeIcons[t]}
+            active={tab === t}
             onPress={() => setTab(t)}
-            className={`flex-row items-center gap-1.5 px-3 py-1.5 rounded-full border ${
-              tab === t ? "bg-black border-black" : "border-ink-200"
-            }`}
-          >
-            <Feather
-              name={typeIcons[t]}
-              size={11}
-              color={tab === t ? "#ffffff" : "#999999"}
-            />
-            <Text className={`text-xs font-medium ${tab === t ? "text-white" : "text-ink-500"}`}>
-              {t === "cards" ? "Cards" : t === "p2p" ? "P2P Codes" : "Shared"}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </View>
 
       {tab === "cards" && (
         <View className="px-4 mb-4">
           <TextInput
-            className="h-12 border border-ink-200 rounded-xl px-4 text-base text-black mb-2"
+            className="h-12 bg-ink-50 rounded-xl px-4 text-base text-black mb-2"
             placeholder="Event title..."
             placeholderTextColor="#999999"
             value={newCardTitle}
             onChangeText={setNewCardTitle}
           />
           <TextInput
-            className="h-12 border border-ink-200 rounded-xl px-4 text-base text-black mb-3"
+            className="h-12 bg-ink-50 rounded-xl px-4 text-base text-black mb-3"
             placeholder="Description (optional)"
             placeholderTextColor="#999999"
             value={newCardDesc}
@@ -139,9 +132,9 @@ export default function InvitesScreen() {
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8"
         renderItem={({ item }) => (
-          <Card className="mb-2">
+          <Card variant="elevated" className="mb-2.5">
             <View className="flex-row items-start gap-3">
-              <View className="w-9 h-9 bg-white rounded-full items-center justify-center">
+              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
                 <Feather
                   name={item.type === "invite-card" ? "file-text" : item.type === "p2p-code" ? "wifi" : "share-2"}
                   size={14}
@@ -154,7 +147,7 @@ export default function InvitesScreen() {
                   <Text className="text-xs text-ink-500 mt-0.5">{item.description}</Text>
                 )}
                 {item.code && (
-                  <View className="bg-white px-3 py-1.5 rounded border border-ink-200 mt-2 self-start">
+                  <View className="bg-ink-50 px-3 py-1.5 rounded-lg border border-ink-150 mt-2 self-start">
                     <Text className="text-sm font-mono tracking-widest text-black">{item.code}</Text>
                   </View>
                 )}
@@ -188,13 +181,7 @@ export default function InvitesScreen() {
           </Card>
         )}
         ListEmptyComponent={
-          <View className="items-center justify-center py-16">
-            <View className="w-14 h-14 bg-ink-100 rounded-full items-center justify-center mb-4">
-              <Feather name="send" size={20} color="#cccccc" />
-            </View>
-            <Text className="text-base text-ink-300">No invites yet</Text>
-            <Text className="text-xs text-ink-200 mt-1">Create one above</Text>
-          </View>
+          <EmptyState icon="send" title="No invites yet" subtitle="Create one above" />
         }
       />
     </SafeAreaView>

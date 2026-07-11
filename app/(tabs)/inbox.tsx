@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, FlatList, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { Card } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { IconButton } from "@/components/ui/IconButton";
 import Feather from "@expo/vector-icons/Feather";
 
 const FILTERS = ["all", "notifications", "emails", "chats"] as const;
@@ -37,44 +40,33 @@ export default function InboxScreen() {
       <View className="px-4 pt-3 pb-2">
         <View className="flex-row items-center justify-between mb-1">
           <View>
-            <Text className="text-2xl font-semibold tracking-tight text-black">Inbox</Text>
+            <Text className="text-2xl font-semibold tracking-tightest text-black">Inbox</Text>
             <Text className="text-sm text-ink-500 mt-0.5">
               {getUnreadCount()} unread · {items.length} total
             </Text>
           </View>
           {items.length > 0 && (
-            <TouchableOpacity
+            <IconButton
+              icon="trash-2"
               onPress={() => {
                 Alert.alert("Clear All", "Delete all messages?", [
                   { text: "Cancel", style: "cancel" },
                   { text: "Clear All", style: "destructive", onPress: clearAll },
                 ]);
               }}
-              className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
-            >
-              <Feather name="trash-2" size={14} color="#000000" />
-            </TouchableOpacity>
+            />
           )}
         </View>
       </View>
 
       <View className="flex-row px-4 gap-2 mb-4">
         {FILTERS.map((f) => (
-          <TouchableOpacity
+          <Chip
             key={f}
+            label={f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+            active={localFilter === f}
             onPress={() => setLocalFilter(f)}
-            className={`px-3 py-1.5 rounded-full border ${
-              localFilter === f ? "bg-black border-black" : "border-ink-200"
-            }`}
-          >
-            <Text
-              className={`text-xs font-medium ${
-                localFilter === f ? "text-white" : "text-ink-500"
-              }`}
-            >
-              {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </View>
 
@@ -83,8 +75,8 @@ export default function InboxScreen() {
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8"
         renderItem={({ item }) => (
-          <TouchableOpacity onLongPress={() => handleLongPress(item)} onPress={() => { if (!item.read) markRead(item.id); }}>
-            <Card className={`mb-2 ${!item.read ? "border-l-2 border-black" : ""}`}>
+          <TouchableOpacity activeOpacity={0.7} onLongPress={() => handleLongPress(item)} onPress={() => { if (!item.read) markRead(item.id); }}>
+            <Card variant="elevated" className={`mb-2.5 ${!item.read ? "border-l-[3px] border-l-black" : ""}`}>
               <View className="flex-row items-start gap-3">
                 <View className={`w-9 h-9 rounded-full items-center justify-center ${
                   item.read ? "bg-ink-100" : "bg-black"
@@ -123,15 +115,11 @@ export default function InboxScreen() {
           </TouchableOpacity>
         )}
         ListEmptyComponent={
-          <View className="items-center justify-center py-20">
-            <View className="w-14 h-14 bg-ink-100 rounded-full items-center justify-center mb-4">
-              <Feather name="inbox" size={22} color="#cccccc" />
-            </View>
-            <Text className="text-base text-ink-300">No messages yet</Text>
-            <Text className="text-sm text-ink-200 mt-1 text-center">
-              Notifications, emails, and chats appear here
-            </Text>
-          </View>
+          <EmptyState
+            icon="inbox"
+            title="No messages yet"
+            subtitle="Notifications, emails, and chats appear here"
+          />
         }
       />
     </SafeAreaView>

@@ -13,19 +13,25 @@ export default function TabLayout() {
         tabBarInactiveTintColor: "#999999",
         tabBarStyle: {
           backgroundColor: "#ffffff",
-          borderTopColor: "#e5e5e5",
+          borderTopColor: "#eeeeee",
           borderTopWidth: 1,
           // Respect the device's bottom safe area (gesture bar / home indicator)
           // instead of a fixed height that can crowd the labels.
-          height: 58 + insets.bottom,
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          paddingTop: 8,
-          elevation: 0,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
+          paddingTop: 10,
+          // Soft monochrome lift so the bar reads as a floating surface.
+          elevation: 12,
+          shadowColor: "#000000",
+          shadowOpacity: 0.06,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: -2 },
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "500",
-          marginTop: 2,
+          fontWeight: "600",
+          marginTop: 3,
+          letterSpacing: -0.1,
         },
         tabBarItemStyle: {
           paddingVertical: 2,

@@ -2,20 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert,
 } from "react-native";
-import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
+import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
+import { Chip } from "@/components/ui/Chip";
 import Feather from "@expo/vector-icons/Feather";
-
-const INITIAL_SUGGESTIONS = [
-  { label: "Calendar events", query: "What events are on my calendar?" },
-  { label: "Add a todo", query: "Add a todo to buy groceries due tomorrow" },
-  { label: "Add event", query: "Add an event called Team Meeting tomorrow at 2pm" },
-  { label: "System status", query: "What's my current setup?" },
-];
 
 function ThinkingIndicator() {
   const dot1 = useSharedValue(0.3);
@@ -87,7 +81,7 @@ export default function AgentScreen() {
         <View className="px-4 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View>
-              <Text className="text-2xl font-semibold tracking-tight text-black">AI Agent</Text>
+              <Text className="text-2xl font-semibold tracking-tightest text-black">AI Agent</Text>
               <Text className="text-sm text-ink-500 mt-0.5">
                 {currentProvider === "nim" ? "NVIDIA NIM" : "Local (offline)"}
                 {isProcessing && " · Thinking..."}
@@ -124,25 +118,18 @@ export default function AgentScreen() {
 
           <View className="flex-row gap-2 items-center">
             {(["local", "nim"] as const).map((p) => (
-              <TouchableOpacity
+              <Chip
                 key={p}
-                onPress={() => setProvider(p)}
+                label={p === "nim" ? "NVIDIA NIM" : "Local GGUF"}
+                active={currentProvider === p}
                 disabled={p === "nim" && !hasKey}
-                className={`px-3 py-1.5 rounded-full ${
-                  currentProvider === p ? "bg-black" : "bg-ink-100"
-                } ${p === "nim" && !hasKey ? "opacity-40" : ""}`}
-              >
-                <Text className={`text-xs font-medium ${
-                  currentProvider === p ? "text-white" : "text-ink-500"
-                }`}>
-                  {p === "nim" ? "NVIDIA NIM" : "Local GGUF"}
-                </Text>
-              </TouchableOpacity>
+                onPress={() => setProvider(p)}
+              />
             ))}
             {currentProvider === "nim" && (
               <TouchableOpacity
                 onPress={() => router.push("/settings")}
-                className="px-2.5 py-1 rounded-full bg-ink-100"
+                className="px-3 py-2 rounded-full bg-white border border-ink-200"
               >
                 <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
                   {nimModel.split("/").pop() || "model"}
@@ -198,17 +185,16 @@ export default function AgentScreen() {
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 pb-2"
           ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
-          renderItem={({ item, index }) => (
-            <Animated.View
-              entering={FadeInUp.duration(300).delay(index === messages.length - 1 ? 0 : 0)}
+          renderItem={({ item }) => (
+            <View
               className={`mb-3 ${item.role === "user" ? "items-end" : "items-start"}`}
             >
               <View className={`max-w-[80%] px-4 py-3 ${
                 item.role === "user"
-                  ? "bg-black rounded-2xl rounded-br-md"
+                  ? "bg-black rounded-2xl rounded-br-md shadow-subtle"
                   : item.role === "tool"
-                  ? "bg-ink-50 rounded-2xl rounded-bl-md border border-ink-200"
-                  : "bg-ink-100 rounded-2xl rounded-bl-md"
+                  ? "bg-ink-25 rounded-2xl rounded-bl-md border border-ink-150"
+                  : "bg-white rounded-2xl rounded-bl-md border border-ink-100 shadow-subtle"
               }`}>
                 {item.toolName && (
                   <View className="flex-row items-center gap-1 mb-1">
@@ -227,39 +213,27 @@ export default function AgentScreen() {
                   {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </Text>
               </View>
-            </Animated.View>
+            </View>
           )}
           ListEmptyComponent={
-            <View className="items-center justify-center py-16 px-8">
-              <View className="w-14 h-14 bg-ink-100 rounded-full items-center justify-center mb-4">
-                <Feather name="cpu" size={22} color="#cccccc" />
+            <View className="items-center justify-center py-24 px-8">
+              <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
+                <Feather name="cpu" size={24} color="#cccccc" />
               </View>
-              <Text className="text-base text-ink-300 text-center">Ask me anything</Text>
-              <Text className="text-sm text-ink-200 mt-1 text-center mb-8 max-w-[260px]">
+              <Text className="text-base font-medium text-ink-400 text-center">Ask me anything</Text>
+              <Text className="text-sm text-ink-200 mt-1 text-center max-w-[260px]">
                 {hasKey
                   ? "I can manage your schedule, todos, and more"
                   : "Add an API key in Settings to use the AI agent"}
               </Text>
-              <View className="gap-2 w-full">
-                {INITIAL_SUGGESTIONS.map((s) => (
-                  <TouchableOpacity
-                    key={s.label}
-                    onPress={() => setInput(s.query)}
-                    className="bg-ink-100 px-4 py-3 rounded-xl flex-row items-center gap-3"
-                  >
-                    <Feather name="arrow-up-right" size={12} color="#999999" />
-                    <Text className="text-sm text-ink-700">{s.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
           }
         />
 
-        <View className="px-4 py-3 border-t border-ink-200">
-          <View className="flex-row gap-2">
+        <View className="px-4 py-3 border-t border-ink-100 bg-white">
+          <View className="flex-row gap-2 items-center">
             <TextInput
-              className="flex-1 h-12 bg-ink-100 rounded-xl px-4 text-base text-black"
+              className="flex-1 h-12 bg-ink-50 rounded-xl px-4 text-base text-black"
               placeholder={isProcessing ? "AI is thinking..." : "Type a message..."}
               placeholderTextColor="#999999"
               value={input}
@@ -270,7 +244,8 @@ export default function AgentScreen() {
             {isProcessing ? (
               <TouchableOpacity
                 onPress={stopAgentLoop}
-                className="h-12 w-12 items-center justify-center rounded-xl bg-danger"
+                activeOpacity={0.85}
+                className="h-12 w-12 items-center justify-center rounded-xl bg-danger shadow-raised"
               >
                 <View className="w-4 h-4 bg-white rounded-sm" />
               </TouchableOpacity>
@@ -278,8 +253,9 @@ export default function AgentScreen() {
               <TouchableOpacity
                 onPress={handleSend}
                 disabled={!input.trim()}
+                activeOpacity={0.85}
                 className={`h-12 w-12 items-center justify-center rounded-xl ${
-                  input.trim() ? "bg-black" : "bg-ink-200"
+                  input.trim() ? "bg-black shadow-raised" : "bg-ink-200"
                 }`}
               >
                 <Feather name="arrow-up" size={18} color={input.trim() ? "#ffffff" : "#cccccc"} />

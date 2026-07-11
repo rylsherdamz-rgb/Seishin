@@ -5,6 +5,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
 import { Card } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ItemSheet } from "@/components/ItemSheet";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
@@ -61,7 +63,7 @@ export default function TodoScreen() {
           </TouchableOpacity>
           <Logo size={32} />
           <View>
-            <Text className="text-2xl font-semibold tracking-tight text-black">Todo List</Text>
+            <Text className="text-2xl font-semibold tracking-tightest text-black">Todo List</Text>
             <Text className="text-sm text-ink-500 mt-0.5">
               {stats.active} pending · {stats.completed} done
             </Text>
@@ -84,17 +86,12 @@ export default function TodoScreen() {
 
       <View className="flex-row px-4 gap-2 mb-4">
         {(["all", "active", "completed"] as const).map((f) => (
-          <TouchableOpacity
+          <Chip
             key={f}
+            label={f.charAt(0).toUpperCase() + f.slice(1)}
+            active={filter === f}
             onPress={() => { localFilter(f); setFilter(f); }}
-            className={`px-3 py-1.5 rounded-full border ${
-              filter === f ? "bg-black border-black" : "border-ink-200"
-            }`}
-          >
-            <Text className={`text-xs font-medium ${filter === f ? "text-white" : "text-ink-500"}`}>
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Text>
-          </TouchableOpacity>
+          />
         ))}
       </View>
 
@@ -107,9 +104,9 @@ export default function TodoScreen() {
       </TouchableOpacity>
 
       {showAdd && (
-        <Card className="mx-4 mb-4">
+        <Card variant="elevated" className="mx-4 mb-4">
           <TextInput
-            className="h-11 border border-ink-200 rounded-lg px-3 text-sm text-black mb-2"
+            className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-2"
             placeholder="What needs to be done?"
             placeholderTextColor="#999999"
             value={newTitle}
@@ -119,7 +116,7 @@ export default function TodoScreen() {
           />
           <TouchableOpacity
             onPress={() => setShowDatePicker(true)}
-            className="flex-row items-center gap-2 mb-3 h-9 border border-ink-200 rounded-lg px-3"
+            className="flex-row items-center gap-2 mb-3 h-11 bg-ink-50 rounded-xl px-4"
           >
             <Feather name="calendar" size={14} color="#999999" />
             <Text className={`text-sm flex-1 ${newDueDate ? "text-black" : "text-ink-300"}`}>
@@ -145,15 +142,16 @@ export default function TodoScreen() {
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={() => setShowAdd(false)}
-              className="flex-1 h-12 border border-ink-200 rounded-lg items-center justify-center"
+              className="flex-1 h-12 bg-white border border-ink-200 rounded-xl items-center justify-center"
             >
-              <Text className="text-base text-ink-500 font-medium">Cancel</Text>
+              <Text className="text-base text-ink-500 font-semibold">Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleAdd}
-              className="flex-1 h-12 bg-black rounded-lg items-center justify-center"
+              activeOpacity={0.85}
+              className="flex-1 h-12 bg-black rounded-xl items-center justify-center shadow-raised"
             >
-              <Text className="text-base text-white font-medium">Add</Text>
+              <Text className="text-base text-white font-semibold">Add</Text>
             </TouchableOpacity>
           </View>
         </Card>
@@ -163,12 +161,17 @@ export default function TodoScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8"
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => setSheetItem(item)}>
-            <Card className="flex-row items-center gap-3 mb-2">
+        renderItem={({ item }) => {
+          const todayStr = new Date().toLocaleDateString("en-CA");
+          const dueStr = item.dueDate ? new Date(item.dueDate).toLocaleDateString("en-CA") : null;
+          const overdue = !!dueStr && dueStr < todayStr && !item.completed;
+          const dueToday = !!dueStr && dueStr === todayStr && !item.completed;
+          return (
+          <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
+            <Card variant="elevated" className="flex-row items-center gap-3 mb-2.5">
               <TouchableOpacity
                 onPress={(e) => { e.stopPropagation(); toggleTodo(item.id); }}
-                className={`w-5 h-5 rounded-sm border-2 items-center justify-center ${
+                className={`w-5 h-5 rounded-md border-2 items-center justify-center ${
                   item.completed ? "bg-black border-black" : "border-ink-300"
                 }`}
               >
@@ -179,29 +182,34 @@ export default function TodoScreen() {
                   {item.title}
                 </Text>
                 {item.dueDate && (
-                  <View className="flex-row items-center gap-1 mt-0.5">
-                    <Feather name="clock" size={10} color="#999999" />
-                    <Text className="text-xs text-ink-300">
+                  <View className="flex-row items-center gap-1.5 mt-1">
+                    <Feather name="clock" size={10} color={overdue ? "#000000" : "#999999"} />
+                    <Text className={`text-xs ${overdue ? "text-black font-medium" : "text-ink-300"}`}>
                       {new Date(item.dueDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                     </Text>
+                    {overdue && (
+                      <View className="px-1.5 py-0.5 bg-black rounded-full">
+                        <Text className="text-[9px] font-bold text-white tracking-wide">OVERDUE</Text>
+                      </View>
+                    )}
+                    {dueToday && (
+                      <View className="px-1.5 py-0.5 bg-ink-100 rounded-full">
+                        <Text className="text-[9px] font-bold text-ink-600 tracking-wide">TODAY</Text>
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
-              <Text className={`text-xs font-medium ${priorityColors[item.priority]}`}>
+              <Text className={`text-xs font-semibold ${priorityColors[item.priority]}`}>
                 {item.priority}
               </Text>
-              <Feather name="chevron-up" size={14} color="#d0d0d0" />
+              <Feather name="chevron-up" size={14} color="#cccccc" />
             </Card>
           </TouchableOpacity>
-        )}
+          );
+        }}
         ListEmptyComponent={
-          <View className="items-center justify-center py-16">
-            <View className="w-14 h-14 bg-ink-100 rounded-full items-center justify-center mb-4">
-              <Feather name="check-square" size={20} color="#cccccc" />
-            </View>
-            <Text className="text-base text-ink-300">No todos yet</Text>
-            <Text className="text-xs text-ink-200 mt-1">Tap + to add one</Text>
-          </View>
+          <EmptyState icon="check-square" title="No todos yet" subtitle="Tap + to add one" />
         }
       />
 

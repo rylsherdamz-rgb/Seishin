@@ -24,6 +24,7 @@ LocaleConfig.defaultLocale = "en";
 import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ItemSheet } from "@/components/ItemSheet";
 import Feather from "@expo/vector-icons/Feather";
 
@@ -102,6 +103,15 @@ export default function CalendarScreen() {
   const showAllItems = sortItems(allItems);
   const dayItems = sortItems(allItems.filter((item) => item.date === selectedDate));
   const displayItems = showAll || !selectedDate ? buildSections(showAllItems) : dayItems;
+
+  // Distinguish current day vs. past vs. upcoming for clear temporal hierarchy.
+  const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD (local)
+  type WhenKind = "past" | "today" | "future";
+  function whenOf(date: string): WhenKind {
+    if (date < todayStr) return "past";
+    if (date === todayStr) return "today";
+    return "future";
+  }
 
   const markedDates: Record<string, any> = {};
   allItems.forEach((item) => {
@@ -234,16 +244,17 @@ export default function CalendarScreen() {
     <SafeAreaView className="flex-1 bg-white">
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View>
-          <Text className="text-2xl font-semibold tracking-tight text-black">Calendar</Text>
+          <Text className="text-2xl font-semibold tracking-tightest text-black">Calendar</Text>
           <Text className="text-sm text-ink-500 mt-1">
             {events.length} events · {todos.filter((t) => t.dueDate).length} todo dates
           </Text>
         </View>
         <TouchableOpacity
           onPress={showAddOptions}
-          className="w-9 h-9 bg-black rounded-full items-center justify-center"
+          activeOpacity={0.85}
+          className="w-11 h-11 bg-black rounded-full items-center justify-center shadow-raised"
         >
-          <Feather name="plus" size={16} color="#ffffff" />
+          <Feather name="plus" size={20} color="#ffffff" />
         </TouchableOpacity>
       </View>
 
@@ -267,14 +278,26 @@ export default function CalendarScreen() {
       />
 
       <View className="pt-4 px-4 flex-row items-center justify-between">
-        <Text className="text-sm font-medium text-ink-700">
-          {showAll || !selectedDate
-            ? "All items"
-            : new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, {
-                weekday: "long", month: "long", day: "numeric",
-              })
-          }
-        </Text>
+        <View className="flex-row items-center gap-2 flex-1">
+          <Text className="text-sm font-medium text-ink-700">
+            {showAll || !selectedDate
+              ? "All items"
+              : new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, {
+                  weekday: "long", month: "long", day: "numeric",
+                })
+            }
+          </Text>
+          {!showAll && selectedDate === todayStr && (
+            <View className="px-2 py-0.5 bg-black rounded-full">
+              <Text className="text-[10px] font-bold text-white tracking-wide">TODAY</Text>
+            </View>
+          )}
+          {!showAll && selectedDate && selectedDate < todayStr && (
+            <View className="px-2 py-0.5 bg-ink-100 rounded-full">
+              <Text className="text-[10px] font-semibold text-ink-400 tracking-wide">PAST</Text>
+            </View>
+          )}
+        </View>
         <View className="flex-row items-center gap-3">
           {(selectedDate && !showAll) && (
             <TouchableOpacity onPress={() => setShowAll(true)}>
@@ -303,21 +326,35 @@ export default function CalendarScreen() {
         contentContainerClassName="px-4 pb-8"
         renderItem={({ item }) => {
           if ("kind" in item) {
+            const when = whenOf(item.date);
             return (
               <View className="flex-row items-center gap-2 pt-4 pb-2">
-                <View className="w-1 h-4 bg-black rounded-full" />
-                <Text className="text-sm font-semibold text-black flex-1">{item.label}</Text>
+                <View className={`w-1 h-4 rounded-full ${when === "past" ? "bg-ink-200" : "bg-black"}`} />
+                <Text className={`text-sm font-semibold flex-1 ${when === "past" ? "text-ink-400" : "text-black"}`}>
+                  {item.label}
+                </Text>
+                {when === "today" && (
+                  <View className="px-2 py-0.5 bg-black rounded-full">
+                    <Text className="text-[10px] font-bold text-white tracking-wide">TODAY</Text>
+                  </View>
+                )}
+                {when === "past" && (
+                  <View className="px-2 py-0.5 bg-ink-100 rounded-full">
+                    <Text className="text-[10px] font-semibold text-ink-400 tracking-wide">PAST</Text>
+                  </View>
+                )}
                 <TouchableOpacity onPress={() => setSelectedDate(item.date)}>
                   <Text className="text-xs text-ink-400">Show day</Text>
                 </TouchableOpacity>
               </View>
             );
           }
+          const past = whenOf(item.date) === "past";
           return (
-            <TouchableOpacity onPress={() => setSheetItem(item)}>
+            <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
               {item.type === "event" ? (
-                <Card className="flex-row items-center gap-4 mb-2">
-                  <View className="w-10 h-10 bg-white rounded-full items-center justify-center">
+                <Card variant="elevated" className={`flex-row items-center gap-4 mb-2.5 ${past ? "opacity-55" : ""}`}>
+                  <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
                     <Feather
                       name={sourceIcons[item.source || ""] || "calendar"}
                       size={16} color="#000000"
@@ -335,10 +372,10 @@ export default function CalendarScreen() {
                       <Text className="text-xs text-ink-300 capitalize">{item.source}</Text>
                     </View>
                   </View>
-                  <Feather name="chevron-up" size={14} color="#d0d0d0" />
+                  <Feather name="chevron-up" size={14} color="#cccccc" />
                 </Card>
               ) : (
-                <Card className="flex-row items-center gap-4 mb-2 opacity-90">
+                <Card variant="elevated" className={`flex-row items-center gap-4 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
                   <View className={`w-10 h-10 rounded-full items-center justify-center ${
                     item.completed ? "bg-black" : "bg-ink-100"
                   }`}>
@@ -360,11 +397,11 @@ export default function CalendarScreen() {
           );
         }}
         ListEmptyComponent={
-          <View className="items-center justify-center py-16">
-            <Feather name="calendar" size={32} color="#cccccc" />
-            <Text className="text-base text-ink-300 mt-4">Nothing this day</Text>
-            <Text className="text-xs text-ink-200 mt-1">Tap + to add an event or todo</Text>
-          </View>
+          <EmptyState
+            icon="calendar"
+            title="Nothing this day"
+            subtitle="Tap + to add an event or todo"
+          />
         }
       />
 
@@ -398,19 +435,20 @@ export default function CalendarScreen() {
 
       <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
         <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white rounded-t-2xl px-5 pt-6 pb-10">
+          <View className="bg-white rounded-t-sheet px-5 pt-3 pb-10 shadow-float">
+            <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
             <View className="flex-row justify-between items-center mb-5">
-              <Text className="text-lg font-semibold text-black">New Event</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
-                <Feather name="x" size={20} color="#999999" />
+              <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
+              <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                <Feather name="x" size={16} color="#666666" />
               </TouchableOpacity>
             </View>
 
             <Text className="text-xs font-medium text-ink-400 mb-1.5">Title</Text>
             <TextInput
-              className="h-11 bg-ink-100 rounded-xl px-4 text-sm text-black mb-4"
+              className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
               placeholder="Event title"
-              placeholderTextColor="#bbbbbb"
+              placeholderTextColor="#999999"
               value={eventTitle}
               onChangeText={setEventTitle}
             />
@@ -418,7 +456,7 @@ export default function CalendarScreen() {
             <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
             <TouchableOpacity
               onPress={() => setShowDatePicker(true)}
-              className="h-11 bg-ink-100 rounded-xl px-4 items-center flex-row mb-4"
+              className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
             >
               <Feather name="calendar" size={14} color="#666666" />
               <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
@@ -435,7 +473,7 @@ export default function CalendarScreen() {
             <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
             <TouchableOpacity
               onPress={() => setShowTimePicker(true)}
-              className="h-11 bg-ink-100 rounded-xl px-4 items-center flex-row mb-6"
+              className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
             >
               <Feather name="clock" size={14} color="#666666" />
               <Text className="text-sm text-black ml-2">
@@ -453,9 +491,10 @@ export default function CalendarScreen() {
 
             <TouchableOpacity
               onPress={saveEvent}
-              className="bg-black h-12 rounded-xl items-center justify-center"
+              activeOpacity={0.85}
+              className="bg-black h-12 rounded-xl items-center justify-center shadow-raised"
             >
-              <Text className="text-white text-base font-medium">Save Event</Text>
+              <Text className="text-white text-base font-semibold">Save Event</Text>
             </TouchableOpacity>
           </View>
         </View>

@@ -176,7 +176,7 @@ export default function SettingsScreen() {
           <View className="flex-row items-center gap-3 mb-6 pt-3">
             <Logo size={32} />
             <View>
-              <Text className="text-2xl font-semibold tracking-tight text-black">Settings</Text>
+              <Text className="text-2xl font-semibold tracking-tightest text-black">Settings</Text>
               <Text className="text-sm text-ink-400">App configuration</Text>
             </View>
           </View>
@@ -189,9 +189,9 @@ export default function SettingsScreen() {
 
           <SectionHeader title="AI Configuration" />
           <TouchableOpacity onPress={() => setShowAiConfig(!showAiConfig)} activeOpacity={0.7}>
-            <Card className="flex-row items-center justify-between mb-3">
+            <Card variant="elevated" className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 bg-white rounded-full items-center justify-center">
+                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
                   <Feather name="cpu" size={16} color="#000000" />
                 </View>
                 <View className="flex-1">
@@ -274,7 +274,7 @@ export default function SettingsScreen() {
               subtitle={notifEnabled ? "Service active" : "Tap to enable"}
               onPress={openSettings}
               right={
-                <View className={`w-2.5 h-2.5 rounded-full ${notifEnabled ? "bg-green-500" : "bg-ink-300"}`} />
+                <View className={`w-2.5 h-2.5 rounded-full ${notifEnabled ? "bg-success" : "bg-ink-300"}`} />
               }
             />
             <MenuRow
@@ -286,9 +286,9 @@ export default function SettingsScreen() {
 
           <SectionHeader title="Storage" />
           <TouchableOpacity onPress={() => setShowStorage(!showStorage)} activeOpacity={0.7}>
-            <Card className="flex-row items-center justify-between mb-3">
+            <Card variant="elevated" className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 bg-white rounded-full items-center justify-center">
+                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
                   <Feather name="hard-drive" size={16} color="#000000" />
                 </View>
                 <View className="flex-1">
@@ -366,7 +366,7 @@ export default function SettingsScreen() {
           </Card>
 
           <SectionHeader title="About" />
-          <Card>
+          <Card variant="elevated">
             <View className="flex-row items-center gap-4">
               <Logo size={44} />
               <View className="flex-1">
@@ -381,15 +381,16 @@ export default function SettingsScreen() {
 
       <Modal visible={showModelPicker} transparent animationType="slide" onRequestClose={() => setShowModelPicker(false)}>
         <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white rounded-t-2xl max-h-[70%] min-h-[50%] px-5 pt-6 pb-10">
+          <View className="bg-white rounded-t-sheet max-h-[70%] min-h-[50%] px-5 pt-3 pb-10 shadow-float">
+            <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
             <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-semibold text-black">Select Model</Text>
-              <TouchableOpacity onPress={() => setShowModelPicker(false)}>
-                <Feather name="x" size={20} color="#999999" />
+              <Text className="text-lg font-semibold tracking-tightest text-black">Select Model</Text>
+              <TouchableOpacity onPress={() => setShowModelPicker(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                <Feather name="x" size={16} color="#666666" />
               </TouchableOpacity>
             </View>
             <TextInput
-              className="h-11 bg-ink-100 rounded-lg px-4 text-sm text-black mb-4"
+              className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
               placeholder="Search models..."
               placeholderTextColor="#999999"
               value={modelSearch}

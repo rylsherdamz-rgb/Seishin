@@ -60,6 +60,8 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
       snapPoints={snapPoints}
       enablePanDownToClose
       index={0}
+      handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
+      backgroundStyle={{ backgroundColor: "#ffffff" }}
       backdropComponent={(props) => (
         <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
       )}
@@ -73,14 +75,14 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
                 <Feather name="calendar" size={16} color="#ffffff" />
               </View>
               <View className="flex-1">
-                <Text className="text-lg font-semibold text-black">{event.title}</Text>
+                <Text className="text-lg font-semibold tracking-tightest text-black">{event.title}</Text>
                 {event.source && (
                   <Text className="text-xs text-ink-400 capitalize">Source: {event.source}</Text>
                 )}
               </View>
             </View>
 
-            <View className="bg-ink-100 rounded-xl p-4 mb-4">
+            <View className="bg-ink-50 border border-ink-100 rounded-card p-4 mb-4">
               <View className="flex-row items-center gap-3 mb-2">
                 <Feather name="calendar" size={14} color="#666666" />
                 <Text className="text-sm text-black">
@@ -121,14 +123,14 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
                 <Feather name="check" size={16} color={todo.completed ? "#ffffff" : "#666666"} />
               </TouchableOpacity>
               <View className="flex-1">
-                <Text className={`text-lg font-semibold ${todo.completed ? "line-through text-ink-300" : "text-black"}`}>
+                <Text className={`text-lg font-semibold tracking-tightest ${todo.completed ? "line-through text-ink-300" : "text-black"}`}>
                   {todo.title}
                 </Text>
                 <Text className="text-xs text-ink-400">Todo</Text>
               </View>
             </View>
 
-            <View className="bg-ink-100 rounded-xl p-4 mb-4">
+            <View className="bg-ink-50 border border-ink-100 rounded-card p-4 mb-4">
               {todo.date && (
                 <View className="flex-row items-center gap-3 mb-2">
                   <Feather name="calendar" size={14} color="#666666" />
