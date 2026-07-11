@@ -313,7 +313,9 @@ async function streamResponse(
     }
 
     const resultContent = summary.join("\n");
-    agentStore.updateAssistantMessage(msgId, resultContent);
+    // Keep the assistant's own text (fullContent) and its recorded toolCalls.
+    // Tool results are already shown as separate tool messages, so do NOT
+    // overwrite the assistant message content here (that erased the reply).
     return resultContent;
   }
 

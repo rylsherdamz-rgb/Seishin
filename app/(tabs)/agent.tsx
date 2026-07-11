@@ -203,6 +203,10 @@ export default function AgentScreen() {
           ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
           renderItem={({ item }) => {
             const isUser = item.role === "user";
+            // Don't render an empty assistant bubble (e.g. while the first token
+            // is still coming, or a tool-only turn) — the footer dots show
+            // "thinking", and tool results render as their own bubbles.
+            if (!isUser && !item.content) return null;
             return (
               <View
                 className={`mb-3 ${isUser ? "items-end" : "items-start"}`}
@@ -222,10 +226,8 @@ export default function AgentScreen() {
                   )}
                   {isUser ? (
                     <Text className="text-sm leading-5 text-white">{item.content}</Text>
-                  ) : item.content ? (
-                    <Markdown content={item.content} />
                   ) : (
-                    <Text className="text-sm text-ink-300">…</Text>
+                    <Markdown content={item.content} />
                   )}
                   <View className="flex-row items-center justify-between mt-2">
                     <Text className={`text-xs ${isUser ? "text-ink-200" : "text-ink-400"}`}>

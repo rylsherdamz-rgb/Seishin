@@ -322,6 +322,10 @@ export default function CalendarScreen() {
 
       <FlatList
         data={displayItems}
+        className="flex-1"
+        showsVerticalScrollIndicator={true}
+        persistentScrollbar={true}
+        indicatorStyle="black"
         keyExtractor={(item) => ("kind" in item ? `header-${item.date}` : item.id)}
         contentContainerClassName="px-4 pb-8"
         renderItem={({ item }) => {
