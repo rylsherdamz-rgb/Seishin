@@ -21,8 +21,8 @@ class AddEventTool extends BaseTool {
   parameters = {
     title: { type: "string", description: "Event title" },
     startDate: { type: "string", description: "Start date/time in ISO format (e.g. 2024-03-15T14:00:00.000Z)" },
-    endDate: { type: "string", description: "End date/time in ISO format" },
-    description: { type: "string", description: "Optional event description" },
+    endDate: { type: "string", description: "End date/time in ISO format", optional: true },
+    description: { type: "string", description: "Optional event description", optional: true },
   };
 
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
@@ -63,8 +63,8 @@ class AddTodoTool extends BaseTool {
   description = "Add a todo item with optional due date";
   parameters = {
     title: { type: "string", description: "Todo title" },
-    priority: { type: "string", description: "Priority: low, medium, or high" },
-    dueDate: { type: "string", description: "Optional due date in ISO format" },
+    priority: { type: "string", description: "Priority: low, medium, or high", optional: true },
+    dueDate: { type: "string", description: "Optional due date in ISO format", optional: true },
   };
 
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
@@ -176,6 +176,8 @@ TOOL USAGE — only use tools when the user asks for a SPECIFIC action:
 
 If the user asks for something GENERAL (a plan, advice, ideas, explanation), just respond naturally. Do NOT call a tool.
 If the user asks to SAVE something specific to their calendar or todo list, THEN call the appropriate tool.
+
+IMPORTANT: When you decide to perform an action, emit the tool call DIRECTLY — do not just say "I'll add that" without actually calling the tool. Only "title" is required for add_todo; only "title" and "startDate" are required for add_event. Infer sensible values (e.g. resolve "tomorrow at 6pm" to an ISO datetime using the current date/time above) and call the tool immediately.
 
 EXAMPLES:
 User: "create a 2-week workout plan for me"
@@ -352,6 +354,9 @@ export async function runAgentLoop(userInput: string) {
   agentStore.addMessage(userMsg);
   agentStore.setProcessing(true);
   currentAbort = new AbortController();
+  // Safety timeout: never leave the UI stuck on "thinking" if the model or
+  // network stalls. Aborts the request after 60s.
+  const timeoutId = setTimeout(() => currentAbort?.abort(), 60000);
 
   try {
     if (!apiKeys.nim) {
@@ -398,6 +403,8 @@ export async function runAgentLoop(userInput: string) {
       timestamp: new Date().toISOString(),
     });
   } finally {
+    clearTimeout(timeoutId);
     agentStore.setProcessing(false);
+    currentAbort = null;
   }
 }

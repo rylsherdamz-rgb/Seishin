@@ -31,7 +31,7 @@ export class ToolFailure extends ToolResult {
 export abstract class BaseTool {
   abstract name: string;
   abstract description: string;
-  abstract parameters: Record<string, { type: string; description: string }>;
+  abstract parameters: Record<string, { type: string; description: string; optional?: boolean }>;
 
   async call(args: Record<string, unknown>): Promise<ToolResult> {
     try {
@@ -65,7 +65,9 @@ export abstract class BaseTool {
               { type: val.type, description: val.description },
             ])
           ),
-          required: Object.keys(this.parameters),
+          required: Object.keys(this.parameters).filter(
+            (k) => !this.parameters[k].optional
+          ),
         },
       },
     };
