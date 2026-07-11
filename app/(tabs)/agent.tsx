@@ -8,6 +8,8 @@ import { router } from "expo-router";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
+import * as Clipboard from "expo-clipboard";
+import { Markdown } from "@/components/Markdown";
 import Feather from "@expo/vector-icons/Feather";
 
 function ThinkingIndicator() {
@@ -66,6 +68,13 @@ export default function AgentScreen() {
     if (!text || isProcessing) return;
     setInput("");
     await runAgentLoop(text);
+  }
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  async function copyToClipboard(text: string, id: string) {
+    await Clipboard.setStringAsync(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
   }
 
   const hasKey = !!apiKeys.nim;
@@ -192,36 +201,51 @@ export default function AgentScreen() {
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 pb-2"
           ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
-          renderItem={({ item }) => (
-            <View
-              className={`mb-3 ${item.role === "user" ? "items-end" : "items-start"}`}
-            >
-              <View className={`max-w-[80%] px-4 py-3 ${
-                item.role === "user"
-                  ? "bg-black rounded-2xl rounded-br-md shadow-subtle"
-                  : item.role === "tool"
-                  ? "bg-ink-25 rounded-2xl rounded-bl-md border border-ink-150"
-                  : "bg-white rounded-2xl rounded-bl-md border border-ink-100 shadow-subtle"
-              }`}>
-                {item.toolName && (
-                  <View className="flex-row items-center gap-1 mb-1">
-                    <Feather name="terminal" size={10} color="#999999" />
-                    <Text className="text-xs text-ink-400 font-mono">{item.toolName}</Text>
+          renderItem={({ item }) => {
+            const isUser = item.role === "user";
+            return (
+              <View
+                className={`mb-3 ${isUser ? "items-end" : "items-start"}`}
+              >
+                <View className={`max-w-[88%] px-4 py-3 ${
+                  isUser
+                    ? "bg-black rounded-2xl rounded-br-md"
+                    : item.role === "tool"
+                    ? "bg-ink-25 rounded-2xl rounded-bl-md border border-ink-150"
+                    : "bg-white rounded-2xl rounded-bl-md border border-ink-100"
+                }`}>
+                  {item.toolName && (
+                    <View className="flex-row items-center gap-1 mb-1">
+                      <Feather name="terminal" size={10} color="#999999" />
+                      <Text className="text-xs text-ink-400 font-mono">{item.toolName}</Text>
+                    </View>
+                  )}
+                  {isUser ? (
+                    <Text className="text-sm leading-5 text-white">{item.content}</Text>
+                  ) : item.content ? (
+                    <Markdown content={item.content} />
+                  ) : (
+                    <Text className="text-sm text-ink-300">…</Text>
+                  )}
+                  <View className="flex-row items-center justify-between mt-2">
+                    <Text className={`text-xs ${isUser ? "text-ink-200" : "text-ink-400"}`}>
+                      {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </Text>
+                    {!isUser && !!item.content && (
+                      <TouchableOpacity
+                        onPress={() => copyToClipboard(item.content, item.id)}
+                        activeOpacity={0.6}
+                        className="flex-row items-center gap-1 ml-3 py-0.5"
+                      >
+                        <Feather name={copiedId === item.id ? "check" : "copy"} size={12} color="#999999" />
+                        <Text className="text-xs text-ink-400">{copiedId === item.id ? "Copied" : "Copy"}</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                )}
-                <Text className={`text-sm leading-5 ${
-                  item.role === "user" ? "text-white" : "text-black"
-                }`}>
-                  {item.content}
-                </Text>
-                <Text className={`text-xs mt-1.5 ${
-                  item.role === "user" ? "text-ink-200" : "text-ink-400"
-                }`}>
-                  {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </Text>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <View className="items-center justify-center py-24 px-8">
               <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
