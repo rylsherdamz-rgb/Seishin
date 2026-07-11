@@ -116,14 +116,20 @@ export default function CalendarScreen() {
   const markedDates: Record<string, any> = {};
   allItems.forEach((item) => {
     if (!markedDates[item.date]) {
-      markedDates[item.date] = { marked: true, dots: [] };
+      markedDates[item.date] = { marked: true, _hasEvent: false, _hasTodo: false };
     }
-    if (!markedDates[item.date].dots) {
-      markedDates[item.date].dots = [];
-    }
-    markedDates[item.date].dots.push({
-      color: item.type === "event" ? "#000000" : "#999999",
-    });
+    if (item.type === "event") markedDates[item.date]._hasEvent = true;
+    else markedDates[item.date]._hasTodo = true;
+  });
+  // Collapse to at most two dots per day (events + todos) so a busy day
+  // doesn't overflow the cell with a long row of dots.
+  Object.keys(markedDates).forEach((d) => {
+    const dots: { key: string; color: string }[] = [];
+    if (markedDates[d]._hasEvent) dots.push({ key: "event", color: "#000000" });
+    if (markedDates[d]._hasTodo) dots.push({ key: "todo", color: "#999999" });
+    markedDates[d].dots = dots;
+    delete markedDates[d]._hasEvent;
+    delete markedDates[d]._hasTodo;
   });
 
   if (selectedDate) {
