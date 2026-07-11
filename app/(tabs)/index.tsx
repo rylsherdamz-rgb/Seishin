@@ -363,35 +363,40 @@ export default function CalendarScreen() {
           return (
             <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
               {item.type === "event" ? (
-                <Card variant="elevated" className={`flex-row items-center gap-4 mb-2.5 ${past ? "opacity-55" : ""}`}>
-                  <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
+                <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past ? "opacity-55" : ""}`}>
+                  <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
                     <Feather
                       name={sourceIcons[item.source || ""] || "calendar"}
-                      size={16} color="#000000"
+                      size={16} color="#ffffff"
                     />
                   </View>
                   <View className="flex-1">
+                    <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">EVENT</Text>
                     <Text className="text-sm font-medium text-black">{item.title}</Text>
                     {item.description && (
                       <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={1}>{item.description}</Text>
                     )}
                     <View className="flex-row items-center gap-2 mt-1">
                       <Feather name="clock" size={10} color="#999999" />
-                      <Text className="text-xs text-ink-300">{item.time}</Text>
+                      <Text className="text-xs text-ink-400">{item.time}</Text>
                       <Text className="text-xs text-ink-200">·</Text>
-                      <Text className="text-xs text-ink-300 capitalize">{item.source}</Text>
+                      <Text className="text-xs text-ink-400 capitalize">{item.source}</Text>
                     </View>
                   </View>
                   <Feather name="chevron-up" size={14} color="#cccccc" />
                 </Card>
               ) : (
-                <Card variant="elevated" className={`flex-row items-center gap-4 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
-                  <View className={`w-10 h-10 rounded-full items-center justify-center ${
-                    item.completed ? "bg-black" : "bg-ink-100"
-                  }`}>
-                    <Feather name="check-square" size={16} color={item.completed ? "#ffffff" : "#666666"} />
-                  </View>
+                <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
+                  <TouchableOpacity
+                    onPress={(e) => { e.stopPropagation(); if (item.todoId) toggleTodo(item.todoId); }}
+                    className={`w-7 h-7 rounded-md border-2 items-center justify-center ${
+                      item.completed ? "bg-black border-black" : "border-ink-300"
+                    }`}
+                  >
+                    {item.completed && <Feather name="check" size={14} color="#ffffff" />}
+                  </TouchableOpacity>
                   <View className="flex-1">
+                    <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">TODO</Text>
                     <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
                       {item.title}
                     </Text>
@@ -400,7 +405,7 @@ export default function CalendarScreen() {
                       {item.priority ? ` · ${item.priority}` : ""}
                     </Text>
                   </View>
-                  <Feather name="chevron-up" size={14} color="#d0d0d0" />
+                  <Feather name="chevron-up" size={14} color="#cccccc" />
                 </Card>
               )}
             </TouchableOpacity>
