@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { fetch as expoFetch } from "expo/fetch";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
@@ -360,6 +361,11 @@ export async function runAgentLoop(userInput: string) {
     const openai = new OpenAI({
       baseURL: nimEndpoint,
       apiKey: apiKeys.nim,
+      // React Native's built-in fetch cannot read streaming response bodies,
+      // which makes the OpenAI SDK throw "Connection error" on stream:true.
+      // Expo's fetch supports streaming, so use it here.
+      fetch: expoFetch as unknown as typeof fetch,
+      dangerouslyAllowBrowser: true,
     });
 
     const tools = createDefaultTools();
