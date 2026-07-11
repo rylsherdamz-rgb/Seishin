@@ -7,6 +7,13 @@ export interface ToolCallData {
   arguments: string;
 }
 
+export interface AgentAttachment {
+  type: "image" | "file";
+  uri: string;
+  name?: string;
+  mimeType?: string;
+}
+
 export interface AgentMessage {
   id: string;
   role: "user" | "assistant" | "tool";
@@ -16,6 +23,7 @@ export interface AgentMessage {
   toolResult?: string;
   toolCallId?: string;
   toolCalls?: ToolCallData[];
+  attachments?: AgentAttachment[];
 }
 
 export interface Skill {

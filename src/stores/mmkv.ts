@@ -9,6 +9,7 @@ export const settingsStorage = createMMKV({ id: "settings" });
 export const ocrStorage = createMMKV({ id: "ocr" });
 export const todosStorage = createMMKV({ id: "todos" });
 export const invitesStorage = createMMKV({ id: "invites" });
+export const notesStorage = createMMKV({ id: "notes" });
 
 export function clearAllStorage() {
   eventsStorage.clearAll();
@@ -20,6 +21,7 @@ export function clearAllStorage() {
   ocrStorage.clearAll();
   todosStorage.clearAll();
   invitesStorage.clearAll();
+  notesStorage.clearAll();
 }
 
 export function getStorageSizes(): Record<string, number> {
@@ -33,5 +35,6 @@ export function getStorageSizes(): Record<string, number> {
     ocr: ocrStorage.getAllKeys().length,
     todos: todosStorage.getAllKeys().length,
     invites: invitesStorage.getAllKeys().length,
+    notes: notesStorage.getAllKeys().length,
   };
 }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { invitesStorage, messagesStorage } from "./mmkv";
+import { uid } from "@/utils/id";
 
 export interface InviteCard {
   id: string;
@@ -62,7 +63,7 @@ export const useInvitesStore = create<InvitesState>((set, get) => ({
   generateP2pCode: () => {
     const code = randomCode();
     const invite: InviteCard = {
-      id: `p2p-${Date.now()}`,
+      id: uid("p2p"),
       type: "p2p-code",
       title: `P2P Code: ${code}`,
       code,
@@ -77,7 +78,7 @@ export const useInvitesStore = create<InvitesState>((set, get) => ({
   shareTodoList: (todoIds: string[]) => {
     const code = randomCode();
     const invite: InviteCard = {
-      id: `share-${Date.now()}`,
+      id: uid("share"),
       type: "shared-todo",
       title: `Shared Todo List (${todoIds.length} items)`,
       code,

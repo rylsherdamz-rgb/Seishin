@@ -4,6 +4,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
+import { uid } from "@/utils/id";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -33,7 +34,7 @@ export default function TodoScreen() {
     const title = newTitle.trim();
     if (!title) return;
     addTodo({
-      id: `todo-${Date.now()}`,
+      id: uid("todo"),
       title,
       completed: false,
       priority: "medium",

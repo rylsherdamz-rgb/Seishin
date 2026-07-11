@@ -1,11 +1,13 @@
 import OpenAI from "openai";
 import { fetch as expoFetch } from "expo/fetch";
-import { useAgentStore, AgentMessage } from "@/stores/agent-store";
+import { useAgentStore, AgentMessage, AgentAttachment } from "@/stores/agent-store";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
+import { useNotesStore } from "@/stores/notes-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useInvitesStore } from "@/stores/invites-store";
 import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
+import { uid } from "@/utils/id";
 
 let currentAbort: AbortController | null = null;
 
@@ -23,17 +25,19 @@ class AddEventTool extends BaseTool {
     startDate: { type: "string", description: "Start date/time in ISO format (e.g. 2024-03-15T14:00:00.000Z)" },
     endDate: { type: "string", description: "End date/time in ISO format", optional: true },
     description: { type: "string", description: "Optional event description", optional: true },
+    notes: { type: "string", description: "Optional freeform notes for the event", optional: true },
   };
 
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
     const { addEvent } = useCalendarStore.getState();
     const event = {
-      id: `ai-${Date.now()}`,
+      id: uid("ai-evt"),
       title: (args.title as string) || "Untitled",
       startDate: (args.startDate as string) || new Date().toISOString(),
       endDate: (args.endDate as string) || new Date(Date.now() + 3600000).toISOString(),
       source: "ai" as const,
       description: args.description as string | undefined,
+      notes: args.notes as string | undefined,
     };
     addEvent(event);
     return this.successResponse(`Added event: "${event.title}" on ${new Date(event.startDate).toLocaleString()}`);
@@ -52,7 +56,7 @@ class ListEventsTool extends BaseTool {
       (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
     const lines = sorted.map((e) =>
-      `- ${e.title} (${new Date(e.startDate).toLocaleDateString()} ${new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
+      `- [id:${e.id}] ${e.title} (${new Date(e.startDate).toLocaleDateString()} ${new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
     );
     return this.successResponse(lines.join("\n"));
   }
@@ -70,7 +74,7 @@ class AddTodoTool extends BaseTool {
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
     const { addTodo } = useTodoStore.getState();
     addTodo({
-      id: `ai-${Date.now()}`,
+      id: uid("ai-todo"),
       title: (args.title as string) || "Untitled",
       priority: (args.priority as "low" | "medium" | "high") || "medium",
       completed: false,
@@ -87,16 +91,20 @@ class AddTodoTool extends BaseTool {
 
 class ListTodosTool extends BaseTool {
   name = "list_todos";
-  description = "List all active todos";
-  parameters = {};
+  description = "List todos. By default lists active (not done) todos; set includeCompleted to also show finished ones.";
+  parameters = {
+    includeCompleted: { type: "boolean", description: "Include completed todos in the list", optional: true },
+  };
 
-  async execute(_args: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
     const { todos } = useTodoStore.getState();
-    const active = todos.filter((t) => !t.completed);
-    if (active.length === 0) return this.successResponse("No active todos.");
-    const lines = active.map((t) => {
-      let s = `- ${t.title} [${t.priority}]`;
+    const includeCompleted = args.includeCompleted === true || args.includeCompleted === "true";
+    const list = includeCompleted ? todos : todos.filter((t) => !t.completed);
+    if (list.length === 0) return this.successResponse("No todos found.");
+    const lines = list.map((t) => {
+      let s = `- [id:${t.id}] ${t.title} [${t.priority}]`;
       if (t.dueDate) s += ` due ${new Date(t.dueDate).toLocaleDateString()}`;
+      s += t.completed ? " (done)" : "";
       return s;
     });
     return this.successResponse(lines.join("\n"));
@@ -114,7 +122,7 @@ class GenerateInviteTool extends BaseTool {
     const { generateP2pCode, addInvite } = useInvitesStore.getState();
     const code = generateP2pCode();
     addInvite({
-      id: `p2p-${Date.now()}`,
+      id: uid("p2p"),
       type: "p2p-code",
       title: (args.title as string) || "P2P Invite",
       status: "active",
@@ -145,12 +153,287 @@ class GetSettingsTool extends BaseTool {
   }
 }
 
+/**
+ * Find a single item by exact id or a case-insensitive title match.
+ * Returns { item } on a unique match, or { error } describing the problem
+ * (nothing found, or several candidates that the AI should disambiguate).
+ */
+function findByIdOrTitle<T extends { id: string; title: string }>(
+  items: T[],
+  opts: { id?: string; query?: string },
+  label: string,
+): { item?: T; error?: string } {
+  const id = opts.id?.trim();
+  const query = opts.query?.trim();
+
+  if (id) {
+    const byId = items.find((i) => i.id === id);
+    if (byId) return { item: byId };
+  }
+
+  if (query) {
+    const q = query.toLowerCase();
+    const exact = items.filter((i) => i.title.toLowerCase() === q);
+    const matches = exact.length > 0 ? exact : items.filter((i) => i.title.toLowerCase().includes(q));
+    if (matches.length === 1) return { item: matches[0] };
+    if (matches.length === 0) return { error: `No ${label} found matching "${query}".` };
+    const names = matches.map((m) => `"${m.title}" [id:${m.id}]`).join(", ");
+    return { error: `Multiple ${label}s match "${query}": ${names}. Ask which one or pass its id.` };
+  }
+
+  return { error: `Provide an id or a title query to identify the ${label}.` };
+}
+
+class UpdateEventTool extends BaseTool {
+  name = "update_event";
+  description = "Edit an existing calendar event. Identify it by id or by its current title (query), then change any of title, start/end time, or description.";
+  parameters = {
+    query: { type: "string", description: "Current title (or part of it) of the event to edit", optional: true },
+    id: { type: "string", description: "Exact event id, if known", optional: true },
+    title: { type: "string", description: "New title", optional: true },
+    startDate: { type: "string", description: "New start date/time in ISO format", optional: true },
+    endDate: { type: "string", description: "New end date/time in ISO format", optional: true },
+    description: { type: "string", description: "New description", optional: true },
+    notes: { type: "string", description: "New freeform notes for the event", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { events, updateEvent } = useCalendarStore.getState();
+    const { item, error } = findByIdOrTitle(events, { id: args.id as string, query: args.query as string }, "event");
+    if (error || !item) return this.failResponse(error || "Event not found.");
+
+    const changes: Record<string, unknown> = {};
+    if (typeof args.title === "string") changes.title = args.title;
+    if (typeof args.startDate === "string") changes.startDate = args.startDate;
+    if (typeof args.endDate === "string") changes.endDate = args.endDate;
+    if (typeof args.description === "string") changes.description = args.description;
+    if (typeof args.notes === "string") changes.notes = args.notes;
+    if (Object.keys(changes).length === 0) return this.failResponse("No changes provided.");
+
+    updateEvent(item.id, changes);
+    return this.successResponse(`Updated event "${(changes.title as string) || item.title}".`);
+  }
+}
+
+class DeleteEventTool extends BaseTool {
+  name = "delete_event";
+  description = "Delete/remove a calendar event, identified by id or by its title (query).";
+  parameters = {
+    query: { type: "string", description: "Title (or part of it) of the event to delete", optional: true },
+    id: { type: "string", description: "Exact event id, if known", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { events, deleteEvent } = useCalendarStore.getState();
+    const { item, error } = findByIdOrTitle(events, { id: args.id as string, query: args.query as string }, "event");
+    if (error || !item) return this.failResponse(error || "Event not found.");
+    deleteEvent(item.id);
+    return this.successResponse(`Deleted event "${item.title}".`);
+  }
+}
+
+class CompleteTodoTool extends BaseTool {
+  name = "complete_todo";
+  description = "Mark a todo as done (or reopen it), identified by id or by its title (query).";
+  parameters = {
+    query: { type: "string", description: "Title (or part of it) of the todo", optional: true },
+    id: { type: "string", description: "Exact todo id, if known", optional: true },
+    done: { type: "boolean", description: "true to mark done (default), false to reopen it", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { todos, updateTodo } = useTodoStore.getState();
+    const { item, error } = findByIdOrTitle(todos, { id: args.id as string, query: args.query as string }, "todo");
+    if (error || !item) return this.failResponse(error || "Todo not found.");
+
+    const done = !(args.done === false || args.done === "false");
+    updateTodo(item.id, {
+      completed: done,
+      completedAt: done ? new Date().toISOString() : undefined,
+    });
+    return this.successResponse(`Marked todo "${item.title}" as ${done ? "done" : "not done"}.`);
+  }
+}
+
+class UpdateTodoTool extends BaseTool {
+  name = "update_todo";
+  description = "Edit an existing todo. Identify it by id or by its current title (query), then change title, priority, or due date.";
+  parameters = {
+    query: { type: "string", description: "Current title (or part of it) of the todo to edit", optional: true },
+    id: { type: "string", description: "Exact todo id, if known", optional: true },
+    title: { type: "string", description: "New title", optional: true },
+    priority: { type: "string", description: "New priority: low, medium, or high", optional: true },
+    dueDate: { type: "string", description: "New due date in ISO format", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { todos, updateTodo } = useTodoStore.getState();
+    const { item, error } = findByIdOrTitle(todos, { id: args.id as string, query: args.query as string }, "todo");
+    if (error || !item) return this.failResponse(error || "Todo not found.");
+
+    const changes: Record<string, unknown> = {};
+    if (typeof args.title === "string") changes.title = args.title;
+    if (typeof args.priority === "string") changes.priority = args.priority;
+    if (typeof args.dueDate === "string") changes.dueDate = args.dueDate;
+    if (Object.keys(changes).length === 0) return this.failResponse("No changes provided.");
+
+    updateTodo(item.id, changes);
+    return this.successResponse(`Updated todo "${(changes.title as string) || item.title}".`);
+  }
+}
+
+class DeleteTodoTool extends BaseTool {
+  name = "delete_todo";
+  description = "Delete/remove a todo, identified by id or by its title (query).";
+  parameters = {
+    query: { type: "string", description: "Title (or part of it) of the todo to delete", optional: true },
+    id: { type: "string", description: "Exact todo id, if known", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { todos, deleteTodo } = useTodoStore.getState();
+    const { item, error } = findByIdOrTitle(todos, { id: args.id as string, query: args.query as string }, "todo");
+    if (error || !item) return this.failResponse(error || "Todo not found.");
+    deleteTodo(item.id);
+    return this.successResponse(`Deleted todo "${item.title}".`);
+  }
+}
+
+class ClearCompletedTodosTool extends BaseTool {
+  name = "clear_completed_todos";
+  description = "Remove all completed (done) todos at once.";
+  parameters = {};
+
+  async execute(_args: Record<string, unknown>): Promise<ToolResult> {
+    const { todos, clearCompleted } = useTodoStore.getState();
+    const count = todos.filter((t) => t.completed).length;
+    if (count === 0) return this.successResponse("No completed todos to clear.");
+    clearCompleted();
+    return this.successResponse(`Cleared ${count} completed todo${count === 1 ? "" : "s"}.`);
+  }
+}
+
+class AddNoteTool extends BaseTool {
+  name = "add_note";
+  description = "Create a note in the note-taking app. Use for anything the user wants to jot down, save, or remember as free text (ideas, lists, meeting notes, thoughts) — as opposed to a dated task (add_todo) or a scheduled event (add_event).";
+  parameters = {
+    title: { type: "string", description: "Short note title", optional: true },
+    body: { type: "string", description: "The note content / body text", optional: true },
+    tags: { type: "string", description: "Comma-separated tags, e.g. 'work,ideas'", optional: true },
+    pinned: { type: "boolean", description: "Pin the note to the top", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { addNote } = useNotesStore.getState();
+    const title = (args.title as string)?.trim() || "";
+    const body = (args.body as string)?.trim() || "";
+    if (!title && !body) return this.failResponse("A note needs a title or body.");
+    const tags = typeof args.tags === "string"
+      ? (args.tags as string).split(",").map((t) => t.trim().replace(/^#/, "").toLowerCase()).filter(Boolean)
+      : [];
+    const now = new Date().toISOString();
+    addNote({
+      id: uid("note"),
+      title: title || "Untitled",
+      body,
+      tags,
+      pinned: args.pinned === true || args.pinned === "true",
+      attachments: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    return this.successResponse(`Added note: "${title || body.slice(0, 40)}"`);
+  }
+}
+
+class ListNotesTool extends BaseTool {
+  name = "list_notes";
+  description = "List saved notes (output includes each note's id). Optionally filter by a search query matching title, body, or tags.";
+  parameters = {
+    query: { type: "string", description: "Optional text to filter notes by", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { notes } = useNotesStore.getState();
+    const q = (args.query as string)?.trim().toLowerCase();
+    const list = q
+      ? notes.filter((n) => n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q) || n.tags.some((t) => t.includes(q)))
+      : notes;
+    if (list.length === 0) return this.successResponse(q ? `No notes match "${args.query}".` : "No notes yet.");
+    const lines = list.map((n) => {
+      const preview = n.body.replace(/\s+/g, " ").slice(0, 60);
+      const tags = n.tags.length ? ` #${n.tags.join(" #")}` : "";
+      return `- [id:${n.id}]${n.pinned ? " 📌" : ""} ${n.title}${preview ? ` — ${preview}` : ""}${tags}`;
+    });
+    return this.successResponse(lines.join("\n"));
+  }
+}
+
+class UpdateNoteTool extends BaseTool {
+  name = "update_note";
+  description = "Edit an existing note. Identify it by id or by its current title (query), then change title, body, tags, or pin.";
+  parameters = {
+    query: { type: "string", description: "Current title (or part of it) of the note to edit", optional: true },
+    id: { type: "string", description: "Exact note id, if known", optional: true },
+    title: { type: "string", description: "New title", optional: true },
+    body: { type: "string", description: "New body text (replaces the existing body)", optional: true },
+    tags: { type: "string", description: "New comma-separated tags (replaces existing tags)", optional: true },
+    pinned: { type: "boolean", description: "Pin (true) or unpin (false) the note", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { notes, updateNote } = useNotesStore.getState();
+    const { item, error } = findByIdOrTitle(notes, { id: args.id as string, query: args.query as string }, "note");
+    if (error || !item) return this.failResponse(error || "Note not found.");
+
+    const changes: Record<string, unknown> = {};
+    if (typeof args.title === "string") changes.title = args.title;
+    if (typeof args.body === "string") changes.body = args.body;
+    if (typeof args.tags === "string") {
+      changes.tags = (args.tags as string).split(",").map((t) => t.trim().replace(/^#/, "").toLowerCase()).filter(Boolean);
+    }
+    if (args.pinned === true || args.pinned === "true") changes.pinned = true;
+    if (args.pinned === false || args.pinned === "false") changes.pinned = false;
+    if (Object.keys(changes).length === 0) return this.failResponse("No changes provided.");
+
+    updateNote(item.id, changes);
+    return this.successResponse(`Updated note "${(changes.title as string) || item.title}".`);
+  }
+}
+
+class DeleteNoteTool extends BaseTool {
+  name = "delete_note";
+  description = "Delete/remove a note, identified by id or by its title (query).";
+  parameters = {
+    query: { type: "string", description: "Title (or part of it) of the note to delete", optional: true },
+    id: { type: "string", description: "Exact note id, if known", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { notes, deleteNote } = useNotesStore.getState();
+    const { item, error } = findByIdOrTitle(notes, { id: args.id as string, query: args.query as string }, "note");
+    if (error || !item) return this.failResponse(error || "Note not found.");
+    deleteNote(item.id);
+    return this.successResponse(`Deleted note "${item.title}".`);
+  }
+}
+
 export function createDefaultTools(): ToolCollection {
   return new ToolCollection(
     new AddEventTool(),
     new ListEventsTool(),
+    new UpdateEventTool(),
+    new DeleteEventTool(),
     new AddTodoTool(),
     new ListTodosTool(),
+    new CompleteTodoTool(),
+    new UpdateTodoTool(),
+    new DeleteTodoTool(),
+    new ClearCompletedTodosTool(),
+    new AddNoteTool(),
+    new ListNotesTool(),
+    new UpdateNoteTool(),
+    new DeleteNoteTool(),
     new GenerateInviteTool(),
     new GetSettingsTool(),
   );
@@ -170,10 +453,24 @@ Current date and time: ${dateStr} at ${timeStr}
    When the user wants to create, add, schedule, book, plan, or be reminded of anything task- or time-related, you MUST call the matching tool directly (do not write code, do not merely describe it), then briefly confirm what you did.
    - add_todo — tasks, todos, assignments, homework, reminders, deadlines.
    - add_event — calendar events, meetings, appointments, and time-blocked activities.
-   - list_events — read saved calendar events.
-   - list_todos — read saved tasks.
+   - list_events — read saved calendar events (output includes each event's id).
+   - list_todos — read saved tasks (output includes each todo's id; pass includeCompleted to also see finished ones).
+   - update_event — edit an existing event (change its title, time, or description).
+   - delete_event — remove/cancel an event.
+   - complete_todo — mark a todo as done (or reopen it with done:false).
+   - update_todo — edit a todo's title, priority, or due date.
+   - delete_todo — remove a single todo.
+   - clear_completed_todos — remove all finished todos at once.
+   - add_note — save a free-text note (ideas, lists, meeting notes, thoughts).
+   - list_notes — read saved notes (output includes each note's id; supports a search query).
+   - update_note — edit a note's title, body, tags, or pin state.
+   - delete_note — remove a note.
    - generate_invite — create an invite code.
    - get_settings — report the current setup.
+
+   EDITING / DELETING / COMPLETING: When the user wants to change, cancel, remove, delete, finish, or mark something done, call the matching tool above. Identify the item by its title using the "query" argument (a word or phrase from the item's name is enough) — you do NOT need the id. If unsure which item exists, call list_events, list_todos, or list_notes first. If a tool reports multiple matches, ask the user which one (or pass the id it listed).
+
+   NOTES vs TODOS vs EVENTS: use add_note for free-form things to write down or remember (ideas, lists, journaling, meeting notes) with NO specific time; use add_todo for things to DO (optionally with a due date); use add_event for things happening at a set time. Events can also carry a "notes" field — set it via add_event/update_event when the user wants notes attached to a specific meeting/appointment.
 
 2. ANSWER & CONVERSE — for questions, explanations, advice, or plans the user only wants to read, respond naturally in plain language. No tool call.
 
@@ -291,7 +588,7 @@ async function streamResponse(
         const result = await tool.executeWithString(args);
         summary.push(result);
         agentStore.addMessage({
-          id: `tool-${Date.now()}`,
+          id: uid("tool"),
           role: "tool",
           content: result,
           timestamp: new Date().toISOString(),
@@ -302,7 +599,7 @@ async function streamResponse(
         const errMsg = `Tool ${call.name} error: ${e instanceof Error ? e.message : "Unknown"}`;
         summary.push(errMsg);
         agentStore.addMessage({
-          id: `tool-err-${Date.now()}`,
+          id: uid("tool-err"),
           role: "tool",
           content: errMsg,
           timestamp: new Date().toISOString(),
@@ -322,10 +619,15 @@ async function streamResponse(
   return fullContent;
 }
 
-export async function runAgentLoop(userInput: string) {
+export async function runAgentLoop(
+  userInput: string,
+  opts?: { attachments?: AgentAttachment[]; extractedContext?: string },
+) {
   const agentStore = useAgentStore.getState();
   const { apiKeys, nimEndpoint, nimModel } = useSettingsStore.getState();
   const { currentProvider } = agentStore;
+  const attachments = opts?.attachments;
+  const extractedContext = opts?.extractedContext?.trim();
 
   if (currentProvider === "local") {
     agentStore.addMessage({
@@ -333,6 +635,7 @@ export async function runAgentLoop(userInput: string) {
       role: "user",
       content: userInput,
       timestamp: new Date().toISOString(),
+      attachments,
     });
     agentStore.setProcessing(false);
     agentStore.addMessage({
@@ -349,6 +652,7 @@ export async function runAgentLoop(userInput: string) {
     role: "user",
     content: userInput,
     timestamp: new Date().toISOString(),
+    attachments,
   };
   agentStore.addMessage(userMsg);
   agentStore.setProcessing(true);
@@ -383,6 +687,23 @@ export async function runAgentLoop(userInput: string) {
       { role: "system", content: createSystemPrompt() },
       ...buildConversation(history),
     ];
+
+    // Attach extracted content (OCR text / readable file contents) to the
+    // latest user turn so the model can act on it, WITHOUT polluting the
+    // message the user sees in the chat (that stays as their typed text +
+    // attachment previews).
+    if (extractedContext) {
+      for (let i = conversation.length - 1; i >= 0; i--) {
+        if (conversation[i].role === "user") {
+          const base = typeof conversation[i].content === "string" ? (conversation[i].content as string) : "";
+          conversation[i] = {
+            role: "user",
+            content: `${base ? base + "\n\n" : ""}[Attached content]\n${extractedContext}`.trim(),
+          };
+          break;
+        }
+      }
+    }
 
     console.log(`[Agent] Streaming to NIM model=${nimModel} msgs=${conversation.length} tools=${toolParams.length}`);
 

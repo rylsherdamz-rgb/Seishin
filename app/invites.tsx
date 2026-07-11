@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, Share } from 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import { useInvitesStore, InviteCard } from "@/stores/invites-store";
+import { uid } from "@/utils/id";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
@@ -22,7 +23,7 @@ export default function InvitesScreen() {
   function createInviteCard() {
     if (!newCardTitle.trim()) return;
     const invite: InviteCard = {
-      id: `card-${Date.now()}`,
+      id: uid("card"),
       type: "invite-card",
       title: newCardTitle,
       description: newCardDesc,

@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert,
+  View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Image, ActivityIndicator,
 } from "react-native";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { useAgentStore, AgentMessage } from "@/stores/agent-store";
+import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
+import { getDocumentAsync } from "expo-document-picker";
+import { useAgentStore, AgentMessage, AgentAttachment } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
+import { recognizeText } from "@/services/ocr";
+import { uid } from "@/utils/id";
 import * as Clipboard from "expo-clipboard";
 import { Markdown } from "@/components/Markdown";
 import Feather from "@expo/vector-icons/Feather";

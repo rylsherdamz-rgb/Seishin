@@ -5,6 +5,8 @@ export interface CalendarEvent {
   id: string;
   title: string;
   description?: string;
+  /** Freeform note attached to this event. */
+  notes?: string;
   startDate: string;
   endDate: string;
   allDay?: boolean;

@@ -22,9 +22,9 @@ const ONBOARDING_PAGES = [
     desc: "Smart agent helps manage your schedule, todos, and more. Works offline too.",
   },
   {
-    icon: "camera" as const,
-    title: "Scan Anything",
-    desc: "Use your camera to scan schedules, flyers, and documents. OCR extracts the text.",
+    icon: "file-text" as const,
+    title: "Notes, Photos & Files",
+    desc: "Capture ideas as notes. Attach photos, Excel, or any file — scanned photos turn into text automatically.",
   },
   {
     icon: "check-square" as const,
@@ -184,6 +184,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
           <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
+          <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

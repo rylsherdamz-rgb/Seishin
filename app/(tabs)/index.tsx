@@ -8,6 +8,7 @@ import DateTimePicker, {
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { uid } from "@/utils/id";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 
 LocaleConfig.locales["en"] = {
@@ -174,12 +175,14 @@ export default function CalendarScreen() {
   const [sheetItem, setSheetItem] = useState<CalendarItem | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [eventTitle, setEventTitle] = useState("");
+  const [eventNotes, setEventNotes] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
   const [eventTime, setEventTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   function resetForm() {
     setEventTitle("");
+    setEventNotes("");
     setEventDate(new Date());
     setEventTime(new Date());
   }
@@ -189,6 +192,7 @@ export default function CalendarScreen() {
       { text: "Cancel", style: "cancel" },
       { text: "Add Event", onPress: () => { resetForm(); setShowModal(true); } },
       { text: "Add Todo", onPress: () => router.push("/todo") },
+      { text: "New Note", onPress: () => router.push("/note") },
       {
         text: "Scan Image",
         onPress: () => { resetForm(); pickImageForOcr(); },
@@ -236,11 +240,12 @@ export default function CalendarScreen() {
     start.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
     const end = new Date(start.getTime() + 3600000);
     addEvent({
-      id: `manual-${Date.now()}`,
+      id: uid("manual-evt"),
       title: eventTitle.trim(),
       startDate: start.toISOString(),
       endDate: end.toISOString(),
       source: "manual",
+      notes: eventNotes.trim() || undefined,
     });
     setShowModal(false);
     resetForm();
@@ -503,6 +508,17 @@ export default function CalendarScreen() {
                 onChange={onTimeChange}
               />
             )}
+
+            <Text className="text-xs font-medium text-ink-400 mb-1.5">Notes</Text>
+            <TextInput
+              className="min-h-[72px] bg-ink-50 rounded-xl px-4 py-3 text-sm text-black mb-6"
+              placeholder="Add notes for this event"
+              placeholderTextColor="#999999"
+              value={eventNotes}
+              onChangeText={setEventNotes}
+              multiline
+              textAlignVertical="top"
+            />
 
             <TouchableOpacity
               onPress={saveEvent}
