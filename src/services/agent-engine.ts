@@ -375,7 +375,10 @@ export async function runAgentLoop(userInput: string) {
     const tools = createDefaultTools();
     const toolParams = tools.toParams();
 
-    const history = agentStore.messages.slice(-20);
+    // Read the CURRENT store state — agentStore was captured before addMessage,
+    // so agentStore.messages is stale and would omit the message just sent
+    // (causing the AI to answer the previous prompt — a one-message lag).
+    const history = useAgentStore.getState().messages.slice(-20);
     const conversation: OpenAI.ChatCompletionMessageParam[] = [
       { role: "system", content: createSystemPrompt() },
       ...buildConversation(history),
