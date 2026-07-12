@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
+import { router } from "expo-router";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import Feather from "@expo/vector-icons/Feather";
@@ -15,7 +16,7 @@ interface LocalAlbum {
 
 export default function MusicScreen() {
   const [albums, setAlbums] = useState<LocalAlbum[]>([]);
-  const [playlistUrl, setPlaylistUrl] = useState("");
+  const [showUrlInput, setShowUrlInput] = useState(false);
 
   return (
     <View className="flex-1 bg-white">
@@ -30,30 +31,11 @@ export default function MusicScreen() {
         </View>
       </View>
 
-      <View className="mx-4 mb-4 h-11 bg-ink-50 rounded-xl px-4 flex-row items-center gap-2">
-        <Feather name="link" size={15} color="#999999" />
-        <TextInput
-          className="flex-1 text-sm text-black"
-          placeholder="Paste Spotify playlist or album URL"
-          placeholderTextColor="#999999"
-          value={playlistUrl}
-          onChangeText={setPlaylistUrl}
-        />
-        {playlistUrl.length > 0 && (
-          <TouchableOpacity
-            onPress={() => { /* TODO: download playlist */ }}
-            className="w-8 h-8 bg-black rounded-full items-center justify-center"
-          >
-            <Feather name="download" size={14} color="#ffffff" />
-          </TouchableOpacity>
-        )}
-      </View>
-
       {albums.length > 0 ? (
         <FlatList
           data={albums}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-8"
+          contentContainerClassName="px-4 pb-24"
           numColumns={2}
           columnWrapperClassName="gap-3"
           renderItem={({ item }) => (
@@ -81,9 +63,17 @@ export default function MusicScreen() {
         <EmptyState
           icon="music"
           title="No music yet"
-          subtitle="Paste a Spotify playlist or album URL above to download it"
+          subtitle="Tap + to download a Spotify playlist or album"
         />
       )}
+
+      <TouchableOpacity
+        onPress={() => router.push("/music-download")}
+        activeOpacity={0.85}
+        className="absolute bottom-8 right-6 w-14 h-14 bg-black rounded-full items-center justify-center shadow-float"
+      >
+        <Feather name="plus" size={24} color="#ffffff" />
+      </TouchableOpacity>
     </View>
   );
 }

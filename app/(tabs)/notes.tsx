@@ -34,7 +34,7 @@ export default function NotesScreen() {
     return i.type === localFilter;
   });
 
-  const FILTERS = ["all", "notifications", "emails", "chats"] as const;
+  const FILTERS = ["all", "notification", "email", "chat"] as const;
   const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
     notification: "bell", email: "mail", chat: "message-circle",
   };
