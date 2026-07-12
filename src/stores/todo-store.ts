@@ -13,6 +13,7 @@ export interface Todo {
   createdAt: string;
   completedAt?: string;
   inviteId?: string;
+  eventId?: string;
 }
 
 type TodoFilter = "all" | "active" | "completed";
@@ -29,6 +30,7 @@ interface TodoState {
   setFilter: (filter: TodoFilter) => void;
   getFilteredTodos: () => Todo[];
   getStats: () => { total: number; active: number; completed: number };
+  getTodosForEvent: (eventId: string) => Todo[];
 }
 
 export const useTodoStore = create<TodoState>((set, get) => ({
@@ -88,5 +90,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const total = todos.length;
     const completed = todos.filter((t) => t.completed).length;
     return { total, active: total - completed, completed };
+  },
+
+  getTodosForEvent: (eventId) => {
+    return get().todos.filter((t) => t.eventId === eventId);
   },
 }));

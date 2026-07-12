@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from "react-native";
+
 import { router, useFocusEffect } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SheetModal } from "@/components/ui/SheetModal";
 import Feather from "@expo/vector-icons/Feather";
 
 export default function NotesScreen() {
@@ -26,14 +27,10 @@ export default function NotesScreen() {
 
   // The + button offers a blank note or starting from an upload. Attachment
   // actions open the editor with a launch param so the picker + OCR run there.
+  const [showNewNoteSheet, setShowNewNoteSheet] = useState(false);
+
   function onAddPress() {
-    Alert.alert("New Note", "Start a blank note or add an attachment", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Blank Note", onPress: () => openNote() },
-      { text: "Take Photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
-      { text: "Choose Photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },
-      { text: "Upload File", onPress: () => router.push({ pathname: "/note", params: { action: "file" } }) },
-    ]);
+    setShowNewNoteSheet(true);
   }
 
   function renderCard(item: Note) {
@@ -101,7 +98,7 @@ export default function NotesScreen() {
   const hasNotes = pinned.length + others.length > 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View>
           <Text className="text-2xl font-semibold tracking-tightest text-black">Notes</Text>
@@ -191,6 +188,18 @@ export default function NotesScreen() {
           subtitle={query ? "Try a different search" : "Tap + to create a note — add text, photos, or files"}
         />
       )}
-    </SafeAreaView>
+      <SheetModal
+        visible={showNewNoteSheet}
+        onClose={() => setShowNewNoteSheet(false)}
+        title="New Note"
+        message="Start a blank note or add an attachment"
+        options={[
+          { icon: "file-text", label: "Blank Note", onPress: () => openNote() },
+          { icon: "camera", label: "Take Photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
+          { icon: "image", label: "Choose Photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },
+          { icon: "paperclip", label: "Upload File", onPress: () => router.push({ pathname: "/note", params: { action: "file" } }) },
+        ]}
+      />
+    </View>
   );
 }

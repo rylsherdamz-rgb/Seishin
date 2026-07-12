@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  View, Text, TouchableOpacity, FlatList, Alert, Modal, TextInput,
+  View, Text, TouchableOpacity, FlatList, Modal, TextInput,
 } from "react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import { SafeAreaView } from "react-native-safe-area-context";
+
 import { router } from "expo-router";
 import { uid } from "@/utils/id";
+import { SheetModal } from "@/components/ui/SheetModal";
 import { Calendar, LocaleConfig } from "react-native-calendars";
 
 LocaleConfig.locales["en"] = {
@@ -40,6 +41,8 @@ interface CalendarItem {
   priority?: string;
   completed?: boolean;
   todoId?: string;
+  notes?: string;
+  eventId?: string;
 }
 
 export default function CalendarScreen() {
@@ -62,6 +65,8 @@ export default function CalendarScreen() {
       date: e.startDate.split("T")[0],
       time: new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       source: e.source,
+      notes: e.notes,
+      eventId: e.id,
     })),
     ...todos
       .filter((t) => t.dueDate)
@@ -180,6 +185,10 @@ export default function CalendarScreen() {
   const [eventTime, setEventTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showAddSheet, setShowAddSheet] = useState(false);
+  const [showNoTextAlert, setShowNoTextAlert] = useState(false);
+  const [showOcrError, setShowOcrError] = useState(false);
+  const [showMissingTitle, setShowMissingTitle] = useState(false);
   function resetForm() {
     setEventTitle("");
     setEventNotes("");
@@ -188,16 +197,7 @@ export default function CalendarScreen() {
   }
 
   function showAddOptions() {
-    Alert.alert("Add to Calendar", "Choose how to add", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Add Event", onPress: () => { resetForm(); setShowModal(true); } },
-      { text: "Add Todo", onPress: () => router.push("/todo") },
-      { text: "New Note", onPress: () => router.push("/note") },
-      {
-        text: "Scan Image",
-        onPress: () => { resetForm(); pickImageForOcr(); },
-      },
-    ]);
+    setShowAddSheet(true);
   }
 
   async function pickImageForOcr() {
@@ -214,10 +214,10 @@ export default function CalendarScreen() {
         setEventTitle(text.slice(0, 120));
         setShowModal(true);
       } else {
-        Alert.alert("No text found", "Could not extract text from image.");
+        setShowNoTextAlert(true);
       }
     } catch {
-      Alert.alert("Error", "OCR failed. Try again.");
+      setShowOcrError(true);
     }
   }
 
@@ -233,7 +233,7 @@ export default function CalendarScreen() {
 
   function saveEvent() {
     if (!eventTitle.trim()) {
-      Alert.alert("Missing title", "Enter an event title.");
+      setShowMissingTitle(true);
       return;
     }
     const start = new Date(eventDate);
@@ -252,7 +252,7 @@ export default function CalendarScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View>
           <Text className="text-2xl font-semibold tracking-tightest text-black">Calendar</Text>
@@ -435,6 +435,8 @@ export default function CalendarScreen() {
               time: sheetItem.time,
               description: sheetItem.description,
               source: sheetItem.source,
+              notes: sheetItem.notes,
+              eventId: sheetItem.eventId,
             },
             onEventDelete: (id) => { deleteEvent(id); setSheetItem(null); },
           } : {
@@ -530,6 +532,36 @@ export default function CalendarScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      <SheetModal
+        visible={showAddSheet}
+        onClose={() => setShowAddSheet(false)}
+        title="Add to Calendar"
+        message="Choose how to add"
+        options={[
+          { icon: "calendar", label: "Add Event", onPress: () => { resetForm(); setShowModal(true); } },
+          { icon: "check-square", label: "Add Todo", onPress: () => router.push("/todo") },
+          { icon: "file-text", label: "New Note", onPress: () => router.push("/note") },
+          { icon: "camera", label: "Scan Image", onPress: () => { resetForm(); pickImageForOcr(); } },
+        ]}
+      />
+      <SheetModal
+        visible={showNoTextAlert}
+        onClose={() => setShowNoTextAlert(false)}
+        title="No text found"
+        message="Could not extract text from image."
+      />
+      <SheetModal
+        visible={showOcrError}
+        onClose={() => setShowOcrError(false)}
+        title="OCR failed"
+        message="The image could not be processed. Try a clearer photo."
+      />
+      <SheetModal
+        visible={showMissingTitle}
+        onClose={() => setShowMissingTitle(false)}
+        title="Missing title"
+        message="Enter an event title."
+      />
+    </View>
   );
 }

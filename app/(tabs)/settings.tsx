@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput, Modal, FlatList, ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, FlatList, ActivityIndicator } from "react-native";
+
 import { router } from "expo-router";
+import { fetch as expoFetch } from "expo/fetch";
 import * as DocumentPicker from "expo-document-picker";
 import { useSettingsStore } from "@/stores/settings-store";
 import {
@@ -13,6 +14,7 @@ import { clearOcrHistory } from "@/services/ocr";
 import { useNotifications } from "@/services/notification-service";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { SheetModal } from "@/components/ui/SheetModal";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
 
@@ -76,6 +78,8 @@ export default function SettingsScreen() {
   const [modelSearch, setModelSearch] = useState("");
 
   const [ggufFileName, setGgufFileName] = useState("");
+  const [modalConfig, setModalConfig] = useState<{ title: string; message: string } | null>(null);
+  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
     loadSettings();
@@ -95,37 +99,36 @@ export default function SettingsScreen() {
   }, [apiKeys.nim, nimEndpoint, nimModel, modelPath]);
 
   function confirmClear(title: string, onClear: () => void) {
-    Alert.alert("Clear " + title, "This action cannot be undone.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Clear", style: "destructive", onPress: () => { onClear(); setSizes(getStorageSizes()); } },
-    ]);
+    setConfirmConfig({
+      title: "Clear " + title,
+      message: "This action cannot be undone.",
+      onConfirm: () => { onClear(); setSizes(getStorageSizes()); },
+    });
   }
 
   function confirmFactoryReset() {
-    Alert.alert("Factory Reset", "This will delete ALL data. Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Reset", style: "destructive",
-        onPress: () => {
-          clearAllStorage();
-          clearOcrHistory();
-          setSizes(getStorageSizes());
-          Alert.alert("Done", "All data has been cleared.");
-        },
+    setConfirmConfig({
+      title: "Factory Reset",
+      message: "This will delete ALL data. Are you sure?",
+      onConfirm: () => {
+        clearAllStorage();
+        clearOcrHistory();
+        setSizes(getStorageSizes());
+        setModalConfig({ title: "Done", message: "All data has been cleared." });
       },
-    ]);
+    });
   }
 
   function saveNimConfig() {
     setApiKey("nim", nimKey);
     setNimEndpoint(nimEp);
     setNimModel(nimMd);
-    Alert.alert("Saved", "NVIDIA NIM config updated. Switch to NIM mode in the Agent tab.");
+    setModalConfig({ title: "Saved", message: "NVIDIA NIM config updated. Switch to NIM mode in the Agent tab." });
   }
 
   function saveModelPath() {
     setModelPath(ggufPath || null);
-    Alert.alert("Saved", "Local model path updated.");
+    setModalConfig({ title: "Saved", message: "Local model path updated." });
   }
 
   async function openModelPicker() {
@@ -133,17 +136,19 @@ export default function SettingsScreen() {
     if (models.length > 0) return;
     setLoadingModels(true);
     try {
-      const baseUrl = nimEp.trim() || "https://integrate.api.nvidia.com/v1";
+      const baseUrl = (nimEp || "https://integrate.api.nvidia.com/v1").trim().replace(/\/+$/, "");
       const key = nimKey || apiKeys.nim;
-      const res = await fetch(`${baseUrl}/models`, {
-        headers: key ? { Authorization: `Bearer ${key}` } : undefined,
+      const res = await expoFetch(`${baseUrl}/models`, {
+        headers: key ? { Authorization: `Bearer ${key}` } : {},
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const modelIds: string[] = (data.data || data.models || []).map((m: { id?: string; model?: string }) => m.id || m.model).filter(Boolean);
+      const data = await res.json() as Record<string, unknown>;
+      const modelIds: string[] = ((data.data || data.models || []) as Array<{ id?: string; model?: string }>)
+        .map((m) => m.id || m.model)
+        .filter(Boolean) as string[];
       setModels(modelIds.sort());
     } catch (e) {
-      Alert.alert("Error", `Failed to fetch models: ${e instanceof Error ? e.message : "Unknown"}`);
+      setModalConfig({ title: "Could not load models", message: `Check your API key and endpoint, then try again.` });
     } finally {
       setLoadingModels(false);
     }
@@ -161,7 +166,7 @@ export default function SettingsScreen() {
         setGgufFileName(asset.name || "");
       }
     } catch (e) {
-      Alert.alert("Error", "Could not open file picker.");
+      setModalConfig({ title: "Could not browse files", message: "The file picker did not respond. Try again." });
     }
   }
 
@@ -170,7 +175,7 @@ export default function SettingsScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-4 pb-12">
           <View className="flex-row items-center gap-3 mb-6 pt-3">
@@ -434,6 +439,21 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      <SheetModal
+        visible={modalConfig !== null}
+        onClose={() => setModalConfig(null)}
+        title={modalConfig?.title}
+        message={modalConfig?.message}
+      />
+      <SheetModal
+        visible={confirmConfig !== null}
+        onClose={() => setConfirmConfig(null)}
+        title={confirmConfig?.title}
+        message={confirmConfig?.message}
+        confirmLabel="Clear"
+        confirmDestructive
+        onConfirm={() => { confirmConfig?.onConfirm(); setConfirmConfig(null); }}
+      />
+    </View>
   );
 }

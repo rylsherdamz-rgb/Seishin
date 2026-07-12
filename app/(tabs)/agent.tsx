@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, Alert, Image, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Keyboard, Platform, Modal, Image, ActivityIndicator,
 } from "react-native";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+
 import { router } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 import { getDocumentAsync } from "expo-document-picker";
@@ -42,12 +42,16 @@ function ThinkingIndicator() {
 
 export default function AgentScreen() {
   const {
-    messages, currentProvider, installedSkills, isProcessing,
+    messages, currentProvider, installedSkills, isProcessing, streamTick,
     load, setProvider, removeSkill, clearConversation,
   } = useAgentStore();
   const { apiKeys, nimModel, nimEndpoint, loadSettings } = useSettingsStore();
   const [input, setInput] = useState("");
   const [showSkills, setShowSkills] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<AgentAttachment[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
@@ -67,11 +71,73 @@ export default function AgentScreen() {
     }
   }, [messages.length]);
 
+  useEffect(() => {
+    const onShow = (e: { endCoordinates: { height: number } }) => setKeyboardHeight(e.endCoordinates.height);
+    const onHide = () => setKeyboardHeight(0);
+    const show = Platform.OS === "ios"
+      ? Keyboard.addListener("keyboardWillShow", onShow)
+      : Keyboard.addListener("keyboardDidShow", onShow);
+    const hide = Platform.OS === "ios"
+      ? Keyboard.addListener("keyboardWillHide", onHide)
+      : Keyboard.addListener("keyboardDidHide", onHide);
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
   async function handleSend() {
     const text = input.trim();
     if (!text || isProcessing) return;
     setInput("");
-    await runAgentLoop(text);
+    const attachments = pendingAttachments.length > 0 ? [...pendingAttachments] : undefined;
+    setPendingAttachments([]);
+
+    let extractedContext: string | undefined;
+    if (attachments) {
+      const texts: string[] = [];
+      for (const att of attachments) {
+        if (att.type === "image") {
+          try {
+            const t = await recognizeText(att.uri);
+            if (t.trim()) texts.push(`[Image: ${att.name || "photo"}]\n${t.trim()}`);
+          } catch {
+            // OCR is best-effort
+          }
+        } else {
+          texts.push(`[File attached: ${att.name || "file"}]`);
+        }
+      }
+      if (texts.length > 0) extractedContext = texts.join("\n\n");
+    }
+
+    await runAgentLoop(text, { attachments, extractedContext });
+  }
+
+  function showAttachmentPicker() {
+    setShowPicker(true);
+  }
+
+  async function addPhoto(fromCamera: boolean) {
+    const picker = fromCamera ? launchCameraAsync : launchImageLibraryAsync;
+    const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setPendingAttachments((prev) => [
+      ...prev,
+      { type: "image", uri: asset.uri, name: asset.fileName ?? undefined, mimeType: asset.mimeType ?? "image/*" },
+    ]);
+  }
+
+  async function addFile() {
+    const result = await getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setPendingAttachments((prev) => [
+      ...prev,
+      { type: "file", uri: asset.uri, name: asset.name ?? undefined, mimeType: asset.mimeType ?? undefined },
+    ]);
+  }
+
+  function removePendingAttachment(index: number) {
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
   }
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -84,12 +150,8 @@ export default function AgentScreen() {
   const hasKey = !!apiKeys.nim;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={90}
-      >
+    <View className="flex-1 bg-white">
+      <View className="flex-1" style={{ paddingBottom: keyboardHeight }}>
         <View className="px-4 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View>
@@ -115,12 +177,7 @@ export default function AgentScreen() {
                 <Feather name="settings" size={14} color="#666666" />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => {
-                  Alert.alert("Clear", "Delete all messages?", [
-                    { text: "Cancel", style: "cancel" },
-                    { text: "Clear", style: "destructive", onPress: clearConversation },
-                  ]);
-                }}
+                onPress={() => setShowClearConfirm(true)}
                 className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
               >
                 <Feather name="trash-2" size={14} color="#666666" />
@@ -202,6 +259,7 @@ export default function AgentScreen() {
         <FlatList
           ref={flatListRef}
           data={messages}
+          extraData={streamTick}
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 pb-2"
           ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
@@ -232,6 +290,20 @@ export default function AgentScreen() {
                     <Text className="text-sm leading-5 text-white">{item.content}</Text>
                   ) : (
                     <Markdown content={item.content} />
+                  )}
+                  {item.attachments && item.attachments.length > 0 && (
+                    <View className="flex-row flex-wrap gap-1.5 mt-2">
+                      {item.attachments.map((att: AgentAttachment, i: number) =>
+                        att.type === "image" ? (
+                          <Image key={i} source={{ uri: att.uri }} className="w-20 h-20 rounded-lg" />
+                        ) : (
+                          <View key={i} className="flex-row items-center gap-1 bg-ink-100 rounded-lg px-2 py-1.5">
+                            <Feather name="file" size={12} color="#666" />
+                            <Text className="text-xs text-ink-500">{att.name || "File"}</Text>
+                          </View>
+                        )
+                      )}
+                    </View>
                   )}
                   <View className="flex-row items-center justify-between mt-2">
                     <Text className={`text-xs ${isUser ? "text-ink-200" : "text-ink-400"}`}>
@@ -267,8 +339,37 @@ export default function AgentScreen() {
           }
         />
 
+        {pendingAttachments.length > 0 && (
+          <ScrollView horizontal className="px-4 py-2 border-t border-ink-100 bg-white" showsHorizontalScrollIndicator={false}>
+            {pendingAttachments.map((att, i) => (
+              <View key={i} className="mr-2 relative">
+                {att.type === "image" ? (
+                  <Image source={{ uri: att.uri }} className="w-16 h-16 rounded-lg" />
+                ) : (
+                  <View className="w-16 h-16 rounded-lg bg-ink-100 items-center justify-center">
+                    <Feather name="file" size={20} color="#666" />
+                  </View>
+                )}
+                <TouchableOpacity
+                  onPress={() => removePendingAttachment(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger rounded-full items-center justify-center"
+                >
+                  <Feather name="x" size={10} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
         <View className="px-4 py-3 border-t border-ink-100 bg-white">
-          <View className="flex-row gap-2 items-center">
+          <View className="flex-row gap-1 items-center">
+            <TouchableOpacity
+              onPress={showAttachmentPicker}
+              disabled={isProcessing}
+              activeOpacity={0.7}
+              className="w-10 h-12 items-center justify-center"
+            >
+              <Feather name="paperclip" size={18} color={isProcessing ? "#ccc" : "#666"} />
+            </TouchableOpacity>
             <TextInput
               className="flex-1 h-12 bg-ink-50 rounded-xl px-4 text-base text-black"
               placeholder={isProcessing ? "AI is thinking..." : "Type a message..."}
@@ -300,7 +401,68 @@ export default function AgentScreen() {
             )}
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        {showPicker && (
+          <Modal transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
+            <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setShowPicker(false)}>
+              <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-2xl px-4 pb-8 pt-2" onPress={() => {}}>
+                <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 py-3.5"
+                  onPress={() => { setShowPicker(false); addPhoto(true); }}
+                >
+                  <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="camera" size={16} color="#000" />
+                  </View>
+                  <Text className="text-base text-black">Take Photo</Text>
+                </TouchableOpacity>
+                <View className="h-px bg-ink-100" />
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 py-3.5"
+                  onPress={() => { setShowPicker(false); addPhoto(false); }}
+                >
+                  <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="image" size={16} color="#000" />
+                  </View>
+                  <Text className="text-base text-black">Choose from Library</Text>
+                </TouchableOpacity>
+                <View className="h-px bg-ink-100" />
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 py-3.5"
+                  onPress={() => { setShowPicker(false); addFile(); }}
+                >
+                  <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="file" size={16} color="#000" />
+                  </View>
+                  <Text className="text-base text-black">Pick File</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
+        )}
+        {showClearConfirm && (
+          <Modal transparent animationType="slide" onRequestClose={() => setShowClearConfirm(false)}>
+            <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setShowClearConfirm(false)}>
+              <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-2xl px-4 pb-8 pt-2" onPress={() => {}}>
+                <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
+                <Text className="text-base font-medium text-black mb-1">Clear conversation?</Text>
+                <Text className="text-sm text-ink-400 mb-5">All messages will be deleted.</Text>
+                <TouchableOpacity
+                  className="h-12 bg-danger rounded-xl items-center justify-center"
+                  onPress={() => { setShowClearConfirm(false); clearConversation(); }}
+                >
+                  <Text className="text-sm font-medium text-white">Clear All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="h-12 items-center justify-center mt-2"
+                  onPress={() => setShowClearConfirm(false)}
+                >
+                  <Text className="text-sm text-ink-500">Cancel</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
+        )}
+      </View>
+    </View>
   );
 }

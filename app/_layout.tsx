@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, StatusBar as RNStatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, withDelay, Easing, FadeInDown, FadeIn } from "react-native-reanimated";
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
 import { settingsStorage } from "@/stores/mmkv";
@@ -165,7 +165,8 @@ export default function RootLayout() {
   if (phase === "onboarding") {
     return (
       <SafeAreaProvider>
-        <StatusBar style="dark" />
+        <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
+        <StatusBar style="light" />
         <OnboardingScreen
           onComplete={() => {
             settingsStorage.set("hasSeenOnboarding", true);
@@ -179,13 +180,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
-          <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
-        </Stack>
+        <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+          <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
+          <StatusBar style="light" />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
+          </Stack>
+        </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

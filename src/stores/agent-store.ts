@@ -41,6 +41,7 @@ interface AgentState {
   currentProvider: Provider;
   installedSkills: Skill[];
   isProcessing: boolean;
+  streamTick: number;
 
   load: () => void;
   addMessage: (msg: AgentMessage) => void;
@@ -61,6 +62,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   currentProvider: "local",
   installedSkills: [],
   isProcessing: false,
+  streamTick: 0,
 
   load: () => {
     const msgs = agentStorage.getString(MESSAGES_KEY);
@@ -105,6 +107,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     const messages = get().messages.map((m) =>
       m.id === id ? { ...m, content, ...(toolCalls ? { toolCalls } : {}) } : m
     );
-    set({ messages });
+    set({ messages, streamTick: get().streamTick + 1 });
   },
 }));

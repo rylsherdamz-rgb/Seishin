@@ -1,5 +1,7 @@
+import { AppState } from "react-native";
 import OpenAI from "openai";
 import { fetch as expoFetch } from "expo/fetch";
+import * as Notifications from "expo-notifications";
 import { useAgentStore, AgentMessage, AgentAttachment } from "@/stores/agent-store";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
@@ -8,6 +10,11 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useInvitesStore } from "@/stores/invites-store";
 import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
 import { uid } from "@/utils/id";
+import {
+  addEntity, addRelation, queryGraph, listEntities, getGraphSummary,
+  appendToSessionLog, getSessionLog, getRelated, findPath,
+  updateEntity, deleteEntity, deleteRelation,
+} from "./agent-memory";
 
 let currentAbort: AbortController | null = null;
 
@@ -418,6 +425,153 @@ class DeleteNoteTool extends BaseTool {
   }
 }
 
+class RememberEntityTool extends BaseTool {
+  name = "remember_entity";
+  description = "Store an entity in your knowledge graph. Use this when the user tells you something important about a person, place, concept, or thing that they might want you to recall later.";
+  parameters = {
+    name: { type: "string", description: "Entity name" },
+    type: { type: "string", description: "Entity type (person, place, concept, project, preference, etc.)" },
+    description: { type: "string", description: "What to remember about this entity" },
+    tags: { type: "string", description: "Optional comma-separated tags", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const entity = addEntity(
+      args.name as string,
+      args.type as string,
+      args.description as string,
+      typeof args.tags === "string" ? (args.tags as string).split(",").map((t) => t.trim()) : undefined,
+    );
+    return this.successResponse(`Remembered "${entity.name}" as a ${entity.type}.`);
+  }
+}
+
+class RememberRelationTool extends BaseTool {
+  name = "remember_relation";
+  description = "Create a relationship between two entities in your knowledge graph. Use this to connect things the user has told you about.";
+  parameters = {
+    from: { type: "string", description: "Entity id of the source" },
+    to: { type: "string", description: "Entity id of the target" },
+    type: { type: "string", description: "Relationship type (works_at, knows, likes, owns, etc.)" },
+    description: { type: "string", description: "Describe the relationship" },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const result = addRelation(
+      args.from as string,
+      args.to as string,
+      args.type as string,
+      args.description as string,
+    );
+    if (typeof result === "string") return this.failResponse(result);
+    return this.successResponse(`Linked "${result.from}" --[${result.type}]--> "${result.to}".`);
+  }
+}
+
+class RecallMemoryTool extends BaseTool {
+  name = "recall_memory";
+  description = "Search your knowledge graph. Call this when the user asks about something they told you earlier, or when you need context from prior conversations.";
+  parameters = {
+    query: { type: "string", description: "What to search for in the knowledge graph" },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const result = queryGraph(args.query as string);
+    return this.successResponse(result);
+  }
+}
+
+class ListMemoryEntitiesTool extends BaseTool {
+  name = "list_entities";
+  description = "List all entities in your knowledge graph, optionally filtered by type. Each entity has an id you can use with remember_relation.";
+  parameters = {
+    type: { type: "string", description: "Optional type filter (person, place, concept, etc.)", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const result = listEntities(args.type as string | undefined);
+    return this.successResponse(result);
+  }
+}
+
+class GetRelatedTool extends BaseTool {
+  name = "get_related";
+  description = "Traverse the knowledge graph from an entity to find all connected entities up to a configurable depth.";
+  parameters = {
+    entityId: { type: "string", description: "Entity id to start from" },
+    maxDepth: { type: "number", description: "Maximum traversal depth (1-5, default 2)", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const result = getRelated(args.entityId as string, (args.maxDepth as number) || 2);
+    return this.successResponse(result);
+  }
+}
+
+class FindPathTool extends BaseTool {
+  name = "find_path";
+  description = "Find the shortest path between two entities in the knowledge graph using BFS.";
+  parameters = {
+    fromId: { type: "string", description: "Starting entity id" },
+    toId: { type: "string", description: "Target entity id" },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const result = findPath(args.fromId as string, args.toId as string);
+    return this.successResponse(result);
+  }
+}
+
+class UpdateMemoryEntityTool extends BaseTool {
+  name = "update_entity";
+  description = "Update an existing entity's name, description, type, tags, or importance.";
+  parameters = {
+    id: { type: "string", description: "Entity id to update" },
+    name: { type: "string", description: "New name", optional: true },
+    description: { type: "string", description: "New description", optional: true },
+    type: { type: "string", description: "New type", optional: true },
+    tags: { type: "string", description: "Comma-separated new tags", optional: true },
+    importance: { type: "number", description: "Importance 0-10", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const ok = updateEntity(args.id as string, {
+      ...(args.name ? { name: args.name as string } : {}),
+      ...(args.description ? { description: args.description as string } : {}),
+      ...(args.type ? { type: args.type as string } : {}),
+      ...(args.tags ? { tags: (args.tags as string).split(",").map((t) => t.trim()) } : {}),
+      ...(args.importance ? { importance: args.importance as number } : {}),
+    });
+    return ok ? this.successResponse("Entity updated.") : this.failResponse("Entity not found.");
+  }
+}
+
+class DeleteMemoryEntityTool extends BaseTool {
+  name = "delete_entity";
+  description = "Delete an entity and all its relations from the knowledge graph.";
+  parameters = {
+    id: { type: "string", description: "Entity id to delete" },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const ok = deleteEntity(args.id as string);
+    return ok ? this.successResponse("Entity deleted.") : this.failResponse("Entity not found.");
+  }
+}
+
+class DeleteRelationTool extends BaseTool {
+  name = "delete_relation";
+  description = "Delete a specific relation from the knowledge graph.";
+  parameters = {
+    id: { type: "string", description: "Relation id to delete" },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const ok = deleteRelation(args.id as string);
+    return ok ? this.successResponse("Relation deleted.") : this.failResponse("Relation not found.");
+  }
+}
+
 export function createDefaultTools(): ToolCollection {
   return new ToolCollection(
     new AddEventTool(),
@@ -436,6 +590,15 @@ export function createDefaultTools(): ToolCollection {
     new DeleteNoteTool(),
     new GenerateInviteTool(),
     new GetSettingsTool(),
+    new RememberEntityTool(),
+    new RememberRelationTool(),
+    new RecallMemoryTool(),
+    new ListMemoryEntitiesTool(),
+    new GetRelatedTool(),
+    new FindPathTool(),
+    new UpdateMemoryEntityTool(),
+    new DeleteMemoryEntityTool(),
+    new DeleteRelationTool(),
   );
 }
 
@@ -443,7 +606,17 @@ export function createSystemPrompt(): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  return `You are Seishin, a helpful AI assistant on the user's phone. You help with scheduling, todos, reminders, planning, advice, and general questions.
+
+  const sessionLog = getSessionLog();
+  const graphSummary = getGraphSummary();
+
+  const memoryContext = [];
+  if (sessionLog) memoryContext.push(`## Session History\n${sessionLog.slice(-3000)}`);
+  if (graphSummary) memoryContext.push(graphSummary);
+
+  const memoryBlock = memoryContext.length > 0 ? `\n${memoryContext.join("\n\n")}\n` : "";
+
+  return `You are Seishin, a helpful AI assistant on the user's phone. You help with scheduling, todos, reminders, planning, advice, and general questions.${memoryBlock}
 
 Current date and time: ${dateStr} at ${timeStr}
 
@@ -465,16 +638,29 @@ Current date and time: ${dateStr} at ${timeStr}
    - list_notes — read saved notes (output includes each note's id; supports a search query).
    - update_note — edit a note's title, body, tags, or pin state.
    - delete_note — remove a note.
-   - generate_invite — create an invite code.
-   - get_settings — report the current setup.
+    - generate_invite — create an invite code.
+    - get_settings — report the current setup.
+    - remember_entity — store an important person, place, concept, or preference in your knowledge graph so you can recall it later.
+    - remember_relation — connect two entities in your knowledge graph with a relationship.
+    - recall_memory — search your knowledge graph for things the user told you in the past.
+    - list_entities — list everything in your knowledge graph (optionally filter by type).
+    - get_related — traverse the graph from an entity to find everything connected to it.
+    - find_path — find the shortest path between two entities.
+    - update_entity — update a stored entity's details.
+    - delete_entity — remove an entity and its relations.
+    - delete_relation — remove a specific relation.
+
+   MEMORY: You have a knowledge graph that persists across sessions. When the user tells you something important about themselves (a preference, a fact about their life, a person they know, a project they're working on), call remember_entity to store it. When you need context from past conversations, call recall_memory. Check the Session History at the top of this prompt for what happened in the current session.
 
    EDITING / DELETING / COMPLETING: When the user wants to change, cancel, remove, delete, finish, or mark something done, call the matching tool above. Identify the item by its title using the "query" argument (a word or phrase from the item's name is enough) — you do NOT need the id. If unsure which item exists, call list_events, list_todos, or list_notes first. If a tool reports multiple matches, ask the user which one (or pass the id it listed).
 
    NOTES vs TODOS vs EVENTS: use add_note for free-form things to write down or remember (ideas, lists, journaling, meeting notes) with NO specific time; use add_todo for things to DO (optionally with a due date); use add_event for things happening at a set time. Events can also carry a "notes" field — set it via add_event/update_event when the user wants notes attached to a specific meeting/appointment.
 
-2. ANSWER & CONVERSE — for questions, explanations, advice, or plans the user only wants to read, respond naturally in plain language. No tool call.
+2. MEMORY & KNOWLEDGE — second priority. When the user shares personal information, preferences, or facts about their life, call remember_entity to store it. Use recall_memory when you need to remember something from a prior session. Your knowledge graph is persistent and always available. Keep your notes up to date.
 
-3. CODE — only write code when the user explicitly asks for it. Never use code to add a todo or event; use the tools.
+3. ANSWER & CONVERSE — for questions, explanations, advice, or plans the user only wants to read, respond naturally in plain language. No tool call.
+
+4. CODE — only write code when the user explicitly asks for it. Never use code to add a todo or event; use the tools.
 
 ## RULES
 - CRITICAL: Build every tool argument from the USER'S ACTUAL MESSAGE — the real subject the user wrote. Never invent or reuse an unrelated title.
@@ -638,12 +824,14 @@ export async function runAgentLoop(
       attachments,
     });
     agentStore.setProcessing(false);
+    const localResponse = "Local GGUF mode not yet available. Switch to NVIDIA NIM or configure a GGUF model.";
     agentStore.addMessage({
       id: `msg-${Date.now()}-local`,
       role: "assistant",
-      content: "Local GGUF mode not yet available. Switch to NVIDIA NIM or configure a GGUF model.",
+      content: localResponse,
       timestamp: new Date().toISOString(),
     });
+    appendToSessionLog(userInput, localResponse);
     return;
   }
 
@@ -658,8 +846,8 @@ export async function runAgentLoop(
   agentStore.setProcessing(true);
   currentAbort = new AbortController();
   // Safety timeout: never leave the UI stuck on "thinking" if the model or
-  // network stalls. Aborts the request after 60s.
-  const timeoutId = setTimeout(() => currentAbort?.abort(), 60000);
+  // network stalls. Aborts the request after 180s.
+  const timeoutId = setTimeout(() => currentAbort?.abort(), 180000);
 
   try {
     if (!apiKeys.nim) {
@@ -729,5 +917,22 @@ export async function runAgentLoop(
     clearTimeout(timeoutId);
     agentStore.setProcessing(false);
     currentAbort = null;
+
+    // Append to session log so the AI can recall this exchange later.
+    const finalMessages = useAgentStore.getState().messages;
+    const lastAssistant = [...finalMessages].reverse().find((m) => m.role === "assistant");
+    appendToSessionLog(userInput, lastAssistant?.content || "");
+
+    // If app is in background, notify the user that the AI is done.
+    if (AppState.currentState === "background" || AppState.currentState === "inactive") {
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Seishin",
+          body: "Your AI assistant has finished.",
+          data: { screen: "agent" },
+        },
+        trigger: null, // immediate
+      }).catch(() => {});
+    }
   }
 }

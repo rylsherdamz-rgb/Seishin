@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator } from "react-native";
+
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 import { getDocumentAsync } from "expo-document-picker";
 import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
 import { recognizeText } from "@/services/ocr";
+import { SheetModal } from "@/components/ui/SheetModal";
 import { uid } from "@/utils/id";
 import Feather from "@expo/vector-icons/Feather";
 
@@ -21,6 +22,8 @@ export default function NoteEditorScreen() {
   const [attachments, setAttachments] = useState<NoteAttachment[]>(existing?.attachments ?? []);
   const [tagInput, setTagInput] = useState("");
   const [ocrBusy, setOcrBusy] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFileError, setShowFileError] = useState(false);
   const noteIdRef = useRef<string | undefined>(existing?.id);
   // Ensures a launch "action" (from the Notes + menu) fires its picker only once.
   const actionFired = useRef(false);
@@ -165,22 +168,12 @@ export default function NoteEditorScreen() {
       persist({ attachments: next });
       if (isImage) runOcrIntoBody(file.uri);
     } catch {
-      Alert.alert("Error", "Could not open that file.");
+      setShowFileError(true);
     }
   }
 
   function handleDelete() {
-    Alert.alert("Delete note", "This note will be permanently removed.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          if (noteIdRef.current) deleteNote(noteIdRef.current);
-          router.back();
-        },
-      },
-    ]);
+    setShowDeleteConfirm(true);
   }
 
   const imageAtts = attachments.filter((a) => a.type === "image");
@@ -194,7 +187,7 @@ export default function NoteEditorScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <TouchableOpacity onPress={handleBack} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
@@ -213,7 +206,7 @@ export default function NoteEditorScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
+      <View className="flex-1">
         <ScrollView className="flex-1 px-4" keyboardShouldPersistTaps="handled">
           {eventId && (
             <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
@@ -333,7 +326,22 @@ export default function NoteEditorScreen() {
             )}
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+      <SheetModal
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete note"
+        message="This note will be permanently removed."
+        confirmLabel="Delete"
+        confirmDestructive
+        onConfirm={() => { if (noteIdRef.current) deleteNote(noteIdRef.current); router.back(); }}
+      />
+      <SheetModal
+        visible={showFileError}
+        onClose={() => setShowFileError(false)}
+        title="Could not open file"
+        message="This file type is not supported or could not be accessed."
+      />
+    </View>
   );
 }

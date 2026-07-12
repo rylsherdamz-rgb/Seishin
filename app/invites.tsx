@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, Share } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Share } from "react-native";
+
 import { Stack, router } from "expo-router";
 import { useInvitesStore, InviteCard } from "@/stores/invites-store";
 import { uid } from "@/utils/id";
@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SheetModal } from "@/components/ui/SheetModal";
 import Feather from "@expo/vector-icons/Feather";
 
 type InviteTab = "cards" | "p2p" | "shared";
@@ -17,6 +18,12 @@ export default function InvitesScreen() {
   const [tab, setTab] = useState<InviteTab>("cards");
   const [newCardTitle, setNewCardTitle] = useState("");
   const [newCardDesc, setNewCardDesc] = useState("");
+  const [showCodeAlert, setShowCodeAlert] = useState(false);
+  const [codeAlertText, setCodeAlertText] = useState("");
+  const [showShareAlert, setShowShareAlert] = useState(false);
+  const [shareAlertText, setShareAlertText] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => { loadInvites(); }, []);
 
@@ -56,7 +63,7 @@ export default function InvitesScreen() {
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center gap-3">
         <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
@@ -107,8 +114,8 @@ export default function InvitesScreen() {
           <Button
             title="Generate P2P Code"
             onPress={() => {
-              const code = generateP2pCode();
-              Alert.alert("Code Generated", `Share this code: ${code}`);
+              setCodeAlertText(generateP2pCode());
+              setShowCodeAlert(true);
             }}
             icon={<Feather name="wifi" size={14} color="#ffffff" />}
           />
@@ -120,8 +127,8 @@ export default function InvitesScreen() {
           <Button
             title="Share Todo List"
             onPress={() => {
-              const code = shareTodoList([]);
-              Alert.alert("Share Code", `Share this code with a friend: ${code}`);
+              setShareAlertText(shareTodoList([]));
+              setShowShareAlert(true);
             }}
             icon={<Feather name="share-2" size={14} color="#ffffff" />}
           />
@@ -168,12 +175,7 @@ export default function InvitesScreen() {
                   <Feather name="share-2" size={14} color="#666666" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => {
-                    Alert.alert("Delete Invite", "Delete this invite?", [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Delete", style: "destructive", onPress: () => deleteInvite(item.id) },
-                    ]);
-                  }}
+                  onPress={() => { setDeleteTarget(item.id); setShowDeleteConfirm(true); }}
                 >
                   <Feather name="trash-2" size={14} color="#999999" />
                 </TouchableOpacity>
@@ -185,6 +187,27 @@ export default function InvitesScreen() {
           <EmptyState icon="send" title="No invites yet" subtitle="Create one above" />
         }
       />
-    </SafeAreaView>
+      <SheetModal
+        visible={showCodeAlert}
+        onClose={() => setShowCodeAlert(false)}
+        title="Code Generated"
+        message={`Share this code: ${codeAlertText}`}
+      />
+      <SheetModal
+        visible={showShareAlert}
+        onClose={() => setShowShareAlert(false)}
+        title="Share Code"
+        message={`Share this code with a friend: ${shareAlertText}`}
+      />
+      <SheetModal
+        visible={showDeleteConfirm}
+        onClose={() => { setShowDeleteConfirm(false); setDeleteTarget(null); }}
+        title="Delete Invite"
+        message="Delete this invite?"
+        confirmLabel="Delete"
+        confirmDestructive
+        onConfirm={() => { if (deleteTarget) deleteInvite(deleteTarget); setDeleteTarget(null); }}
+      />
+    </View>
   );
 }

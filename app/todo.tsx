@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Alert, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Stack, router } from "expo-router";
+
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
 import { uid } from "@/utils/id";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SheetModal } from "@/components/ui/SheetModal";
 import { ItemSheet } from "@/components/ItemSheet";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
@@ -15,6 +16,7 @@ import Feather from "@expo/vector-icons/Feather";
 type TodoFilter = "all" | "active" | "completed";
 
 export default function TodoScreen() {
+  const { eventId } = useLocalSearchParams<{ eventId?: string }>();
   const {
     todos, loadTodos, addTodo, toggleTodo, deleteTodo, clearCompleted, setFilter, getFilteredTodos, getStats,
   } = useTodoStore();
@@ -23,6 +25,7 @@ export default function TodoScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [filter, localFilter] = useState<TodoFilter>("all");
   const [showAdd, setShowAdd] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [sheetItem, setSheetItem] = useState<Todo | null>(null);
 
   useEffect(() => { loadTodos(); }, []);
@@ -42,6 +45,7 @@ export default function TodoScreen() {
       tags: [],
       createdAt: new Date().toISOString(),
       dueDate: newDueDate ? newDueDate.toISOString() : undefined,
+      eventId: eventId || undefined,
     });
     setNewTitle("");
     setNewDueDate(null);
@@ -55,7 +59,7 @@ export default function TodoScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
@@ -72,12 +76,7 @@ export default function TodoScreen() {
         </View>
         {stats.completed > 0 && (
           <TouchableOpacity
-            onPress={() => {
-              Alert.alert("Clear Completed", "Delete all completed todos?", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Clear", style: "destructive", onPress: clearCompleted },
-              ]);
-            }}
+            onPress={() => setShowClearConfirm(true)}
             className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
           >
             <Feather name="check-circle" size={14} color="#666666" />
@@ -214,6 +213,15 @@ export default function TodoScreen() {
         }
       />
 
+      <SheetModal
+        visible={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        title="Clear Completed"
+        message="Delete all completed todos?"
+        confirmLabel="Clear"
+        confirmDestructive
+        onConfirm={clearCompleted}
+      />
       {sheetItem && (
         <ItemSheet
           todo={{
@@ -229,6 +237,6 @@ export default function TodoScreen() {
           onClose={() => setSheetItem(null)}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
