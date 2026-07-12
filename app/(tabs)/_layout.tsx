@@ -4,9 +4,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const icons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
   index: { active: "calendar", inactive: "calendar-outline" },
-  inbox: { active: "mail", inactive: "mail-outline" },
   notes: { active: "document-text", inactive: "document-text-outline" },
   agent: { active: "flash", inactive: "flash-outline" },
+  music: { active: "musical-notes", inactive: "musical-notes-outline" },
   settings: { active: "settings", inactive: "settings-outline" },
 };
 
@@ -49,9 +49,9 @@ export default function TabLayout() {
       })}
     >
       <Tabs.Screen name="index" options={{ title: "Calendar" }} />
-      <Tabs.Screen name="inbox" options={{ title: "Inbox" }} />
       <Tabs.Screen name="notes" options={{ title: "Notes" }} />
       <Tabs.Screen name="agent" options={{ title: "Agent" }} />
+      <Tabs.Screen name="music" options={{ title: "Music" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings" }} />
     </Tabs>
   );
