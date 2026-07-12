@@ -8,6 +8,7 @@ import { SheetModal } from "@/components/ui/SheetModal";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { IconButton } from "@/components/ui/IconButton";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import Feather from "@expo/vector-icons/Feather";
 
 export default function NotesScreen() {
@@ -144,21 +145,15 @@ export default function NotesScreen() {
         </View>
       </View>
 
-      <View className="flex-row mx-4 mb-3 bg-ink-50 rounded-xl p-0.5">
-        <TouchableOpacity
-          onPress={() => setTab("notes")}
-          activeOpacity={0.7}
-          className={`flex-1 py-2 rounded-xl items-center ${tab === "notes" ? "bg-white shadow-subtle" : ""}`}
-        >
-          <Text className={`text-sm font-semibold ${tab === "notes" ? "text-black" : "text-ink-400"}`}>Notes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setTab("inbox")}
-          activeOpacity={0.7}
-          className={`flex-1 py-2 rounded-xl items-center ${tab === "inbox" ? "bg-white shadow-subtle" : ""}`}
-        >
-          <Text className={`text-sm font-semibold ${tab === "inbox" ? "text-black" : "text-ink-400"}`}>Inbox</Text>
-        </TouchableOpacity>
+      <View className="mx-4 mb-3">
+        <SegmentedControl
+          options={[
+            { label: "Notes", value: "notes" },
+            { label: "Inbox", value: "inbox" },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v)}
+        />
       </View>
 
       {tab === "notes" ? (

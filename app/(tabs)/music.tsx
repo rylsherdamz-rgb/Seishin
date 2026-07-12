@@ -1,22 +1,42 @@
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, Image, Alert } from "react-native";
 import { router } from "expo-router";
+import * as DocumentPicker from "expo-document-picker";
+import { useMusicStore } from "@/stores/music-store";
+import { importLocalAudioFiles } from "@/services/music-import";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
+import { MiniPlayer } from "@/components/MiniPlayer";
 import Feather from "@expo/vector-icons/Feather";
 
-interface LocalAlbum {
-  id: string;
-  title: string;
-  artist: string;
-  coverUri?: string;
-  trackCount: number;
-  downloadedAt: string;
-}
-
 export default function MusicScreen() {
-  const [albums, setAlbums] = useState<LocalAlbum[]>([]);
-  const [showUrlInput, setShowUrlInput] = useState(false);
+  const { albums, loadAlbums, setCurrentAlbum, currentAlbum } = useMusicStore();
+  const [isImporting, setIsImporting] = useState(false);
+
+  useEffect(() => {
+    loadAlbums();
+  }, [loadAlbums]);
+
+  const importMusic = async () => {
+    try {
+      setIsImporting(true);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "audio/*",
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+
+      const album = await importLocalAudioFiles(result.assets);
+      loadAlbums();
+      setCurrentAlbum(album);
+      router.push("/music-player");
+    } catch (error) {
+      Alert.alert("Couldn't import music", error instanceof Error ? error.message : "Please choose a supported audio file.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   return (
     <View className="flex-1 bg-white">
@@ -25,8 +45,25 @@ export default function MusicScreen() {
           <View>
             <Text className="text-2xl font-semibold tracking-tightest text-black">Music</Text>
             <Text className="text-sm text-ink-500 mt-0.5">
-              {albums.length > 0 ? `${albums.length} album${albums.length === 1 ? "" : "s"}` : "Downloaded albums"}
+              {albums.length > 0 ? `${albums.length} collection${albums.length === 1 ? "" : "s"}` : "Your audio library"}
             </Text>
+          </View>
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              onPress={importMusic}
+              disabled={isImporting}
+              className="h-10 px-3.5 bg-ink-100 rounded-full flex-row items-center gap-1.5"
+            >
+              <Feather name="upload" size={15} color="#000" />
+              <Text className="text-xs font-semibold text-black">{isImporting ? "Adding" : "Import"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/music-download")}
+              className="w-10 h-10 bg-black rounded-full items-center justify-center"
+              accessibilityLabel="Download music previews"
+            >
+              <Feather name="download" size={17} color="#ffffff" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -35,11 +72,18 @@ export default function MusicScreen() {
         <FlatList
           data={albums}
           keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-24"
+          contentContainerClassName={`px-4 ${currentAlbum ? "pb-40" : "pb-24"}`}
           numColumns={2}
           columnWrapperClassName="gap-3"
           renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={0.7} className="flex-1">
+            <TouchableOpacity
+              activeOpacity={0.7}
+              className="flex-1"
+              onPress={() => {
+                setCurrentAlbum(item);
+                router.push("/music-player");
+              }}
+            >
               <Card variant="elevated" className="overflow-hidden">
                 {item.coverUri ? (
                   <Image source={{ uri: item.coverUri }} className="w-full aspect-square" />
@@ -63,17 +107,11 @@ export default function MusicScreen() {
         <EmptyState
           icon="music"
           title="No music yet"
-          subtitle="Tap + to download a Spotify playlist or album"
+          subtitle="Import audio files from your phone, or tap + for Spotify previews"
         />
       )}
 
-      <TouchableOpacity
-        onPress={() => router.push("/music-download")}
-        activeOpacity={0.85}
-        className="absolute bottom-8 right-6 w-14 h-14 bg-black rounded-full items-center justify-center shadow-float"
-      >
-        <Feather name="plus" size={24} color="#ffffff" />
-      </TouchableOpacity>
+      <MiniPlayer />
     </View>
   );
 }

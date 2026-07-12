@@ -188,6 +188,8 @@ export default function RootLayout() {
             <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
             <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="music-download" options={{ animation: "slide_from_right" }} />
+            <Stack.Screen name="music-player" options={{ animation: "slide_from_bottom" }} />
           </Stack>
         </SafeAreaView>
       </SafeAreaProvider>

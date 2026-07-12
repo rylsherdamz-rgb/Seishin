@@ -34,8 +34,16 @@ export const useInboxStore = create<InboxState>((set, get) => ({
   filter: "all",
 
   loadItems: () => {
-    const raw = notificationsStorage.getString(INBOX_KEY);
-    if (raw) set({ items: JSON.parse(raw) });
+    try {
+      const raw = notificationsStorage.getString(INBOX_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) set({ items: parsed });
+      }
+    } catch {
+      // ponytail: corrupted inbox data → reset to empty, no crash
+      notificationsStorage.set(INBOX_KEY, JSON.stringify([]));
+    }
   },
 
   addItem: (item) => {

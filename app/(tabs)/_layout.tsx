@@ -14,6 +14,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
 
   return (
+    <>
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
@@ -54,5 +55,6 @@ export default function TabLayout() {
       <Tabs.Screen name="music" options={{ title: "Music" }} />
       <Tabs.Screen name="settings" options={{ title: "Settings" }} />
     </Tabs>
+    </>
   );
 }
