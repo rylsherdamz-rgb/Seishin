@@ -8,7 +8,7 @@ import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
 import { recognizeText } from "@/services/ocr";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { uid } from "@/utils/id";
-import { extractVideoId, getTranscript, buildSummaryText, downloadThumbnail } from "@/services/youtube-summary";
+import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
 
 export default function NoteEditorScreen() {
@@ -143,7 +143,7 @@ export default function NoteEditorScreen() {
     setYoutubeBusy(true);
     try {
       const { segments, videoInfo } = await getTranscript(vid);
-      const summary = buildSummaryText(videoInfo, segments);
+      const summary = await summarizeTranscript(videoInfo, segments);
       const t = videoInfo.title;
       setTitle(t);
       const nextBody = (body ? body + "\n\n" : "") + summary;

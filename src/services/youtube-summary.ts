@@ -2,6 +2,9 @@ import { Innertube } from "youtubei.js";
 import { setupPlatformEvaluator } from "./evaluator";
 import { getDocumentAsync } from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
+import OpenAI from "openai";
+import { useSettingsStore } from "@/stores/settings-store";
+import { isModelLoaded, generateResponse } from "./local-llama";
 
 export interface TranscriptSegment {
   start: number;
@@ -166,6 +169,65 @@ export function buildSummaryText(videoInfo: VideoInfo, segments: TranscriptSegme
   }
 
   return lines.join("\n");
+}
+
+function buildTranscriptForAI(videoInfo: VideoInfo, segments: TranscriptSegment[]): string {
+  let text = `Title: ${videoInfo.title}\nChannel: ${videoInfo.author}\n\n`;
+  for (const seg of segments) {
+    if (!seg.text) continue;
+    text += `[${formatTimestamp(seg.start)}] ${seg.text}\n`;
+  }
+  return text;
+}
+
+const SUMMARY_SYSTEM_PROMPT = `You are a video summarizer. Given a YouTube transcript with timestamps, produce a concise summary in exactly this format:
+
+Video Summary
+A 2-3 sentence paragraph capturing the overall theme and emotional arc.
+
+Chapter Summary
+[START_TIMESTAMP] - [END_TIMESTAMP] [Short descriptive title]
+[A 1-2 sentence description of what happens in this segment.]
+
+Use timestamps from the transcript. Each chapter should cover roughly 15-30 seconds of content. Write descriptively, not as verbatim transcript.`;
+
+export async function summarizeTranscript(
+  videoInfo: VideoInfo,
+  segments: TranscriptSegment[],
+): Promise<string> {
+  const transcript = buildTranscriptForAI(videoInfo, segments);
+
+  const { apiKeys, nimEndpoint, nimModel } = useSettingsStore.getState();
+
+  if (apiKeys.nim) {
+    try {
+      const client = new OpenAI({
+        baseURL: (nimEndpoint || "https://integrate.api.nvidia.com/v1").replace(/\/+$/, ""),
+        apiKey: apiKeys.nim,
+      });
+      const res = await client.chat.completions.create({
+        model: nimModel || "meta/llama-3.2-1b-instruct",
+        messages: [
+          { role: "system", content: SUMMARY_SYSTEM_PROMPT },
+          { role: "user", content: transcript },
+        ],
+        max_tokens: 2048,
+        temperature: 0.5,
+      });
+      const summary = res.choices?.[0]?.message?.content?.trim() || "";
+      if (summary) return summary;
+    } catch {}
+  }
+
+  if (isModelLoaded()) {
+    try {
+      const prompt = `${SUMMARY_SYSTEM_PROMPT}\n\n${transcript}\n\nNow produce the summary:`;
+      const result = await generateResponse(prompt);
+      if (result.trim()) return result.trim();
+    } catch {}
+  }
+
+  return buildSummaryText(videoInfo, segments);
 }
 
 export async function downloadThumbnail(videoInfo: VideoInfo): Promise<string | null> {

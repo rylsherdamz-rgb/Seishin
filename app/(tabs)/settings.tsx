@@ -12,7 +12,7 @@ import {
 } from "@/stores/mmkv";
 import { clearOcrHistory } from "@/services/ocr";
 import { useNotifications } from "@/services/notification-service";
-import * as FileSystem from "expo-file-system";
+import { Directory, File as DocumentFile, Paths } from "expo-file-system";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SheetModal } from "@/components/ui/SheetModal";
@@ -140,14 +140,14 @@ export default function SettingsScreen() {
     setGgufCopying(true);
     setGgufCopyProgress("Copying model file…");
     try {
-      const docsDir = FileSystem.documentDirectory || "/";
-      const modelDir = `${docsDir}Models/`;
-      await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
+      const modelDir = new Directory(Paths.documents, "Models");
+      modelDir.create({ idempotent: true, intermediates: true });
       const fileName = ggufFileName || `model-${Date.now()}.gguf`;
-      const dest = `${modelDir}${fileName}`;
-      await FileSystem.copyAsync({ from: ggufPath, to: dest });
-      setModelPath(dest);
-      setGgufPath(dest);
+      const source = new DocumentFile(ggufPath);
+      const dest = new DocumentFile(modelDir, fileName);
+      await source.copy(dest, { overwrite: true });
+      setModelPath(dest.uri);
+      setGgufPath(dest.uri);
       setModalConfig({ title: "Saved", message: `Model copied and ready. (${ggufFileName})` });
     } catch (e: any) {
       setModalConfig({ title: "Copy Failed", message: e.message || "Could not copy the model file. Try picking from a different location." });
