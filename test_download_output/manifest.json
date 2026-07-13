@@ -1,0 +1,26 @@
+{
+  "testDate": "2026-07-13T03:48:27.808Z",
+  "query": "Bohemian Rhapsody Queen",
+  "videoId": "fJ9rUzIMcZQ",
+  "youtubeUrl": "https://www.youtube.com/watch?v=fJ9rUzIMcZQ",
+  "metadata": {
+    "title": "Bohemian Rhapsody (Live At Milton Keynes Bowl / June 1982)",
+    "artist": "Queen Official",
+    "duration": 359
+  },
+  "files": {
+    "audio": {
+      "path": "/home/richie/Projects/Seishin/test_download_output/fJ9rUzIMcZQ.mp3",
+      "exists": true,
+      "verified": true
+    },
+    "cover": {
+      "path": "/home/richie/Projects/Seishin/test_download_output/fJ9rUzIMcZQ.jpg",
+      "exists": true,
+      "verified": true
+    },
+    "lyrics": null
+  },
+  "errors": [],
+  "success": true
+}

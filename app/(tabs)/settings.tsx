@@ -12,6 +12,7 @@ import {
 } from "@/stores/mmkv";
 import { clearOcrHistory } from "@/services/ocr";
 import { useNotifications } from "@/services/notification-service";
+import * as FileSystem from "expo-file-system";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { SheetModal } from "@/components/ui/SheetModal";
@@ -127,9 +128,33 @@ export default function SettingsScreen() {
     setModalConfig({ title: "Saved", message: "NVIDIA NIM config updated. Switch to NIM mode in the Agent tab." });
   }
 
-  function saveModelPath() {
-    setModelPath(ggufPath || null);
-    setModalConfig({ title: "Saved", message: "Local model path updated." });
+  const [ggufCopying, setGgufCopying] = useState(false);
+  const [ggufCopyProgress, setGgufCopyProgress] = useState("");
+
+  async function saveModelPath() {
+    if (!ggufPath) {
+      setModelPath(null);
+      setModalConfig({ title: "Saved", message: "Model path cleared." });
+      return;
+    }
+    setGgufCopying(true);
+    setGgufCopyProgress("Copying model file…");
+    try {
+      const docsDir = FileSystem.documentDirectory || "/";
+      const modelDir = `${docsDir}Models/`;
+      await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
+      const fileName = ggufFileName || `model-${Date.now()}.gguf`;
+      const dest = `${modelDir}${fileName}`;
+      await FileSystem.copyAsync({ from: ggufPath, to: dest });
+      setModelPath(dest);
+      setGgufPath(dest);
+      setModalConfig({ title: "Saved", message: `Model copied and ready. (${ggufFileName})` });
+    } catch (e: any) {
+      setModalConfig({ title: "Copy Failed", message: e.message || "Could not copy the model file. Try picking from a different location." });
+    } finally {
+      setGgufCopying(false);
+      setGgufCopyProgress("");
+    }
   }
 
   async function openModelPicker() {
@@ -276,9 +301,18 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity onPress={saveModelPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
-                <Text className="text-white text-sm font-semibold">Save</Text>
-              </TouchableOpacity>
+              <View className="flex-row items-center gap-2 self-end">
+                {ggufCopying && (
+                  <Text className="text-xs text-ink-400">{ggufCopyProgress}</Text>
+                )}
+                <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center min-w-[60px]">
+                  {ggufCopying ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text className="text-white text-sm font-semibold">Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </Card>
           )}
 
