@@ -35,6 +35,7 @@ export interface Skill {
 }
 
 type Provider = "nim" | "local";
+type ModelState = "unloaded" | "loading" | "ready" | "error";
 
 interface AgentState {
   messages: AgentMessage[];
@@ -42,6 +43,9 @@ interface AgentState {
   installedSkills: Skill[];
   isProcessing: boolean;
   streamTick: number;
+  modelState: ModelState;
+  modelProgress: number;
+  modelError: string | null;
 
   load: () => void;
   addMessage: (msg: AgentMessage) => void;
@@ -51,6 +55,7 @@ interface AgentState {
   clearConversation: () => void;
   setProcessing: (v: boolean) => void;
   updateAssistantMessage: (id: string, content: string, toolCalls?: ToolCallData[]) => void;
+  setModelState: (state: ModelState, progress?: number, error?: string | null) => void;
 }
 
 const MESSAGES_KEY = "conversation";
@@ -63,6 +68,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   installedSkills: [],
   isProcessing: false,
   streamTick: 0,
+  modelState: "unloaded",
+  modelProgress: 0,
+  modelError: null,
 
   load: () => {
     const msgs = agentStorage.getString(MESSAGES_KEY);
@@ -108,5 +116,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       m.id === id ? { ...m, content, ...(toolCalls ? { toolCalls } : {}) } : m
     );
     set({ messages, streamTick: get().streamTick + 1 });
+  },
+
+  setModelState: (state, progress = 0, error = null) => {
+    set({ modelState: state, modelProgress: progress, modelError: error });
   },
 }));

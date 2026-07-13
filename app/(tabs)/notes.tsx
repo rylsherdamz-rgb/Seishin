@@ -326,6 +326,7 @@ export default function NotesScreen() {
           { icon: "camera", label: "Take Photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
           { icon: "image", label: "Choose Photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },
           { icon: "paperclip", label: "Upload File", onPress: () => router.push({ pathname: "/note", params: { action: "file" } }) },
+          { icon: "youtube", label: "YouTube Summary", onPress: () => router.push({ pathname: "/note", params: { action: "youtube" } }) },
         ]}
       />
     </View>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, Modal } from "react-native";
 
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
@@ -8,6 +8,7 @@ import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
 import { recognizeText } from "@/services/ocr";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { uid } from "@/utils/id";
+import { extractVideoId, getTranscript, buildSummaryText, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
 
 export default function NoteEditorScreen() {
@@ -24,8 +25,11 @@ export default function NoteEditorScreen() {
   const [ocrBusy, setOcrBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFileError, setShowFileError] = useState(false);
+  const [showYoutubeInput, setShowYoutubeInput] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [youtubeBusy, setYoutubeBusy] = useState(false);
   const noteIdRef = useRef<string | undefined>(existing?.id);
-  // Ensures a launch "action" (from the Notes + menu) fires its picker only once.
+  // Ensures a launch "action" (from the Notes "+" menu) fires its picker only once.
   const actionFired = useRef(false);
 
   useEffect(() => {
@@ -47,6 +51,7 @@ export default function NoteEditorScreen() {
     if (action === "camera") addPhoto(true);
     else if (action === "photo") addPhoto(false);
     else if (action === "file") addFile();
+    else if (action === "youtube") setShowYoutubeInput(true);
   }, [action]);
 
   function persist(next?: Partial<{ title: string; body: string; tags: string[]; pinned: boolean; attachments: NoteAttachment[] }>) {
@@ -126,6 +131,43 @@ export default function NoteEditorScreen() {
       // OCR is best-effort; the image is still attached even if it fails.
     } finally {
       setOcrBusy(false);
+    }
+  }
+
+  async function fetchYoutubeTranscript() {
+    const vid = extractVideoId(youtubeUrl.trim());
+    if (!vid) {
+      Alert.alert("Invalid URL", "Please enter a valid YouTube video URL (e.g. https://youtube.com/watch?v=...)");
+      return;
+    }
+    setYoutubeBusy(true);
+    try {
+      const { segments, videoInfo } = await getTranscript(vid);
+      const summary = buildSummaryText(videoInfo, segments);
+      const t = videoInfo.title;
+      setTitle(t);
+      const nextBody = (body ? body + "\n\n" : "") + summary;
+      setBody(nextBody);
+
+      const thumbUri = await downloadThumbnail(videoInfo);
+      const nextAtts = [...attachments];
+      if (thumbUri) {
+        nextAtts.push({
+          id: uid(),
+          type: "image" as const,
+          uri: thumbUri,
+          name: "YouTube thumbnail",
+        });
+      }
+
+      persist({ title: t, body: nextBody, attachments: nextAtts });
+      setAttachments(nextAtts);
+      setShowYoutubeInput(false);
+      setYoutubeUrl("");
+    } catch (e: any) {
+      Alert.alert("Transcript Error", e.message || "Could not fetch transcript for this video.");
+    } finally {
+      setYoutubeBusy(false);
     }
   }
 
@@ -292,6 +334,10 @@ export default function NoteEditorScreen() {
               <Feather name="paperclip" size={15} color="#000000" />
               <Text className="text-xs font-semibold text-black">File</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowYoutubeInput(true)} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
+              <Feather name="youtube" size={15} color="#000000" />
+              <Text className="text-xs font-semibold text-black">YouTube</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Tags */}
@@ -327,6 +373,49 @@ export default function NoteEditorScreen() {
           </View>
         </ScrollView>
       </View>
+      <Modal visible={showYoutubeInput || youtubeBusy} transparent animationType="fade" onRequestClose={() => { if (!youtubeBusy) { setShowYoutubeInput(false); setYoutubeUrl(""); } }}>
+        <View className="flex-1 bg-black/30 items-center justify-center px-6">
+          <View className="w-full bg-white rounded-2xl p-5">
+            <Text className="text-base font-semibold text-black mb-1">YouTube Video Summary</Text>
+            <Text className="text-xs text-ink-400 mb-4">Paste a YouTube link to generate a timestamped transcript</Text>
+            {youtubeBusy ? (
+              <View className="items-center py-8">
+                <ActivityIndicator size="large" color="#000000" />
+                <Text className="text-sm text-ink-500 mt-3">Fetching transcript and thumbnail...</Text>
+              </View>
+            ) : (
+              <>
+                <TextInput
+                  className="h-11 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
+                  placeholder="https://youtube.com/watch?v=..."
+                  placeholderTextColor="#999"
+                  value={youtubeUrl}
+                  onChangeText={setYoutubeUrl}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="go"
+                  onSubmitEditing={fetchYoutubeTranscript}
+                />
+                <View className="flex-row gap-2">
+                  <TouchableOpacity
+                    onPress={() => { setShowYoutubeInput(false); setYoutubeUrl(""); }}
+                    className="flex-1 h-11 border border-ink-200 rounded-xl items-center justify-center"
+                  >
+                    <Text className="text-sm font-medium text-black">Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={fetchYoutubeTranscript}
+                    disabled={!youtubeUrl.trim()}
+                    className="flex-1 h-11 bg-black rounded-xl items-center justify-center"
+                  >
+                    <Text className="text-sm font-medium text-white">Generate</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
       <SheetModal
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}

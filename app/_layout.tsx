@@ -10,6 +10,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
 import { settingsStorage } from "@/stores/mmkv";
 
+
 const ONBOARDING_PAGES = [
   {
     icon: "calendar" as const,

@@ -72,6 +72,7 @@ export default function SettingsScreen() {
   const [showAiConfig, setShowAiConfig] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
 
+
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -154,11 +155,14 @@ export default function SettingsScreen() {
     }
   }
 
+  const [ggufPicking, setGgufPicking] = useState(false);
+
   async function pickGgufFile() {
     try {
+      setGgufPicking(true);
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
-        copyToCacheDirectory: true,
+        copyToCacheDirectory: false,
       });
       if (!result.canceled && result.assets?.length > 0) {
         const asset = result.assets[0];
@@ -167,6 +171,8 @@ export default function SettingsScreen() {
       }
     } catch (e) {
       setModalConfig({ title: "Could not browse files", message: "The file picker did not respond. Try again." });
+    } finally {
+      setGgufPicking(false);
     }
   }
 
@@ -253,11 +259,16 @@ export default function SettingsScreen() {
               <Text className="text-xs font-semibold text-ink-400 mb-2">Local GGUF Model</Text>
               <TouchableOpacity
                 onPress={pickGgufFile}
+                disabled={ggufPicking}
                 className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center gap-3 mb-2"
               >
-                <Feather name="folder" size={16} color="#999999" />
+                {ggufPicking ? (
+                  <ActivityIndicator size="small" color="#999999" />
+                ) : (
+                  <Feather name="folder" size={16} color="#999999" />
+                )}
                 <Text className={`text-sm flex-1 ${ggufFileName ? "text-black" : "text-ink-300"}`}>
-                  {ggufFileName || "Tap to select a .gguf file"}
+                  {ggufFileName || (ggufPicking ? "Reading large file…" : "Tap to select a .gguf file")}
                 </Text>
                 {ggufFileName && (
                   <TouchableOpacity onPress={() => { setGgufPath(""); setGgufFileName(""); }}>
@@ -270,6 +281,15 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </Card>
           )}
+
+          <SectionHeader title="Music Download" />
+          <Card className="mb-4">
+            <View className="bg-ink-50 rounded-lg p-3">
+              <Text className="text-xs text-ink-500">
+                Search any song or paste a YouTube URL/playlist. Downloads full audio, cover art (per track), and lyrics — all from YouTube, no API keys needed.
+              </Text>
+            </View>
+          </Card>
 
           <SectionHeader title="Notifications" />
           <Card className="mb-4 p-0 overflow-hidden">

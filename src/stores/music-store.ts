@@ -27,6 +27,15 @@ export interface Album {
   tracks: Track[];
 }
 
+export interface DownloadItem {
+  id: string;
+  title: string;
+  artist: string;
+  progress: number;
+  status: "downloading" | "completed" | "error";
+  error?: string;
+}
+
 interface MusicState {
   albums: Album[];
   currentAlbum: Album | null;
@@ -34,6 +43,7 @@ interface MusicState {
   isPlaying: boolean;
   position: number;
   duration: number;
+  downloads: DownloadItem[];
 
   loadAlbums: () => void;
   addAlbum: (album: Album) => void;
@@ -47,6 +57,9 @@ interface MusicState {
   playNext: () => void;
   playPrevious: () => void;
   clearAll: () => void;
+  addDownload: (item: DownloadItem) => void;
+  updateDownload: (id: string, update: Partial<DownloadItem>) => void;
+  removeDownload: (id: string) => void;
 }
 
 export const useMusicStore = create<MusicState>((set, get) => ({
@@ -56,6 +69,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   isPlaying: false,
   position: 0,
   duration: 0,
+  downloads: [],
 
   loadAlbums: () => {
     const keys = musicStorage.getAllKeys();
@@ -123,8 +137,20 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     }
   },
 
+  addDownload: (item) => {
+    set((state) => ({ downloads: [item, ...state.downloads] }));
+  },
+  updateDownload: (id, update) => {
+    set((state) => ({
+      downloads: state.downloads.map((d) => (d.id === id ? { ...d, ...update } : d)),
+    }));
+  },
+  removeDownload: (id) => {
+    set((state) => ({ downloads: state.downloads.filter((d) => d.id !== id) }));
+  },
+
   clearAll: () => {
     musicStorage.clearAll();
-    set({ albums: [], currentAlbum: null });
+    set({ albums: [], currentAlbum: null, downloads: [] });
   },
 }));

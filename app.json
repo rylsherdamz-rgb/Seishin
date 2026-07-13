@@ -53,7 +53,8 @@
         {
           "enableBackgroundPlayback": true
         }
-      ]
+      ],
+      "llama.rn"
     ]
   }
 }

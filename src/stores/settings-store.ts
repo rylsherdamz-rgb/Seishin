@@ -43,7 +43,7 @@ const DEFAULT_CLEANUP: CleanupPolicy = {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   emailConfig: null,
-  apiKeys: { nim: "" },
+  apiKeys: { nim: "", youtubeApiKey: "" },
   nimEndpoint: "https://integrate.api.nvidia.com/v1",
   nimModel: "meta/llama-3.2-1b-instruct",
   modelPath: null,

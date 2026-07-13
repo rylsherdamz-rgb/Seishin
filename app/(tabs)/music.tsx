@@ -2,20 +2,27 @@ import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, FlatList, Image, Alert } from "react-native";
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
-import { useMusicStore } from "@/stores/music-store";
+import { useMusicStore, Track, DownloadItem } from "@/stores/music-store";
 import { importLocalAudioFiles } from "@/services/music-import";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Card } from "@/components/ui/Card";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { MiniPlayer } from "@/components/MiniPlayer";
 import Feather from "@expo/vector-icons/Feather";
 
+type Tab = "songs" | "downloads";
+
 export default function MusicScreen() {
-  const { albums, loadAlbums, setCurrentAlbum, currentAlbum } = useMusicStore();
+  const { albums, downloads, loadAlbums, setCurrentAlbum, currentAlbum } = useMusicStore();
   const [isImporting, setIsImporting] = useState(false);
+  const [tab, setTab] = useState<Tab>("songs");
 
   useEffect(() => {
     loadAlbums();
   }, [loadAlbums]);
+
+  const allTracks: Track[] = albums.flatMap((a) =>
+    a.tracks.map((t) => ({ ...t, album: a.title }))
+  );
 
   const importMusic = async () => {
     try {
@@ -38,6 +45,65 @@ export default function MusicScreen() {
     }
   };
 
+  function formatDuration(seconds: number): string {
+    if (!seconds) return "";
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  }
+
+  function renderTrackItem(track: Track) {
+    return (
+      <TouchableOpacity
+        key={track.id}
+        activeOpacity={0.7}
+        className="flex-row items-center gap-3 py-3 border-b border-ink-50"
+        onPress={() => {
+          const a = albums.find((al) => al.tracks.some((t) => t.id === track.id));
+          if (a) { setCurrentAlbum(a, a.tracks.findIndex((t) => t.id === track.id)); router.push("/music-player"); }
+        }}
+      >
+        {track.coverUri ? (
+          <Image source={{ uri: track.coverUri }} className="w-12 h-12 rounded-lg bg-ink-100" />
+        ) : (
+          <View className="w-12 h-12 rounded-lg bg-ink-100 items-center justify-center">
+            <Feather name="music" size={18} color="#ccc" />
+          </View>
+        )}
+        <View className="flex-1 min-w-0">
+          <Text className="text-sm font-medium text-black" numberOfLines={1}>{track.title}</Text>
+          <Text className="text-xs text-ink-400" numberOfLines={1}>{track.artist}</Text>
+          <Text className="text-[10px] text-ink-300 mt-0.5">{track.album} · {formatDuration(track.duration)}</Text>
+        </View>
+        <Feather name="chevron-right" size={16} color="#ccc" />
+      </TouchableOpacity>
+    );
+  }
+
+  function renderDownloadItem(item: DownloadItem) {
+    const isDl = item.status === "downloading";
+    const isDone = item.status === "completed";
+    const isErr = item.status === "error";
+    return (
+      <View key={item.id} className="flex-row items-center gap-3 py-3 border-b border-ink-50">
+        <View className="w-12 h-12 rounded-lg bg-ink-100 items-center justify-center">
+          {isDone ? <Feather name="check-circle" size={22} color="#2fbf71" />
+          : isErr ? <Feather name="alert-circle" size={22} color="#ef4444" />
+          : <Feather name="loader" size={22} color="#999" />}
+        </View>
+        <View className="flex-1 min-w-0">
+          <Text className="text-sm font-medium text-black" numberOfLines={1}>{item.title}</Text>
+          <Text className="text-xs text-ink-400">{item.artist}</Text>
+          {isDl && (
+            <View className="mt-1 h-1.5 bg-ink-100 rounded-full overflow-hidden">
+              <View className="h-full bg-black rounded-full" style={{ width: `${Math.round(item.progress * 100)}%` }} />
+            </View>
+          )}
+          {isErr && <Text className="text-[10px] text-red-500 mt-0.5">{item.error || "Download failed"}</Text>}
+          {isDl && <Text className="text-[10px] text-ink-300 mt-0.5">{Math.round(item.progress * 100)}%</Text>}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-white">
       <View className="px-4 pt-3 pb-2">
@@ -45,7 +111,9 @@ export default function MusicScreen() {
           <View>
             <Text className="text-2xl font-semibold tracking-tightest text-black">Music</Text>
             <Text className="text-sm text-ink-500 mt-0.5">
-              {albums.length > 0 ? `${albums.length} collection${albums.length === 1 ? "" : "s"}` : "Your audio library"}
+              {tab === "songs"
+                ? `${allTracks.length} song${allTracks.length === 1 ? "" : "s"}`
+                : `${downloads.length} download${downloads.length === 1 ? "" : "s"}`}
             </Text>
           </View>
           <View className="flex-row items-center gap-2">
@@ -60,7 +128,7 @@ export default function MusicScreen() {
             <TouchableOpacity
               onPress={() => router.push("/music-download")}
               className="w-10 h-10 bg-black rounded-full items-center justify-center"
-              accessibilityLabel="Download music previews"
+              accessibilityLabel="Download music"
             >
               <Feather name="download" size={17} color="#ffffff" />
             </TouchableOpacity>
@@ -68,47 +136,47 @@ export default function MusicScreen() {
         </View>
       </View>
 
-      {albums.length > 0 ? (
-        <FlatList
-          data={albums}
-          keyExtractor={(item) => item.id}
-          contentContainerClassName={`px-4 ${currentAlbum ? "pb-40" : "pb-24"}`}
-          numColumns={2}
-          columnWrapperClassName="gap-3"
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className="flex-1"
-              onPress={() => {
-                setCurrentAlbum(item);
-                router.push("/music-player");
-              }}
-            >
-              <Card variant="elevated" className="overflow-hidden">
-                {item.coverUri ? (
-                  <Image source={{ uri: item.coverUri }} className="w-full aspect-square" />
-                ) : (
-                  <View className="w-full aspect-square bg-ink-100 items-center justify-center">
-                    <Feather name="music" size={32} color="#cccccc" />
-                  </View>
-                )}
-                <View className="p-3">
-                  <Text className="text-sm font-semibold text-black" numberOfLines={1}>{item.title}</Text>
-                  <Text className="text-xs text-ink-400 mt-0.5">{item.artist}</Text>
-                  <Text className="text-[10px] text-ink-300 mt-1">
-                    {item.trackCount} tracks · {new Date(item.downloadedAt).toLocaleDateString()}
-                  </Text>
-                </View>
-              </Card>
-            </TouchableOpacity>
-          )}
+      <View className="mx-4 mb-3">
+        <SegmentedControl
+          options={[
+            { label: "Songs", value: "songs" },
+            { label: "Downloads", value: "downloads" },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as Tab)}
         />
+      </View>
+
+      {tab === "songs" ? (
+        allTracks.length > 0 ? (
+          <FlatList
+            data={allTracks}
+            keyExtractor={(item) => item.id}
+            contentContainerClassName={`px-4 ${currentAlbum ? "pb-40" : "pb-24"}`}
+            renderItem={({ item }) => renderTrackItem(item)}
+          />
+        ) : (
+          <EmptyState
+            icon="music"
+            title="No songs yet"
+            subtitle="Download music from YouTube or import audio files"
+          />
+        )
       ) : (
-        <EmptyState
-          icon="music"
-          title="No music yet"
-          subtitle="Import audio files from your phone, or tap + for Spotify previews"
-        />
+        downloads.length > 0 ? (
+          <FlatList
+            data={downloads}
+            keyExtractor={(item) => item.id}
+            contentContainerClassName="px-4 pb-24"
+            renderItem={({ item }) => renderDownloadItem(item)}
+          />
+        ) : (
+          <EmptyState
+            icon="download"
+            title="No downloads"
+            subtitle="Tap the download button to find and download music"
+          />
+        )
       )}
 
       <MiniPlayer />

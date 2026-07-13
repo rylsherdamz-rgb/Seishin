@@ -15,6 +15,9 @@ import { uid } from "@/utils/id";
 import * as Clipboard from "expo-clipboard";
 import { Markdown } from "@/components/Markdown";
 import Feather from "@expo/vector-icons/Feather";
+import {
+  onModelStateChange, getModelState, loadModel, unloadModel, isModelLoaded,
+} from "@/services/local-llama";
 
 function ThinkingIndicator() {
   const dot1 = useSharedValue(0.3);
@@ -44,8 +47,9 @@ export default function AgentScreen() {
   const {
     messages, currentProvider, installedSkills, isProcessing, streamTick,
     load, setProvider, removeSkill, clearConversation,
+    modelState, modelProgress, modelError, setModelState,
   } = useAgentStore();
-  const { apiKeys, nimModel, nimEndpoint, loadSettings } = useSettingsStore();
+  const { apiKeys, nimModel, nimEndpoint, loadSettings, modelPath } = useSettingsStore();
   const [input, setInput] = useState("");
   const [showSkills, setShowSkills] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<AgentAttachment[]>([]);
@@ -53,11 +57,27 @@ export default function AgentScreen() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const loadingRef = useRef(false);
 
   useEffect(() => {
     load();
     loadSettings();
+    const unsub = onModelStateChange(() => {
+      const s = getModelState();
+      setModelState(s.state, s.progress, s.error);
+    });
+    return unsub;
   }, []);
+
+  useEffect(() => {
+    if (currentProvider === "local" && modelPath && !isModelLoaded() && !loadingRef.current) {
+      loadingRef.current = true;
+      loadModel(modelPath).catch(() => {}).finally(() => { loadingRef.current = false; });
+    }
+    if (currentProvider === "nim" && isModelLoaded()) {
+      unloadModel().catch(() => {});
+    }
+  }, [currentProvider, modelPath]);
 
   useEffect(() => {
     if (apiKeys.nim && currentProvider === "local") {
@@ -157,7 +177,15 @@ export default function AgentScreen() {
             <View>
               <Text className="text-2xl font-semibold tracking-tightest text-black">AI Agent</Text>
               <Text className="text-sm text-ink-500 mt-0.5">
-                {currentProvider === "nim" ? "NVIDIA NIM" : "Local (offline)"}
+                {currentProvider === "nim"
+                  ? "NVIDIA NIM"
+                  : modelState === "loading"
+                    ? "Loading model..."
+                    : modelState === "ready"
+                      ? "Local (offline) · Ready"
+                      : modelState === "error"
+                        ? "Local · Error"
+                        : "Local (offline)"}
                 {isProcessing && " · Thinking..."}
               </Text>
             </View>
@@ -249,10 +277,39 @@ export default function AgentScreen() {
             <Text className="text-xs text-danger flex-1">No NIM API key set. Go to Settings to add one.</Text>
           </View>
         )}
-        {currentProvider === "local" && (
-          <View key="agent-local-banner" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
+        {currentProvider === "local" && modelState === "loading" && (
+          <View key="agent-local-loading" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3">
+            <View className="flex-row items-center gap-2 mb-2">
+              <ActivityIndicator size="small" color="#666666" />
+              <Text className="text-xs text-ink-600 flex-1">Loading local model... {modelProgress}%</Text>
+            </View>
+            <View className="h-1.5 bg-ink-200 rounded-full overflow-hidden">
+              <View className="h-full bg-black rounded-full" style={{ width: `${modelProgress}%` }} />
+            </View>
+          </View>
+        )}
+        {currentProvider === "local" && modelState === "ready" && (
+          <View key="agent-local-ready" className="mx-4 mb-3 bg-green-50 rounded-xl p-3 flex-row items-center gap-2">
+            <Feather name="check-circle" size={14} color="#22c55e" />
+            <Text className="text-xs text-green-700 flex-1">Local model ready</Text>
+          </View>
+        )}
+        {currentProvider === "local" && modelState === "error" && (
+          <View key="agent-local-error" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3">
+            <View className="flex-row items-center gap-2 mb-1">
+              <Feather name="alert-circle" size={14} color="#ff3b30" />
+              <Text className="text-xs text-danger flex-1">Failed to load model</Text>
+              <TouchableOpacity onPress={() => { if (modelPath) loadModel(modelPath).catch(() => {}); }}>
+                <Text className="text-xs text-danger font-medium">Retry</Text>
+              </TouchableOpacity>
+            </View>
+            {modelError && <Text className="text-xs text-danger/70 ml-6">{modelError}</Text>}
+          </View>
+        )}
+        {currentProvider === "local" && modelState === "unloaded" && !modelPath && (
+          <View key="agent-local-nopath" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
             <Feather name="info" size={14} color="#666666" />
-            <Text className="text-xs text-ink-600 flex-1">Local GGUF mode not yet available. Switch to NVIDIA NIM.</Text>
+            <Text className="text-xs text-ink-600 flex-1">No GGUF model selected. Go to Settings to pick one.</Text>
           </View>
         )}
 

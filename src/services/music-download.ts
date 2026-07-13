@@ -1,242 +1,431 @@
-import { Platform } from "react-native";
 import { Directory, File, Paths } from "expo-file-system";
-import { useMusicStore } from "@/stores/music-store";
-import { fetchLyrics, searchLyrics } from "@/services/lyrics";
+import { Innertube } from "youtubei.js";
+import { setupPlatformEvaluator } from "./evaluator";
 
-function uuidv4(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+let innertube: Innertube | null = null;
+
+async function getInnertube(): Promise<Innertube> {
+  if (!innertube) {
+    setupPlatformEvaluator();
+    console.log("[download] creating Innertube...");
+    innertube = await Innertube.create({
+      lang: "en",
+      location: "US",
+      retrieve_player: true,
+    });
+    console.log("[download] Innertube created");
+  }
+  return innertube;
+}
+
+function id(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export interface SearchResult {
+  videoId: string;
+  title: string;
+  artist: string;
+  thumbnail: string;
+  duration: number;
+}
+
+export interface AlbumResult {
+  browseId: string;
+  title: string;
+  artist: string;
+  thumbnail: string;
+  year?: string;
+  trackCount?: number;
+}
+
+export interface PlaylistResult {
+  browseId: string;
+  title: string;
+  thumbnail: string;
+  trackCount?: number;
+}
+
+export interface SearchResponse {
+  songs: SearchResult[];
+  albums: AlbumResult[];
+  playlists: PlaylistResult[];
 }
 
 export interface DownloadProgress {
   trackIndex: number;
   trackTitle: string;
+  trackArtist: string;
+  trackNumber: number;
   totalTracks: number;
   progress: number;
-  status: "searching" | "downloading" | "converting" | "completed" | "error";
+  albumTitle: string;
+  albumArtist: string;
+  status: "searching" | "downloading-audio" | "downloading-cover" | "fetching-lyrics" | "completed" | "error";
+  error?: string;
+}
+
+export interface TrackData {
+  id: string;
+  title: string;
+  artist: string;
+  album: string;
+  duration: number;
+  audioUri: string;
+  coverUri?: string;
+  lyrics?: string;
+  trackNumber: number;
+  downloadedAt: string;
 }
 
 export interface DownloadConfig {
-  spotifyClientId?: string;
-  spotifyClientSecret?: string;
-  downloadDir?: string;
   onProgress?: (progress: DownloadProgress) => void;
-  onTrackComplete?: (track: any) => void;
+  onComplete?: (track: TrackData) => void;
   onError?: (error: Error, trackTitle: string) => void;
 }
 
-function extractSpotifyId(url: string, type: "playlist" | "album"): string | null {
-  const patterns = {
-    playlist: /(?:playlist\/|playlist:|spotify:playlist:)([a-zA-Z0-9]+)/,
-    album: /(?:album\/|album:|spotify:album:)([a-zA-Z0-9]+)/,
-  };
-  const match = url.match(patterns[type]);
-  return match ? match[1] : null;
+function extractArtist(item: any): string {
+  return item.artists?.[0]?.name || item.author?.name || "";
 }
 
-interface EmbedTrack {
-  title: string;
-  subtitle: string;
-  duration: number;
-  audioPreview?: { url?: string };
-  uid?: string;
+function extractThumbnail(item: any): string {
+  const thumbs = item.thumbnails || item.thumbnail;
+  if (Array.isArray(thumbs) && thumbs.length > 0) {
+    return thumbs[thumbs.length - 1]?.url || thumbs[0]?.url || "";
+  }
+  return "";
 }
 
-interface EmbedEntity {
-  name: string;
-  title: string;
-  subtitle: string;
-  visualIdentity?: { image?: { url: string; maxHeight?: number; maxWidth?: number }[] };
-  coverArt?: { image?: { url: string }[] } | any;
-  trackList?: EmbedTrack[];
-}
+export async function searchTracks(query: string): Promise<SearchResponse> {
+  let tube: Innertube;
+  try {
+    tube = await getInnertube();
+  } catch (e) {
+    console.error("[search] getInnertube failed:", e);
+    throw e;
+  }
 
-function findEntity(node: any): EmbedEntity | null {
-  if (node && typeof node === "object") {
-    if (Array.isArray(node.trackList) && node.trackList.length) return node as EmbedEntity;
-    for (const value of Object.values(node)) {
-      const found = findEntity(value);
-      if (found) return found;
+  let songSearch: any, albumSearch: any, playlistSearch: any;
+  try {
+    [songSearch, albumSearch, playlistSearch] = await Promise.all([
+      tube.music.search(query, { type: "song" } as any),
+      tube.music.search(query, { type: "album" } as any),
+      tube.music.search(query, { type: "playlist" } as any),
+    ]);
+  } catch (e) {
+    console.error("[search] search failed:", e);
+    throw e;
+  }
+
+  const songs: SearchResult[] = [];
+  const songShelf = songSearch.songs;
+  if (songShelf) {
+    for (const item of (songShelf.contents || []).slice(0, 10)) {
+      const vid = item.id;
+      if (!vid) continue;
+      songs.push({
+        videoId: vid,
+        title: item.title || "",
+        artist: extractArtist(item),
+        thumbnail: extractThumbnail(item),
+        duration: item.duration?.seconds || 0,
+      });
     }
   }
-  return null;
-}
 
-async function fetchSpotifyEmbed(url: string): Promise<{ type: "playlist" | "album"; data: EmbedEntity } | null> {
-  const id = extractSpotifyId(url, "album") || extractSpotifyId(url, "playlist");
-  if (!id) return null;
-  const type = extractSpotifyId(url, "album") ? "album" : "playlist";
-  const embedUrl = `https://open.spotify.com/embed/${type}/${id}`;
-  const res = await fetch(embedUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-  if (!res.ok) return null;
-  const html = await res.text();
-  const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-  if (!match) return null;
-  const nextData = JSON.parse(match[1]);
-  const entity = findEntity(nextData);
-  if (!entity || !entity.trackList) return null;
-  return { type, data: entity };
-}
-
-function pickCoverUrl(entity: EmbedEntity): string | undefined {
-  const candidates: { url: string; size: number }[] = [];
-  const push = (url?: string, size = 0) => {
-    if (url && url.startsWith("http")) candidates.push({ url, size });
-  };
-  if (entity.visualIdentity?.image?.length) {
-    for (const img of entity.visualIdentity.image) push(img.url, img.maxWidth || 0);
+  const albums: AlbumResult[] = [];
+  const albumShelf = albumSearch.albums;
+  if (albumShelf) {
+    for (const item of (albumShelf.contents || []).slice(0, 10)) {
+      const browseId = item.endpoint?.payload?.browseId || "";
+      if (!browseId) continue;
+      albums.push({
+        browseId,
+        title: item.title || "",
+        artist: extractArtist(item),
+        thumbnail: extractThumbnail(item),
+        year: item.year,
+        trackCount: item.item_count ? parseInt(item.item_count, 10) : undefined,
+      });
+    }
   }
-  if (entity.coverArt?.image?.length) {
-    for (const img of entity.coverArt.image) push(img.url);
+
+  const playlists: PlaylistResult[] = [];
+  const playlistShelf = playlistSearch.playlists;
+  if (playlistShelf) {
+    for (const item of (playlistShelf.contents || []).slice(0, 10)) {
+      const browseId = item.endpoint?.payload?.browseId || "";
+      if (!browseId) continue;
+      playlists.push({
+        browseId,
+        title: item.title || "",
+        thumbnail: extractThumbnail(item),
+        trackCount: item.item_count ? parseInt(item.item_count, 10) : undefined,
+      });
+    }
   }
-  if (!candidates.length) return undefined;
-  candidates.sort((a, b) => b.size - a.size);
-  return candidates[0].url;
+
+  return { songs, albums, playlists };
 }
 
-async function downloadFile(url: string, file: File): Promise<string> {
-  if (Platform.OS === "web") {
-    const res = await fetch(url);
-    return URL.createObjectURL(await res.blob());
+export async function getAlbumTracks(browseId: string): Promise<{ title: string; artist: string; tracks: SearchResult[] }> {
+  const tube = await getInnertube();
+  const album = await tube.music.getAlbum(browseId);
+
+  const albumTitle = (album.header as any)?.title?.toString() || "";
+  const albumArtist = (album.header as any)?.author?.name || (album.header as any)?.strapline_text_one?.toString() || "";
+
+  const tracks: SearchResult[] = [];
+  for (const item of album.contents || []) {
+    const vid = item.id;
+    if (!vid) continue;
+    tracks.push({
+      videoId: vid,
+      title: item.title || "",
+      artist: extractArtist(item) || albumArtist,
+      thumbnail: extractThumbnail(item),
+      duration: item.duration?.seconds || 0,
+    });
   }
-  const result = await File.downloadFileAsync(url, file, { idempotent: true });
-  return result.uri;
+
+  return { title: albumTitle, artist: albumArtist, tracks };
 }
 
-export async function downloadSpotifyUrl(
-  url: string,
+export async function getPlaylistTracks(browseId: string): Promise<{ title: string; tracks: SearchResult[] }> {
+  const tube = await getInnertube();
+  const playlist = await tube.music.getPlaylist(browseId);
+
+  const playlistTitle = (playlist.header as any)?.title?.toString() || "";
+  const tracks: SearchResult[] = [];
+  for (const item of (playlist.items || [])) {
+    if ((item as any).type === "MusicResponsiveListItem") {
+      const li = item as any;
+      const vid = li.id;
+      if (!vid) continue;
+      tracks.push({
+        videoId: vid,
+        title: li.title || "",
+        artist: extractArtist(li),
+        thumbnail: extractThumbnail(li),
+        duration: li.duration?.seconds || 0,
+      });
+    }
+  }
+
+  return { title: playlistTitle, tracks };
+}
+
+async function downloadSingleTrack(
+  track: SearchResult,
+  albumDir: Directory,
+  albumTitle: string,
+  albumArtist: string,
+  trackNumber: number,
+  totalTracks: number,
   config: DownloadConfig
-): Promise<{ albumId: string; trackCount: number; sourceTrackCount: number; unavailableTrackCount: number }> {
-  const spotifyData = await fetchSpotifyEmbed(url);
-  if (!spotifyData) {
-    throw new Error("Invalid Spotify URL or unsupported content");
+): Promise<TrackData> {
+  const { onProgress, onError } = config;
+
+  onProgress?.({
+    trackIndex: trackNumber - 1, trackTitle: track.title, trackArtist: track.artist,
+    trackNumber, totalTracks,
+    progress: 0, albumTitle, albumArtist, status: "searching",
+  });
+
+  const tube = await getInnertube();
+  const player = tube.session.player;
+
+  let info;
+  try {
+    info = await tube.music.getInfo(track.videoId);
+  } catch (e) {
+    const err = new Error(`Could not get track info: ${(e as Error).message}`);
+    onError?.(err, track.title);
+    throw err;
   }
 
-  const { type, data: entity } = spotifyData;
-  const albumTitle = entity.title || entity.name || "Unknown Album";
-  const albumArtist = entity.subtitle || "Unknown Artist";
+  const details = info.basic_info;
+  const title = details.title || track.title;
+  const artist = details.author || details.channel?.name || track.artist || albumArtist;
+  const duration = details.duration || track.duration;
+  const thumb = details.thumbnail?.[0]?.url || track.thumbnail;
 
-  const albumId = `album-${uuidv4()}`;
-  const albumDir = config.downloadDir
-    ? new Directory(config.downloadDir, albumId)
-    : new Directory(Paths.document, "Music", albumId);
-  albumDir.create({ idempotent: true, intermediates: true });
+  let formats = info.streaming_data?.formats || [];
+  if (formats.length === 0) {
+    const err = new Error("No streaming formats returned from YouTube (may need login or different client)");
+    onError?.(err, title);
+    throw err;
+  }
 
-  let coverUri: string | undefined;
-  const coverUrl = pickCoverUrl(entity);
-  if (coverUrl) {
+  let audioFormat = info.chooseFormat({ type: "audio", quality: "lowest", format: "mp4" }) || formats[formats.length - 1];
+
+  let audioUrl: string | undefined;
+
+  if (audioFormat.url && audioFormat.url.startsWith("http")) {
+    audioUrl = audioFormat.url;
+  }
+
+  if (!audioUrl) {
     try {
-      coverUri = await downloadFile(coverUrl, new File(albumDir, "cover.jpg"));
-    } catch {
-      coverUri = coverUrl;
+      audioUrl = await audioFormat.decipher(player);
+    } catch (e) {
+      console.warn("[download] decipher failed:", (e as Error).message);
     }
   }
 
-  const processedTracks: any[] = [];
-  let unavailableTrackCount = 0;
-  const tracks = entity.trackList || [];
-  const downloadedAt = new Date().toISOString();
-
-  const saveAlbum = () => {
-    const totalDuration = processedTracks.reduce((sum, track) => sum + (track.duration || 0), 0);
-    useMusicStore.getState().addAlbum({
-      id: albumId,
-      title: albumTitle,
-      artist: albumArtist,
-      coverUri,
-      trackCount: processedTracks.length,
-      totalDuration,
-      downloadedAt,
-      tracks: [...processedTracks],
-    });
-  };
-
-  for (let i = 0; i < tracks.length; i++) {
-    const track = tracks[i];
-    const artistName = track.subtitle || albumArtist;
-
-    config.onProgress?.({
-      trackIndex: i,
-      trackTitle: track.title,
-      totalTracks: tracks.length,
-      progress: 0,
-      status: "searching",
-    });
-
-    let audioUri: string | undefined;
-    const previewUrl = track.audioPreview?.url;
-    if (previewUrl) {
-      try {
-        audioUri = await downloadFile(
-          previewUrl,
-          new File(albumDir, `${(track.uid || `track-${i}`).replace(/[^a-zA-Z0-9_-]/g, "_")}.mp3`)
-        );
-      } catch {
-        // Keeping the preview URL still gives the player a chance to stream it.
-        audioUri = previewUrl;
+  if (!audioUrl) {
+    for (const f of formats) {
+      if (f.url && f.url.startsWith("http")) {
+        audioUrl = f.url;
+        break;
       }
     }
-
-    config.onProgress?.({
-      trackIndex: i,
-      trackTitle: track.title,
-      totalTracks: tracks.length,
-      progress: audioUri ? 100 : 0,
-      status: audioUri ? "completed" : "error",
-    });
-
-    const lyrics = (await fetchLyrics(artistName, track.title)) || (await searchLyrics(artistName, track.title));
-
-    if (!audioUri) {
-      unavailableTrackCount += 1;
-      config.onError?.(new Error("No authorized preview is available for this track"), track.title);
-      continue;
-    }
-
-    const processedTrack = {
-      id: track.uid || `track-${i}`,
-      title: track.title,
-      artist: artistName,
-      album: albumTitle,
-      duration: (track.duration || 0) / 1000,
-      audioUri,
-      coverUri,
-      lyrics: lyrics?.syncedLyrics || lyrics?.plainLyrics,
-      syncedLyrics: lyrics?.syncedLyrics,
-      plainLyrics: lyrics?.plainLyrics,
-      trackNumber: i + 1,
-      downloadedAt: new Date().toISOString(),
-    };
-
-    processedTracks.push(processedTrack);
-    // Persist immediately. If a later preview fails or the screen is closed, the
-    // tracks that were actually saved remain visible and playable in Music.
-    saveAlbum();
-    config.onTrackComplete?.(processedTrack);
-
   }
 
-  if (!processedTracks.length) {
-    throw new Error("Spotify did not provide playable previews for any tracks in this selection.");
+  if (!audioUrl) {
+    const err = new Error("Could not obtain audio URL (all decipher attempts failed)");
+    onError?.(err, title);
+    throw err;
+  }
+
+  const ext = audioFormat.mime_type?.includes("webm") ? "webm" : "m4a";
+  const trackId = `yt-${track.videoId}`;
+  const audioFile = new File(albumDir, `${trackId}.${ext}`);
+
+  onProgress?.({
+    trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
+    trackNumber, totalTracks,
+    progress: 0, albumTitle, albumArtist, status: "downloading-audio",
+  });
+
+  await File.downloadFileAsync(audioUrl, audioFile, {
+    idempotent: true,
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Referer: "https://www.youtube.com",
+    },
+    onProgress: (p) => {
+      const percent = p.totalBytes > 0 ? p.bytesWritten / p.totalBytes : 0;
+      onProgress?.({
+        trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
+        trackNumber, totalTracks,
+        progress: percent, albumTitle, albumArtist, status: "downloading-audio",
+      });
+    },
+  });
+
+  let coverUri: string | undefined;
+  if (thumb) {
+    try {
+      const coverFile = new File(albumDir, `${trackId}_cover.jpg`);
+      await File.downloadFileAsync(thumb, coverFile, { idempotent: true });
+      coverUri = coverFile.uri;
+    } catch {
+      coverUri = thumb;
+    }
+  }
+
+  let lyrics: string | undefined;
+  try {
+    const cleanTitle = title.replace(/\(.*?\)|\[.*?\]/g, "").trim();
+    const res = await fetch(
+      `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(cleanTitle)}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.lyrics?.length > 20) lyrics = data.lyrics;
+    }
+  } catch {
   }
 
   return {
-    albumId,
-    trackCount: processedTracks.length,
-    sourceTrackCount: tracks.length,
-    unavailableTrackCount,
+    id: trackId,
+    title,
+    artist,
+    album: albumTitle,
+    duration,
+    audioUri: audioFile.uri,
+    coverUri,
+    lyrics,
+    trackNumber,
+    downloadedAt: new Date().toISOString(),
   };
 }
 
-export function isValidSpotifyUrl(url: string): boolean {
-  return /open\.spotify\.com\/(playlist|album)\//.test(url) || /spotify:(playlist|album):/.test(url);
+export async function downloadTrack(
+  track: SearchResult,
+  config: DownloadConfig
+): Promise<TrackData> {
+  const { onComplete, onError } = config;
+  const albumDir = new Directory(Paths.document, "Music", `dl-${id()}`);
+  albumDir.create({ idempotent: true, intermediates: true });
+
+  try {
+    const data = await downloadSingleTrack(track, albumDir, track.title, track.artist, 1, 1, config);
+    onComplete?.(data);
+    return data;
+  } catch (e) {
+    if (onError) throw e;
+    throw e;
+  }
 }
 
-export function getSpotifyType(url: string): "playlist" | "album" | null {
-  if (url.includes("/playlist/") || url.includes("spotify:playlist:")) return "playlist";
-  if (url.includes("/album/") || url.includes("spotify:album:")) return "album";
-  return null;
+export async function downloadAlbum(
+  browseId: string,
+  config: DownloadConfig
+): Promise<TrackData[]> {
+  const { title, artist, tracks } = await getAlbumTracks(browseId);
+  if (tracks.length === 0) throw new Error("No tracks found");
+
+  const albumDir = new Directory(Paths.document, "Music", `dl-${id()}`);
+  albumDir.create({ idempotent: true, intermediates: true });
+
+  const results: TrackData[] = [];
+  const batchSize = 3;
+  for (let start = 0; start < tracks.length; start += batchSize) {
+    const batch = tracks.slice(start, start + batchSize);
+    const batchResults = await Promise.allSettled(
+      batch.map((track, bi) => {
+        const i = start + bi;
+        return downloadSingleTrack(track, albumDir, title, artist, i + 1, tracks.length, config);
+      })
+    );
+    for (const r of batchResults) {
+      if (r.status === "fulfilled") {
+        results.push(r.value);
+        config.onComplete?.(r.value);
+      }
+    }
+  }
+  return results;
+}
+
+export async function downloadPlaylist(
+  browseId: string,
+  config: DownloadConfig
+): Promise<TrackData[]> {
+  const { title, tracks } = await getPlaylistTracks(browseId);
+  if (tracks.length === 0) throw new Error("No tracks found");
+
+  const albumDir = new Directory(Paths.document, "Music", `dl-${id()}`);
+  albumDir.create({ idempotent: true, intermediates: true });
+
+  const results: TrackData[] = [];
+  const batchSize = 3;
+  for (let start = 0; start < tracks.length; start += batchSize) {
+    const batch = tracks.slice(start, start + batchSize);
+    const batchResults = await Promise.allSettled(
+      batch.map((track, bi) => {
+        const i = start + bi;
+        return downloadSingleTrack(track, albumDir, title, "", i + 1, tracks.length, config);
+      })
+    );
+    for (const r of batchResults) {
+      if (r.status === "fulfilled") {
+        results.push(r.value);
+        config.onComplete?.(r.value);
+      }
+    }
+  }
+  return results;
 }

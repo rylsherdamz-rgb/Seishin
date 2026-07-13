@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Notifications from "expo-notifications";
 import { useAgentStore, AgentMessage, AgentAttachment } from "@/stores/agent-store";
+import { generateResponse, isModelLoaded, getModelState } from "./local-llama";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
@@ -816,6 +817,25 @@ export async function runAgentLoop(
   const extractedContext = opts?.extractedContext?.trim();
 
   if (currentProvider === "local") {
+    if (!isModelLoaded()) {
+      const { error } = getModelState();
+      const errMsg = error ? `Model error: ${error}` : "Local model is not loaded yet. Please wait for it to finish loading.";
+      if (!error) agentStore.addMessage({
+        id: `msg-${Date.now()}`,
+        role: "user", content: userInput,
+        timestamp: new Date().toISOString(), attachments,
+      });
+      agentStore.setProcessing(false);
+      agentStore.addMessage({
+        id: `msg-${Date.now()}-local`,
+        role: "assistant",
+        content: errMsg,
+        timestamp: new Date().toISOString(),
+      });
+      appendToSessionLog(userInput, errMsg);
+      return;
+    }
+
     agentStore.addMessage({
       id: `msg-${Date.now()}`,
       role: "user",
@@ -823,15 +843,34 @@ export async function runAgentLoop(
       timestamp: new Date().toISOString(),
       attachments,
     });
-    agentStore.setProcessing(false);
-    const localResponse = "Local GGUF mode not yet available. Switch to NVIDIA NIM or configure a GGUF model.";
+    agentStore.setProcessing(true);
+
+    const msgId = `msg-${Date.now()}-local`;
     agentStore.addMessage({
-      id: `msg-${Date.now()}-local`,
+      id: msgId,
       role: "assistant",
-      content: localResponse,
+      content: "",
       timestamp: new Date().toISOString(),
     });
-    appendToSessionLog(userInput, localResponse);
+
+    try {
+      const fullPrompt = extractedContext
+        ? `Context:\n${extractedContext}\n\nUser: ${userInput}\n\nAssistant:`
+        : `User: ${userInput}\n\nAssistant:`;
+
+      let accumulated = "";
+      const result = await generateResponse(fullPrompt, (token) => {
+        accumulated += token;
+        agentStore.updateAssistantMessage(msgId, accumulated);
+      });
+      agentStore.updateAssistantMessage(msgId, result);
+      appendToSessionLog(userInput, result);
+    } catch (e: any) {
+      agentStore.updateAssistantMessage(msgId, `Error: ${e.message}`);
+      appendToSessionLog(userInput, `Error: ${e.message}`);
+    } finally {
+      agentStore.setProcessing(false);
+    }
     return;
   }
 
