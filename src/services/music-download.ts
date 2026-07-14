@@ -1,5 +1,4 @@
 import { Directory, File, Paths } from "expo-file-system";
-import * as fs from "expo-file-system/legacy";
 import { Innertube } from "youtubei.js";
 import { setupPlatformEvaluator } from "./evaluator";
 
@@ -307,14 +306,44 @@ async function downloadSingleTrack(
     progress: 0, albumTitle, albumArtist, status: "downloading-audio",
   });
 
-  await fs.downloadAsync(audioUrl, audioFile.uri, {
-    md5: false,
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      Referer: "https://www.youtube.com",
-    },
-  });
-
+  let result: File | null = null;
+  try {
+    const dlTask = File.createDownloadTask(audioUrl, audioFile, {
+      idempotent: true,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Referer: "https://www.youtube.com",
+      },
+      onProgress: (p) => {
+        const pct = p.totalBytes > 0
+          ? Math.round((p.bytesWritten / p.totalBytes) * 100) / 100
+          : p.bytesWritten > 0
+            ? 0.01
+            : 0;
+        console.log(`[download] ${title}: ${Math.round(pct * 100)}% (${p.bytesWritten} / ${p.totalBytes})`);
+        onProgress?.({
+          trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
+          trackNumber, totalTracks,
+          progress: pct, albumTitle, albumArtist, status: "downloading-audio",
+        });
+      },
+    });
+    result = await dlTask.downloadAsync();
+  } catch (e) {
+    console.log(`[download] ${title}: createDownloadTask failed: ${e}`);
+  }
+  if (!result) {
+    console.log(`[download] ${title}: using legacy fallback`);
+    const { downloadAsync } = await import("expo-file-system/legacy");
+    await downloadAsync(audioUrl, audioFile.uri, {
+      md5: false,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Referer: "https://www.youtube.com",
+      },
+    });
+  }
+  console.log(`[download] ${title}: done`);
   onProgress?.({
     trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
     trackNumber, totalTracks,
