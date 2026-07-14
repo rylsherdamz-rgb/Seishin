@@ -130,6 +130,14 @@ export default function SettingsScreen() {
 
   const [ggufCopying, setGgufCopying] = useState(false);
   const [ggufCopyProgress, setGgufCopyProgress] = useState("");
+  const [ggufFileSize, setGgufFileSize] = useState(0);
+
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
 
   async function saveModelPath() {
     if (!ggufPath) {
@@ -193,6 +201,7 @@ export default function SettingsScreen() {
         const asset = result.assets[0];
         setGgufPath(asset.uri);
         setGgufFileName(asset.name || "");
+        setGgufFileSize(asset.size ?? 0);
       }
     } catch (e) {
       setModalConfig({ title: "Could not browse files", message: "The file picker did not respond. Try again." });
@@ -301,18 +310,25 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
-              <View className="flex-row items-center gap-2 self-end">
-                {ggufCopying && (
-                  <Text className="text-xs text-ink-400">{ggufCopyProgress}</Text>
-                )}
-                <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center min-w-[60px]">
-                  {ggufCopying ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text className="text-white text-sm font-semibold">Save</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+              {ggufCopying && (
+                <View className="bg-ink-50 rounded-lg p-3 mb-2">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <ActivityIndicator size="small" color="#666666" />
+                    <Text className="text-xs text-ink-600 flex-1">
+                      Copying{ggufFileSize > 0 ? ` ${formatBytes(ggufFileSize)}` : ""}…
+                    </Text>
+                  </View>
+                  <View className="w-full bg-ink-200 rounded-full h-1.5 overflow-hidden">
+                    <View className="bg-black h-full rounded-full" style={{ width: "30%" }} />
+                  </View>
+                  <Text className="text-xs text-ink-400 mt-2">
+                    You can continue browsing Settings while this runs in the background.
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
+                <Text className="text-white text-sm font-semibold">Save</Text>
+              </TouchableOpacity>
             </Card>
           )}
 

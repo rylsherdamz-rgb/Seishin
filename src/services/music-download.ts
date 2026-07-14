@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import * as fs from "expo-file-system/legacy";
 import { Innertube } from "youtubei.js";
 import { setupPlatformEvaluator } from "./evaluator";
 
@@ -298,20 +299,18 @@ async function downloadSingleTrack(
     progress: 0, albumTitle, albumArtist, status: "downloading-audio",
   });
 
-  await File.downloadFileAsync(audioUrl, audioFile, {
-    idempotent: true,
+  await fs.downloadAsync(audioUrl, audioFile.uri, {
+    md5: false,
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       Referer: "https://www.youtube.com",
     },
-    onProgress: (p) => {
-      const percent = p.totalBytes > 0 ? p.bytesWritten / p.totalBytes : 0;
-      onProgress?.({
-        trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
-        trackNumber, totalTracks,
-        progress: percent, albumTitle, albumArtist, status: "downloading-audio",
-      });
-    },
+  });
+
+  onProgress?.({
+    trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
+    trackNumber, totalTracks,
+    progress: 1, albumTitle, albumArtist, status: "downloading-audio",
   });
 
   let coverUri: string | undefined;
