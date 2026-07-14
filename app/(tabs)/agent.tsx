@@ -171,7 +171,7 @@ export default function AgentScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <View className="flex-1" style={{ paddingBottom: keyboardHeight }}>
+      <View className="flex-1" style={{ paddingBottom: Math.min(keyboardHeight, 160) }}>
         <View className="px-4 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View>

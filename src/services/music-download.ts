@@ -93,11 +93,11 @@ export interface DownloadConfig {
   onError?: (error: Error, trackTitle: string) => void;
 }
 
-function extractArtist(item: any): string {
+export function extractArtist(item: any): string {
   return item.artists?.[0]?.name || item.author?.name || "";
 }
 
-function extractThumbnail(item: any): string {
+export function extractThumbnail(item: any): string {
   const thumbs = item.thumbnails || item.thumbnail;
   if (Array.isArray(thumbs) && thumbs.length > 0) {
     return thumbs[thumbs.length - 1]?.url || thumbs[0]?.url || "";
@@ -259,14 +259,34 @@ async function downloadSingleTrack(
   const duration = details.duration || track.duration;
   const thumb = details.thumbnail?.[0]?.url || track.thumbnail;
 
-  let formats = info.streaming_data?.formats || [];
+  const formats = info.streaming_data?.formats || [];
   if (formats.length === 0) {
     const err = new Error("No streaming formats returned from YouTube (may need login or different client)");
     onError?.(err, title);
     throw err;
   }
 
-  let audioFormat = info.chooseFormat({ type: "audio", quality: "lowest", format: "mp4" }) || formats[formats.length - 1];
+  // Pick the best audio format manually (chooseFormat may throw on music info)
+  let audioFormat: any = null;
+
+  // Manual: find audio-only formats, prefer higher bitrate
+  const audioFormats = formats.filter((f: any) =>
+    f.hasAudio || f.audio_channels || f.mime_type?.includes("audio")
+  );
+  if (audioFormats.length > 0) {
+    audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+    audioFormat = audioFormats[0];
+    console.log(`[download] ${title}: picked audio format itag=${audioFormat.itag} bitrate=${audioFormat.bitrate} mime=${audioFormat.mime_type}`);
+  }
+
+  if (!audioFormat) {
+    // Fallback: any format with a direct URL
+    audioFormat = formats.find((f: any) => f.url?.startsWith("http"))
+      || formats[formats.length - 1];
+    console.log(`[download] ${title}: using fallback format itag=${audioFormat?.itag}`);
+  }
+
+  console.log(`[download] ${title}: selected format mime=${audioFormat.mime_type} hasAudio=${audioFormat.hasAudio} itag=${audioFormat.itag}`);
 
   let audioUrl: string | undefined;
 
@@ -283,11 +303,17 @@ async function downloadSingleTrack(
   }
 
   if (!audioUrl) {
+    const withUrl = formats.find((f: any) => f.url?.startsWith("http"));
+    if (withUrl) audioUrl = withUrl.url;
+  }
+
+  if (!audioUrl) {
+    // Last resort: try all formats and decipher each
     for (const f of formats) {
-      if (f.url && f.url.startsWith("http")) {
-        audioUrl = f.url;
-        break;
-      }
+      try {
+        audioUrl = await f.decipher(player);
+        if (audioUrl) break;
+      } catch {}
     }
   }
 
@@ -307,44 +333,95 @@ async function downloadSingleTrack(
     progress: 0, albumTitle, albumArtist, status: "downloading-audio",
   });
 
+  console.log(`[download] ${title}: url=${audioUrl ? audioUrl.slice(0, 80) + "..." : "MISSING"}`);
+
+  // Get Content-Length via HEAD for progress calculation
   let totalBytes = 0;
   try {
     const headRes = await fetch(audioUrl, { method: "HEAD" });
     totalBytes = parseInt(headRes.headers.get("Content-Length") || "0", 10);
   } catch {}
-  console.log(`[download] ${title}: Content-Length=${totalBytes}`);
+  console.log(`[download] ${title}: HEAD -> ${totalBytes} bytes`);
 
-  const dlPromise = fs.downloadAsync(audioUrl, audioFile.uri, {
-    md5: false,
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      Referer: "https://www.youtube.com",
-    },
-  });
+  // Try File.downloadFileAsync (new API, supports onProgress via native events)
+  let downloadDone = false;
+  let nativeProgressCalled = false;
 
-  const poll = async () => {
-    while (true) {
-      const info = await fs.getInfoAsync(audioFile.uri);
-      if (!info.exists) { await new Promise((r) => setTimeout(r, 500)); continue; }
-      const received = info.size || 0;
-      const pct = totalBytes > 0
-        ? Math.round((received / totalBytes) * 10000) / 10000
-        : received > 0
-          ? Math.min(received / (5 * 1024 * 1024), 0.95)
-          : 0;
-      console.log(`[download] ${title}: ${Math.round(pct * 100)}% (${received} / ${totalBytes})`);
-      onProgress?.({
-        trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
-        trackNumber, totalTracks,
-        progress: pct, albumTitle, albumArtist, status: "downloading-audio",
+  const downloadPromise = (async () => {
+    try {
+      const downloadedFile = await File.downloadFileAsync(audioUrl, audioFile, {
+        idempotent: true,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          Referer: "https://www.youtube.com",
+        },
+        onProgress: (p) => {
+          nativeProgressCalled = true;
+          const total = p.totalBytes > 0 ? p.totalBytes : totalBytes;
+          const written = p.bytesWritten;
+          const pct = total > 0
+            ? Math.round((written / total) * 100) / 100
+            : written > 0 ? 0.01 : 0;
+          console.log(`[download] ${title}: native ${Math.round(pct * 100)}% (${written} / ${total})`);
+          onProgress?.({
+            trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
+            trackNumber, totalTracks,
+            progress: pct, albumTitle, albumArtist, status: "downloading-audio",
+          });
+        },
       });
-      if (pct >= 1) break;
-      await new Promise((r) => setTimeout(r, 800));
+      downloadDone = true;
+      return downloadedFile;
+    } catch (e) {
+      console.warn(`[download] ${title}: File.downloadFileAsync failed:`, (e as Error).message);
+      return null;
     }
-  };
+  })();
 
-  await Promise.all([dlPromise, poll()]);
+  // Parallel poll: check file size every 800ms as fallback progress
+  const pollPromise = (async () => {
+    while (!downloadDone) {
+      await new Promise((r) => setTimeout(r, 800));
+      if (downloadDone) break;
+      try {
+        const info = await fs.getInfoAsync(audioFile.uri);
+        if (info.exists && (info.size ?? 0) > 0) {
+          const received = info.size ?? 0;
+          const pct = totalBytes > 0
+            ? Math.round((received / totalBytes) * 100) / 100
+            : Math.min(received / (5 * 1024 * 1024), 0.95);
+          onProgress?.({
+            trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
+            trackNumber, totalTracks,
+            progress: pct, albumTitle, albumArtist, status: "downloading-audio",
+          });
+        }
+      } catch {}
+    }
+  })();
+
+  const result = await downloadPromise;
+
+  if (!result || !result.uri) {
+    // Fallback: File.downloadFileAsync failed — use legacy downloadAsync + polling
+    console.log(`[download] ${title}: falling back to legacy downloadAsync`);
+    await fs.downloadAsync(audioUrl, audioFile.uri, {
+      md5: false,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Referer: "https://www.youtube.com",
+      },
+    });
+  }
+  downloadDone = true;
+  await pollPromise;
+
   console.log(`[download] ${title}: done`);
+  onProgress?.({
+    trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
+    trackNumber, totalTracks,
+    progress: 1, albumTitle, albumArtist, status: "downloading-audio",
+  });
   onProgress?.({
     trackIndex: trackNumber - 1, trackTitle: title, trackArtist: artist,
     trackNumber, totalTracks,
@@ -354,9 +431,13 @@ async function downloadSingleTrack(
   let coverUri: string | undefined;
   if (thumb) {
     try {
-      const coverFile = new File(albumDir, `${trackId}_cover.jpg`);
-      await File.downloadFileAsync(thumb, coverFile, { idempotent: true });
-      coverUri = coverFile.uri;
+      const coverPath = `${albumDir.uri}/${trackId}_cover.jpg`;
+      await fs.downloadAsync(thumb, coverPath, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      });
+      coverUri = coverPath;
     } catch {
       coverUri = thumb;
     }

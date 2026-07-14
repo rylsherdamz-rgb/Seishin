@@ -69,9 +69,15 @@ export default function MusicDownloadScreen() {
           updateDownload(dlKey, { progress: 1, status: "completed" });
           onTrackComplete(data);
         },
-        onError: (error) => updateDownload(dlKey, { status: "error", error: error.message }),
+        onError: (error) => {
+          console.error(`[downloadUI] error for ${track.title}:`, error.message);
+          updateDownload(dlKey, { status: "error", error: error.message });
+        },
       });
-    } catch {}
+    } catch (e) {
+      console.error(`[downloadUI] unexpected error for ${track.title}:`, e);
+      updateDownload(dlKey, { status: "error", error: (e as Error).message });
+    }
   }, [storeDownloads]);
 
   const doDownloadAlbum = useCallback(async (item: AlbumResult) => {
@@ -86,11 +92,12 @@ export default function MusicDownloadScreen() {
           updateDownload(dlKey, { progress: completed / 20, title: `${completed} tracks` });
           onTrackComplete(data);
         },
-        onError: () => {},
+        onError: (err) => console.error(`[downloadUI] album error:`, err.message),
       });
       updateDownload(dlKey, { progress: 1, status: "completed", title: `${tracks.length} tracks` });
-    } catch {
-      updateDownload(dlKey, { status: "error" });
+    } catch (e) {
+      console.error(`[downloadUI] album unexpected error:`, e);
+      updateDownload(dlKey, { status: "error", error: (e as Error).message });
     }
   }, [storeDownloads, onTrackComplete]);
 
@@ -106,11 +113,12 @@ export default function MusicDownloadScreen() {
           updateDownload(dlKey, { progress: completed / 50, title: `${completed} tracks` });
           onTrackComplete(data);
         },
-        onError: () => {},
+        onError: (err) => console.error(`[downloadUI] playlist error:`, err.message),
       });
       updateDownload(dlKey, { progress: 1, status: "completed", title: `${tracks.length} tracks` });
-    } catch {
-      updateDownload(dlKey, { status: "error" });
+    } catch (e) {
+      console.error(`[downloadUI] playlist unexpected error:`, e);
+      updateDownload(dlKey, { status: "error", error: (e as Error).message });
     }
   }, [storeDownloads, onTrackComplete]);
 
@@ -138,9 +146,12 @@ export default function MusicDownloadScreen() {
         await downloadTrack(track, {
           onProgress: (p) => updateDownload(dlKey, { progress: p.progress, title: p.trackTitle }),
           onComplete: (data) => { updateDownload(dlKey, { progress: 1, status: "completed" }); completed++; onTrackComplete(data); },
-          onError: () => {},
+          onError: (err) => { console.error(`[downloadUI] modal error for ${track.title}:`, err.message); updateDownload(dlKey, { status: "error", error: err.message }); },
         });
-      } catch {}
+      } catch (e) {
+        console.error(`[downloadUI] modal unexpected error for ${track.title}:`, e);
+        updateDownload(dlKey, { status: "error", error: (e as Error).message });
+      }
     }
     if (completed === tracks.length) setDetailModal(null);
   }, [detailModal, storeDownloads, onTrackComplete]);
