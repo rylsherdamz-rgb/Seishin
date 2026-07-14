@@ -9,6 +9,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
 import { settingsStorage } from "@/stores/mmkv";
+import { warmInnertube } from "@/services/music-download";
 
 
 const ONBOARDING_PAGES = [
@@ -156,6 +157,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (phase === "app") {
       router.replace("/(tabs)");
+      warmInnertube();
     }
   }, [phase]);
 

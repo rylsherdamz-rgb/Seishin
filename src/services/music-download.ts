@@ -4,6 +4,7 @@ import { Innertube } from "youtubei.js";
 import { setupPlatformEvaluator } from "./evaluator";
 
 let innertube: Innertube | null = null;
+let warmPromise: Promise<Innertube> | null = null;
 
 async function getInnertube(): Promise<Innertube> {
   if (!innertube) {
@@ -17,6 +18,13 @@ async function getInnertube(): Promise<Innertube> {
     console.log("[download] Innertube created");
   }
   return innertube;
+}
+
+export function warmInnertube(): Promise<Innertube> {
+  if (!warmPromise) {
+    warmPromise = getInnertube();
+  }
+  return warmPromise;
 }
 
 function id(): string {
