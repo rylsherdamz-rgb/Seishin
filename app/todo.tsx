@@ -23,26 +23,32 @@ const priorityColors: Record<string, string> = {
 export default function TodoScreen() {
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
   const todos = useTodoStore((s) => s.todos);
+  const storeFilter = useTodoStore((s) => s.filter);
   const loadTodos = useTodoStore((s) => s.loadTodos);
   const addTodo = useTodoStore((s) => s.addTodo);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
   const deleteTodo = useTodoStore((s) => s.deleteTodo);
   const clearCompleted = useTodoStore((s) => s.clearCompleted);
   const setFilter = useTodoStore((s) => s.setFilter);
-  const getFilteredTodos = useTodoStore((s) => s.getFilteredTodos);
-  const getStats = useTodoStore((s) => s.getStats);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDueDate, setNewDueDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [filter, localFilter] = useState<TodoFilter>("all");
+  const [filter, localFilter] = useState<TodoFilter>(storeFilter);
   const [showAdd, setShowAdd] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [sheetItem, setSheetItem] = useState<Todo | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDueDate, setNewDueDate] = useState<Date | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => { loadTodos(); }, [loadTodos]);
 
-  const filtered = useMemo(() => getFilteredTodos(), [getFilteredTodos]);
-  const stats = useMemo(() => getStats(), [getStats]);
+  const filtered = useMemo(() => {
+    if (filter === "active") return todos.filter((t) => !t.completed);
+    if (filter === "completed") return todos.filter((t) => t.completed);
+    return todos;
+  }, [todos, filter]);
+  const stats = useMemo(() => {
+    const completed = todos.filter((t) => t.completed).length;
+    return { total: todos.length, active: todos.length - completed, completed };
+  }, [todos]);
 
   const handleAdd = useCallback(() => {
     const title = newTitle.trim();
