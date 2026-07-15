@@ -112,9 +112,9 @@ function SplashScreen() {
   }));
 
   useEffect(() => {
-    logoOpacity.value = withTiming(1, { duration: 400 });
-    logoScale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
-    bgOpacity.value = withDelay(1800, withTiming(0, { duration: 500 }));
+    logoOpacity.value = withTiming(1, { duration: 200 });
+    logoScale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
+    bgOpacity.value = withDelay(400, withTiming(0, { duration: 300 }));
   }, []);
 
   return (
@@ -134,7 +134,7 @@ export default function RootLayout() {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");
     setTimeout(() => {
       setPhase(seen ? "app" : "onboarding");
-    }, 2000);
+    }, 600);
   }, []);
 
   useEffect(() => {

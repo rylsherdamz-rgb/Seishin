@@ -97,14 +97,14 @@ export default function MusicPlayerScreen() {
 
   const currentLyricIndex = useMemo(
     () => currentTrackLyrics
-      ? currentTrackLyrics.findLastIndex((l) => l.time >= 0 && l.time <= position / 1000)
+      ? currentTrackLyrics.findLastIndex((l) => l.time >= 0 && l.time < position / 1000)
       : -1,
     [currentTrackLyrics, position]
   );
 
   useEffect(() => {
     if (showLyrics && currentLyricIndex >= 0 && lyricsScrollRef.current) {
-      lyricsScrollRef.current.scrollToIndex({ index: Math.max(0, currentLyricIndex - 2), animated: true, viewPosition: 0.5 });
+      lyricsScrollRef.current.scrollToIndex({ index: Math.max(0, currentLyricIndex - 1), animated: false, viewPosition: 0.5 });
     }
   }, [currentLyricIndex, showLyrics]);
 
