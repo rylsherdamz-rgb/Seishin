@@ -85,6 +85,12 @@ export async function unloadModel() {
   notify();
 }
 
+let _aborted = false;
+
+export function abortGeneration() {
+  _aborted = true;
+}
+
 export async function generateResponse(
   prompt: string,
   onToken?: (token: string) => void,
@@ -93,7 +99,9 @@ export async function generateResponse(
     throw new Error("Model not loaded");
   }
 
+  _aborted = false;
   const tokens: string[] = [];
+  const text: string[] = [];
   const result = await _context.completion(
     {
       prompt,
@@ -104,10 +112,10 @@ export async function generateResponse(
       stop: ["<|eot_id|>", "<|end|>", "User:", "\n\nUser"],
     },
     (data) => {
-      if (data.token) {
-        tokens.push(data.token);
-        onToken?.(data.token);
-      }
+      if (_aborted || data.token === undefined) return;
+      tokens.push(data.token);
+      text.push(data.token);
+      onToken?.(data.token);
     },
   );
 

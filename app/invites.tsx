@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, Share } from "react-native";
-
 import { Stack, router } from "expo-router";
 import { useInvitesStore, InviteCard } from "@/stores/invites-store";
 import { uid } from "@/utils/id";
@@ -13,8 +12,19 @@ import Feather from "@expo/vector-icons/Feather";
 
 type InviteTab = "cards" | "p2p" | "shared";
 
+const typeIcons: Record<InviteTab, React.ComponentProps<typeof Feather>["name"]> = {
+  cards: "file-text",
+  p2p: "wifi",
+  shared: "share-2",
+};
+
 export default function InvitesScreen() {
-  const { invites, loadInvites, addInvite, deleteInvite, generateP2pCode, shareTodoList } = useInvitesStore();
+  const invites = useInvitesStore((s) => s.invites);
+  const loadInvites = useInvitesStore((s) => s.loadInvites);
+  const addInvite = useInvitesStore((s) => s.addInvite);
+  const deleteInvite = useInvitesStore((s) => s.deleteInvite);
+  const generateP2pCode = useInvitesStore((s) => s.generateP2pCode);
+  const shareTodoList = useInvitesStore((s) => s.shareTodoList);
   const [tab, setTab] = useState<InviteTab>("cards");
   const [newCardTitle, setNewCardTitle] = useState("");
   const [newCardDesc, setNewCardDesc] = useState("");
@@ -25,9 +35,9 @@ export default function InvitesScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  useEffect(() => { loadInvites(); }, []);
+  useEffect(() => { loadInvites(); }, [loadInvites]);
 
-  function createInviteCard() {
+  const createInviteCard = useCallback(() => {
     if (!newCardTitle.trim()) return;
     const invite: InviteCard = {
       id: uid("card"),
@@ -41,26 +51,77 @@ export default function InvitesScreen() {
     addInvite(invite);
     setNewCardTitle("");
     setNewCardDesc("");
-  }
+  }, [newCardTitle, newCardDesc, addInvite]);
 
-  async function shareInvite(invite: InviteCard) {
+  const shareInvite = useCallback(async (invite: InviteCard) => {
     await Share.share({
       message: `Seishin Invite: ${invite.title}\n${invite.description || ""}\nCode: ${invite.code || "N/A"}`,
     });
-  }
+  }, []);
 
-  const typeIcons: Record<InviteTab, React.ComponentProps<typeof Feather>["name"]> = {
-    cards: "file-text",
-    p2p: "wifi",
-    shared: "share-2",
-  };
+  const filtered = useMemo(() => {
+    return invites.filter((i) => {
+      if (tab === "cards") return i.type === "invite-card";
+      if (tab === "p2p") return i.type === "p2p-code";
+      if (tab === "shared") return i.type === "shared-todo";
+      return true;
+    });
+  }, [invites, tab]);
 
-  const filtered = invites.filter((i) => {
-    if (tab === "cards") return i.type === "invite-card";
-    if (tab === "p2p") return i.type === "p2p-code";
-    if (tab === "shared") return i.type === "shared-todo";
-    return true;
-  });
+  const handleShareInvite = useCallback((item: InviteCard) => () => shareInvite(item), [shareInvite]);
+
+  const handleDeleteTarget = useCallback((id: string) => {
+    setDeleteTarget(id);
+    setShowDeleteConfirm(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteTarget) deleteInvite(deleteTarget);
+    setDeleteTarget(null);
+  }, [deleteTarget, deleteInvite]);
+
+  const renderItem = useCallback(({ item }: { item: InviteCard }) => (
+    <Card variant="elevated" className="mb-2.5">
+      <View className="flex-row items-start gap-3">
+        <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+          <Feather
+            name={item.type === "invite-card" ? "file-text" : item.type === "p2p-code" ? "wifi" : "share-2"}
+            size={14}
+            color="#000000"
+          />
+        </View>
+        <View className="flex-1">
+          <Text className="text-sm font-medium text-black">{item.title}</Text>
+          {item.description && (
+            <Text className="text-xs text-ink-500 mt-0.5">{item.description}</Text>
+          )}
+          {item.code && (
+            <View className="bg-ink-50 px-3 py-1.5 rounded-lg border border-ink-150 mt-2 self-start">
+              <Text className="text-sm font-mono tracking-widest text-black">{item.code}</Text>
+            </View>
+          )}
+          <View className="flex-row items-center gap-3 mt-2">
+            <View className="flex-row items-center gap-1">
+              <Feather name="clock" size={10} color="#cccccc" />
+              <Text className="text-xs text-ink-300">
+                {new Date(item.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
+            <Text className="text-xs text-ink-200">·</Text>
+            <Text className="text-xs text-ink-300 capitalize">{item.status}</Text>
+          </View>
+        </View>
+        <View className="gap-2">
+          <TouchableOpacity onPress={handleShareInvite(item)}>
+            <Feather name="share-2" size={14} color="#666666" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDeleteTarget(item.id)}>
+            <Feather name="trash-2" size={14} color="#999999" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Card>
+  ), [handleShareInvite, handleDeleteTarget]);
 
   return (
     <View className="flex-1 bg-white">
@@ -139,50 +200,11 @@ export default function InvitesScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8"
-        renderItem={({ item }) => (
-          <Card variant="elevated" className="mb-2.5">
-            <View className="flex-row items-start gap-3">
-              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                <Feather
-                  name={item.type === "invite-card" ? "file-text" : item.type === "p2p-code" ? "wifi" : "share-2"}
-                  size={14}
-                  color="#000000"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-medium text-black">{item.title}</Text>
-                {item.description && (
-                  <Text className="text-xs text-ink-500 mt-0.5">{item.description}</Text>
-                )}
-                {item.code && (
-                  <View className="bg-ink-50 px-3 py-1.5 rounded-lg border border-ink-150 mt-2 self-start">
-                    <Text className="text-sm font-mono tracking-widest text-black">{item.code}</Text>
-                  </View>
-                )}
-                <View className="flex-row items-center gap-3 mt-2">
-                  <View className="flex-row items-center gap-1">
-                    <Feather name="clock" size={10} color="#cccccc" />
-                    <Text className="text-xs text-ink-300">
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  <Text className="text-xs text-ink-200">·</Text>
-                  <Text className="text-xs text-ink-300 capitalize">{item.status}</Text>
-                </View>
-              </View>
-              <View className="gap-2">
-                <TouchableOpacity onPress={() => shareInvite(item)}>
-                  <Feather name="share-2" size={14} color="#666666" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => { setDeleteTarget(item.id); setShowDeleteConfirm(true); }}
-                >
-                  <Feather name="trash-2" size={14} color="#999999" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Card>
-        )}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={8}
+        renderItem={renderItem}
         ListEmptyComponent={
           <EmptyState icon="send" title="No invites yet" subtitle="Create one above" />
         }
@@ -206,7 +228,7 @@ export default function InvitesScreen() {
         message="Delete this invite?"
         confirmLabel="Delete"
         confirmDestructive
-        onConfirm={() => { if (deleteTarget) deleteInvite(deleteTarget); setDeleteTarget(null); }}
+        onConfirm={handleConfirmDelete}
       />
     </View>
   );

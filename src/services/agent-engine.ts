@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Notifications from "expo-notifications";
 import { useAgentStore, AgentMessage, AgentAttachment } from "@/stores/agent-store";
-import { generateResponse, isModelLoaded, getModelState } from "./local-llama";
+import { generateResponse, isModelLoaded, getModelState, abortGeneration } from "./local-llama";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
@@ -22,6 +22,7 @@ let currentAbort: AbortController | null = null;
 export function stopAgentLoop() {
   currentAbort?.abort();
   currentAbort = null;
+  abortGeneration();
   useAgentStore.getState().setProcessing(false);
 }
 
@@ -844,6 +845,7 @@ export async function runAgentLoop(
       attachments,
     });
     agentStore.setProcessing(true);
+    currentAbort = new AbortController();
 
     const msgId = `msg-${Date.now()}-local`;
     agentStore.addMessage({
@@ -859,10 +861,19 @@ export async function runAgentLoop(
         : `User: ${userInput}\n\nAssistant:`;
 
       let accumulated = "";
+      let lastFlush = Date.now();
+      const flushInterval = 50;
+      const flushBuffer = () => {
+        agentStore.updateAssistantMessage(msgId, accumulated);
+        lastFlush = Date.now();
+      };
       const result = await generateResponse(fullPrompt, (token) => {
         accumulated += token;
-        agentStore.updateAssistantMessage(msgId, accumulated);
+        if (Date.now() - lastFlush >= flushInterval) {
+          flushBuffer();
+        }
       });
+      flushBuffer();
       agentStore.updateAssistantMessage(msgId, result);
       appendToSessionLog(userInput, result);
     } catch (e: any) {
@@ -870,6 +881,7 @@ export async function runAgentLoop(
       appendToSessionLog(userInput, `Error: ${e.message}`);
     } finally {
       agentStore.setProcessing(false);
+      currentAbort = null;
     }
     return;
   }
@@ -945,7 +957,11 @@ export async function runAgentLoop(
     await streamResponse(openai, nimModel, conversation, toolParams, msgId);
   } catch (e) {
     console.error("[Agent] Error:", e);
-    const errorMsg = e instanceof Error ? e.message : "Unknown error occurred";
+    const rawMsg = e instanceof Error ? e.message : "Unknown error occurred";
+    const isNetworkError = /fetch|network|connection|timeout|abort/i.test(rawMsg);
+    const errorMsg = isNetworkError
+      ? "Check your internet connection and try again."
+      : rawMsg;
     agentStore.addMessage({
       id: `msg-${Date.now()}-err`,
       role: "assistant",

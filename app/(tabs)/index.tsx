@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
-  View, Text, TouchableOpacity, FlatList, Modal, TextInput,
+  View, Text, TouchableOpacity, FlatList, TextInput,
 } from "react-native";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -45,10 +46,55 @@ interface CalendarItem {
   eventId?: string;
 }
 
+const sourceIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
+  manual: "edit-2", ocr: "camera", email: "mail",
+  notification: "bell", chat: "message-circle", ai: "cpu",
+};
+
+function sortItems(items: CalendarItem[]): CalendarItem[] {
+  return [...items].sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    if (a.time && b.time) return a.time.localeCompare(b.time);
+    if (a.time) return -1;
+    if (b.time) return 1;
+    return 0;
+  });
+}
+
+function buildSections(items: CalendarItem[]): ({ kind: "date-header"; date: string; label: string } | CalendarItem)[] {
+  const sections: ({ kind: "date-header"; date: string; label: string } | CalendarItem)[] = [];
+  let lastDate = "";
+  for (const item of items) {
+    if (item.date !== lastDate) {
+      lastDate = item.date;
+      const d = new Date(item.date + "T00:00:00");
+      const label = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+      sections.push({ kind: "date-header", date: item.date, label });
+    }
+    sections.push(item);
+  }
+  return sections;
+}
+
+const todayStr = new Date().toLocaleDateString("en-CA");
+type WhenKind = "past" | "today" | "future";
+function whenOf(date: string): WhenKind {
+  if (date < todayStr) return "past";
+  if (date === todayStr) return "today";
+  return "future";
+}
+
 export default function CalendarScreen() {
-  const { events, selectedDate, loadEvents, addEvent, deleteEvent, setSelectedDate } =
-    useCalendarStore();
-  const { todos, loadTodos, toggleTodo } = useTodoStore();
+  const events = useCalendarStore((s) => s.events);
+  const selectedDate = useCalendarStore((s) => s.selectedDate);
+  const loadEvents = useCalendarStore((s) => s.loadEvents);
+  const addEvent = useCalendarStore((s) => s.addEvent);
+  const deleteEvent = useCalendarStore((s) => s.deleteEvent);
+  const setSelectedDate = useCalendarStore((s) => s.setSelectedDate);
+  const todos = useTodoStore((s) => s.todos);
+  const loadTodos = useTodoStore((s) => s.loadTodos);
+  const toggleTodo = useTodoStore((s) => s.toggleTodo);
+
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
@@ -56,129 +102,113 @@ export default function CalendarScreen() {
     loadTodos();
   }, []);
 
-  const allItems: CalendarItem[] = [
-    ...events.map((e) => ({
-      id: e.id,
-      type: "event" as const,
-      title: e.title,
-      description: e.description,
-      date: e.startDate.split("T")[0],
-      time: new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      source: e.source,
-      notes: e.notes,
-      eventId: e.id,
-    })),
-    ...todos
-      .filter((t) => t.dueDate)
-      .map((t) => ({
-        id: `todo-${t.id}`,
-        type: "todo" as const,
-        title: t.title,
-        date: t.dueDate!.split("T")[0],
-        priority: t.priority,
-        completed: t.completed,
-        todoId: t.id,
+  const allItems = useMemo<CalendarItem[]>(
+    () => [
+      ...events.map((e) => ({
+        id: e.id,
+        type: "event" as const,
+        title: e.title,
+        description: e.description,
+        date: e.startDate.split("T")[0],
+        time: new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        source: e.source,
+        notes: e.notes,
+        eventId: e.id,
       })),
-  ];
+      ...todos
+        .filter((t) => t.dueDate)
+        .map((t) => ({
+          id: `todo-${t.id}`,
+          type: "todo" as const,
+          title: t.title,
+          date: t.dueDate!.split("T")[0],
+          priority: t.priority,
+          completed: t.completed,
+          todoId: t.id,
+        })),
+    ],
+    [events, todos],
+  );
 
-  function sortItems(items: CalendarItem[]): CalendarItem[] {
-    return [...items].sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      if (a.time && b.time) return a.time.localeCompare(b.time);
-      if (a.time) return -1;
-      if (b.time) return 1;
-      return 0;
-    });
-  }
+  const showAllItems = useMemo(() => sortItems(allItems), [allItems]);
+  const dayItems = useMemo(
+    () => sortItems(allItems.filter((item) => item.date === selectedDate)),
+    [allItems, selectedDate],
+  );
+  const displayItems = useMemo(
+    () => (showAll || !selectedDate ? buildSections(showAllItems) : dayItems),
+    [showAll, selectedDate, showAllItems, dayItems],
+  );
 
-  function buildSections(items: CalendarItem[]): ({ kind: "date-header"; date: string; label: string } | CalendarItem)[] {
-    const sections: ({ kind: "date-header"; date: string; label: string } | CalendarItem)[] = [];
-    let lastDate = "";
-    for (const item of items) {
-      if (item.date !== lastDate) {
-        lastDate = item.date;
-        const d = new Date(item.date + "T00:00:00");
-        const label = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-        sections.push({ kind: "date-header", date: item.date, label });
+  const markedDates = useMemo(() => {
+    const m: Record<string, any> = {};
+    allItems.forEach((item) => {
+      if (!m[item.date]) {
+        m[item.date] = { marked: true, _hasEvent: false, _hasTodo: false };
       }
-      sections.push(item);
-    }
-    return sections;
-  }
-
-  const showAllItems = sortItems(allItems);
-  const dayItems = sortItems(allItems.filter((item) => item.date === selectedDate));
-  const displayItems = showAll || !selectedDate ? buildSections(showAllItems) : dayItems;
-
-  // Distinguish current day vs. past vs. upcoming for clear temporal hierarchy.
-  const todayStr = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD (local)
-  type WhenKind = "past" | "today" | "future";
-  function whenOf(date: string): WhenKind {
-    if (date < todayStr) return "past";
-    if (date === todayStr) return "today";
-    return "future";
-  }
-
-  const markedDates: Record<string, any> = {};
-  allItems.forEach((item) => {
-    if (!markedDates[item.date]) {
-      markedDates[item.date] = { marked: true, _hasEvent: false, _hasTodo: false };
-    }
-    if (item.type === "event") markedDates[item.date]._hasEvent = true;
-    else markedDates[item.date]._hasTodo = true;
-  });
-  // Collapse to at most two dots per day (events + todos) so a busy day
-  // doesn't overflow the cell with a long row of dots.
-  Object.keys(markedDates).forEach((d) => {
-    const dots: { key: string; color: string }[] = [];
-    if (markedDates[d]._hasEvent) dots.push({ key: "event", color: "#000000" });
-    if (markedDates[d]._hasTodo) dots.push({ key: "todo", color: "#999999" });
-    markedDates[d].dots = dots;
-    delete markedDates[d]._hasEvent;
-    delete markedDates[d]._hasTodo;
-  });
-
-  if (selectedDate) {
-    markedDates[selectedDate] = {
-      ...(markedDates[selectedDate] || { dots: [], marked: true }),
-      selected: true,
-      selectedColor: "#000000",
-    };
-  }
-
-  const dayEvents = allItems
-    .filter((item) => item.date === selectedDate && item.type === "event")
-    .sort((a, b) => {
-      if (a.time && b.time) return a.time.localeCompare(b.time);
-      if (a.time) return -1;
-      if (b.time) return 1;
-      return 0;
+      if (item.type === "event") m[item.date]._hasEvent = true;
+      else m[item.date]._hasTodo = true;
     });
-  const dayTodos = allItems
-    .filter((item) => item.date === selectedDate && item.type === "todo")
-    .sort((a, b) => {
-      if (a.priority === "high" && b.priority !== "high") return -1;
-      if (b.priority === "high" && a.priority !== "high") return 1;
-      return a.title.localeCompare(b.title);
+    Object.keys(m).forEach((d) => {
+      const dots: { key: string; color: string }[] = [];
+      if (m[d]._hasEvent) dots.push({ key: "event", color: "#000000" });
+      if (m[d]._hasTodo) dots.push({ key: "todo", color: "#999999" });
+      m[d].dots = dots;
+      delete m[d]._hasEvent;
+      delete m[d]._hasTodo;
     });
+    if (selectedDate) {
+      m[selectedDate] = {
+        ...(m[selectedDate] || { dots: [], marked: true }),
+        selected: true,
+        selectedColor: "#000000",
+      };
+    }
+    return m;
+  }, [allItems, selectedDate]);
 
-  const sections: ({ kind: "header"; title: string; icon: React.ComponentProps<typeof Feather>["name"]; count: number } | CalendarItem)[] = [];
-  if (dayEvents.length > 0) {
-    sections.push({ kind: "header", title: "Events", icon: "calendar", count: dayEvents.length });
-    sections.push(...dayEvents);
-  }
-  if (dayTodos.length > 0) {
-    sections.push({ kind: "header", title: "Todos", icon: "check-square", count: dayTodos.length });
-    sections.push(...dayTodos);
-  }
+  const dayEvents = useMemo(
+    () =>
+      allItems
+        .filter((item) => item.date === selectedDate && item.type === "event")
+        .sort((a, b) => {
+          if (a.time && b.time) return a.time.localeCompare(b.time);
+          if (a.time) return -1;
+          if (b.time) return 1;
+          return 0;
+        }),
+    [allItems, selectedDate],
+  );
 
-  const sourceIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
-    manual: "edit-2", ocr: "camera", email: "mail",
-    notification: "bell", chat: "message-circle", ai: "cpu",
-  };
+  const dayTodos = useMemo(
+    () =>
+      allItems
+        .filter((item) => item.date === selectedDate && item.type === "todo")
+        .sort((a, b) => {
+          if (a.priority === "high" && b.priority !== "high") return -1;
+          if (b.priority === "high" && a.priority !== "high") return 1;
+          return a.title.localeCompare(b.title);
+        }),
+    [allItems, selectedDate],
+  );
+
+  const sections = useMemo(() => {
+    const s: ({ kind: "header"; title: string; icon: React.ComponentProps<typeof Feather>["name"]; count: number } | CalendarItem)[] = [];
+    if (dayEvents.length > 0) {
+      s.push({ kind: "header", title: "Events", icon: "calendar", count: dayEvents.length });
+      s.push(...dayEvents);
+    }
+    if (dayTodos.length > 0) {
+      s.push({ kind: "header", title: "Todos", icon: "check-square", count: dayTodos.length });
+      s.push(...dayTodos);
+    }
+    return s;
+  }, [dayEvents, dayTodos]);
 
   const [sheetItem, setSheetItem] = useState<CalendarItem | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const eventSheetRef = useRef<BottomSheet>(null);
+  const eventSnapPoints = useMemo(() => ["90%"], []);
   const [eventTitle, setEventTitle] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
@@ -189,18 +219,19 @@ export default function CalendarScreen() {
   const [showNoTextAlert, setShowNoTextAlert] = useState(false);
   const [showOcrError, setShowOcrError] = useState(false);
   const [showMissingTitle, setShowMissingTitle] = useState(false);
-  function resetForm() {
+
+  const resetForm = useCallback(() => {
     setEventTitle("");
     setEventNotes("");
     setEventDate(new Date());
     setEventTime(new Date());
-  }
+  }, []);
 
-  function showAddOptions() {
+  const showAddOptions = useCallback(() => {
     setShowAddSheet(true);
-  }
+  }, []);
 
-  async function pickImageForOcr() {
+  const pickImageForOcr = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1,
@@ -219,19 +250,19 @@ export default function CalendarScreen() {
     } catch {
       setShowOcrError(true);
     }
-  }
+  }, []);
 
-  function onDateChange(_: DateTimePickerEvent, d?: Date) {
+  const onDateChange = useCallback((_: DateTimePickerEvent, d?: Date) => {
     setShowDatePicker(false);
     if (d) setEventDate(d);
-  }
+  }, []);
 
-  function onTimeChange(_: DateTimePickerEvent, d?: Date) {
+  const onTimeChange = useCallback((_: DateTimePickerEvent, d?: Date) => {
     setShowTimePicker(false);
     if (d) setEventTime(d);
-  }
+  }, []);
 
-  function saveEvent() {
+  const saveEvent = useCallback(() => {
     if (!eventTitle.trim()) {
       setShowMissingTitle(true);
       return;
@@ -249,7 +280,96 @@ export default function CalendarScreen() {
     });
     setShowModal(false);
     resetForm();
-  }
+  }, [eventTitle, eventDate, eventTime, eventNotes, addEvent, resetForm]);
+
+  const onDayPress = useCallback((day: { dateString: string }) => {
+    setSelectedDate(day.dateString);
+  }, [setSelectedDate]);
+
+  const renderBackdrop = useCallback((props: any) => (
+    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
+  ), []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: { kind: "date-header"; date: string; label: string } | CalendarItem }) => {
+      if ("kind" in item) {
+        const when = whenOf(item.date);
+        return (
+          <View className="flex-row items-center gap-2 pt-4 pb-2">
+            <View className={`w-1 h-4 rounded-full ${when === "past" ? "bg-ink-200" : "bg-black"}`} />
+            <Text className={`text-sm font-semibold flex-1 ${when === "past" ? "text-ink-400" : "text-black"}`}>
+              {item.label}
+            </Text>
+            {when === "today" && (
+              <View className="px-2 py-0.5 bg-black rounded-full">
+                <Text className="text-[10px] font-bold text-white tracking-wide">TODAY</Text>
+              </View>
+            )}
+            {when === "past" && (
+              <View className="px-2 py-0.5 bg-ink-100 rounded-full">
+                <Text className="text-[10px] font-semibold text-ink-400 tracking-wide">PAST</Text>
+              </View>
+            )}
+            <TouchableOpacity onPress={() => setSelectedDate(item.date)}>
+              <Text className="text-xs text-ink-400">Show day</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      }
+      const past = whenOf(item.date) === "past";
+      return (
+        <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
+          {item.type === "event" ? (
+            <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past ? "opacity-55" : ""}`}>
+              <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
+                <Feather
+                  name={sourceIcons[item.source || ""] || "calendar"}
+                  size={16} color="#ffffff"
+                />
+              </View>
+              <View className="flex-1">
+                <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">EVENT</Text>
+                <Text className="text-sm font-medium text-black">{item.title}</Text>
+                {item.description && (
+                  <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={1}>{item.description}</Text>
+                )}
+                <View className="flex-row items-center gap-2 mt-1">
+                  <Feather name="clock" size={10} color="#999999" />
+                  <Text className="text-xs text-ink-400">{item.time}</Text>
+                  <Text className="text-xs text-ink-200">·</Text>
+                  <Text className="text-xs text-ink-400 capitalize">{item.source}</Text>
+                </View>
+              </View>
+              <Feather name="chevron-up" size={14} color="#cccccc" />
+            </Card>
+          ) : (
+            <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation(); if (item.todoId) toggleTodo(item.todoId); }}
+                className={`w-7 h-7 rounded-md border-2 items-center justify-center ${
+                  item.completed ? "bg-black border-black" : "border-ink-300"
+                }`}
+              >
+                {item.completed && <Feather name="check" size={14} color="#ffffff" />}
+              </TouchableOpacity>
+              <View className="flex-1">
+                <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">TODO</Text>
+                <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
+                  {item.title}
+                </Text>
+                <Text className="text-xs text-ink-300 mt-0.5">
+                  {item.date ? new Date(item.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : ""}
+                  {item.priority ? ` · ${item.priority}` : ""}
+                </Text>
+              </View>
+              <Feather name="chevron-up" size={14} color="#cccccc" />
+            </Card>
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [setSelectedDate, setSheetItem, toggleTodo],
+  );
 
   return (
     <View className="flex-1 bg-white">
@@ -271,7 +391,7 @@ export default function CalendarScreen() {
 
       <Calendar
         current={selectedDate}
-        onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
+        onDayPress={onDayPress}
         markedDates={markedDates}
         markingType="multi-dot"
         theme={{
@@ -339,83 +459,10 @@ export default function CalendarScreen() {
         indicatorStyle="black"
         keyExtractor={(item) => ("kind" in item ? `header-${item.date}` : item.id)}
         contentContainerClassName="px-4 pb-8"
-        renderItem={({ item }) => {
-          if ("kind" in item) {
-            const when = whenOf(item.date);
-            return (
-              <View className="flex-row items-center gap-2 pt-4 pb-2">
-                <View className={`w-1 h-4 rounded-full ${when === "past" ? "bg-ink-200" : "bg-black"}`} />
-                <Text className={`text-sm font-semibold flex-1 ${when === "past" ? "text-ink-400" : "text-black"}`}>
-                  {item.label}
-                </Text>
-                {when === "today" && (
-                  <View className="px-2 py-0.5 bg-black rounded-full">
-                    <Text className="text-[10px] font-bold text-white tracking-wide">TODAY</Text>
-                  </View>
-                )}
-                {when === "past" && (
-                  <View className="px-2 py-0.5 bg-ink-100 rounded-full">
-                    <Text className="text-[10px] font-semibold text-ink-400 tracking-wide">PAST</Text>
-                  </View>
-                )}
-                <TouchableOpacity onPress={() => setSelectedDate(item.date)}>
-                  <Text className="text-xs text-ink-400">Show day</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          }
-          const past = whenOf(item.date) === "past";
-          return (
-            <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
-              {item.type === "event" ? (
-                <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past ? "opacity-55" : ""}`}>
-                  <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
-                    <Feather
-                      name={sourceIcons[item.source || ""] || "calendar"}
-                      size={16} color="#ffffff"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">EVENT</Text>
-                    <Text className="text-sm font-medium text-black">{item.title}</Text>
-                    {item.description && (
-                      <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={1}>{item.description}</Text>
-                    )}
-                    <View className="flex-row items-center gap-2 mt-1">
-                      <Feather name="clock" size={10} color="#999999" />
-                      <Text className="text-xs text-ink-400">{item.time}</Text>
-                      <Text className="text-xs text-ink-200">·</Text>
-                      <Text className="text-xs text-ink-400 capitalize">{item.source}</Text>
-                    </View>
-                  </View>
-                  <Feather name="chevron-up" size={14} color="#cccccc" />
-                </Card>
-              ) : (
-                <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
-                  <TouchableOpacity
-                    onPress={(e) => { e.stopPropagation(); if (item.todoId) toggleTodo(item.todoId); }}
-                    className={`w-7 h-7 rounded-md border-2 items-center justify-center ${
-                      item.completed ? "bg-black border-black" : "border-ink-300"
-                    }`}
-                  >
-                    {item.completed && <Feather name="check" size={14} color="#ffffff" />}
-                  </TouchableOpacity>
-                  <View className="flex-1">
-                    <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">TODO</Text>
-                    <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
-                      {item.title}
-                    </Text>
-                    <Text className="text-xs text-ink-300 mt-0.5">
-                      {item.date ? new Date(item.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : ""}
-                      {item.priority ? ` · ${item.priority}` : ""}
-                    </Text>
-                  </View>
-                  <Feather name="chevron-up" size={14} color="#cccccc" />
-                </Card>
-              )}
-            </TouchableOpacity>
-          );
-        }}
+        removeClippedSubviews
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        renderItem={renderItem}
         ListEmptyComponent={
           <EmptyState
             icon="calendar"
@@ -455,10 +502,17 @@ export default function CalendarScreen() {
         />
       )}
 
-      <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white rounded-t-sheet px-5 pt-3 pb-10 shadow-float">
-            <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
+        <BottomSheet
+          ref={eventSheetRef}
+          snapPoints={eventSnapPoints}
+          enablePanDownToClose
+          index={showModal ? 0 : -1}
+          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
+          backgroundStyle={{ backgroundColor: "#ffffff" }}
+          backdropComponent={renderBackdrop}
+          onChange={(index: number) => { if (index === -1) setShowModal(false); }}
+        >
+          <BottomSheetView className="flex-1 px-5 pt-0 pb-10">
             <View className="flex-row justify-between items-center mb-5">
               <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
               <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
@@ -529,9 +583,8 @@ export default function CalendarScreen() {
             >
               <Text className="text-white text-base font-semibold">Save Event</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+          </BottomSheetView>
+        </BottomSheet>
       <SheetModal
         visible={showAddSheet}
         onClose={() => setShowAddSheet(false)}

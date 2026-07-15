@@ -1,60 +1,62 @@
 import { View, Text, TouchableOpacity, Image } from "react-native";
-import { router } from "expo-router";
 import { useMusicStore } from "@/stores/music-store";
 import { useAudioPlayer } from "@/services/audio-player";
 import Feather from "@expo/vector-icons/Feather";
 
-export function MiniPlayer() {
-  const { currentAlbum, currentTrackIndex, isPlaying } = useMusicStore();
+interface MiniPlayerProps {
+  onOpenPlayer: () => void;
+}
+
+export function MiniPlayer({ onOpenPlayer }: MiniPlayerProps) {
+  const currentAlbum = useMusicStore((s) => s.currentAlbum);
+  const currentTrackIndex = useMusicStore((s) => s.currentTrackIndex);
+  const isPlaying = useMusicStore((s) => s.isPlaying);
   const { play, pause, next, previous } = useAudioPlayer();
   const track = currentAlbum?.tracks[currentTrackIndex];
   if (!currentAlbum || !track) return null;
 
   return (
-    <View
-      style={{
-        position: "absolute",
-        left: 0,
-        right: 0,
-        // The tab bar owns the device safe-area inset. Adding it again here
-        // pushed the mini player unnecessarily high above the tabs.
-        bottom: 70,
-        backgroundColor: "#ffffff",
-        borderTopColor: "#eeeeee",
-        borderTopWidth: 1,
-        shadowColor: "#000",
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: -3 },
-        elevation: 14,
-        zIndex: 50,
-      }}
+    <TouchableOpacity
+      activeOpacity={0.95}
+      onPress={onOpenPlayer}
+      className="flex-row items-center px-3 py-2 bg-ink-25 border-t border-ink-100 border-b border-ink-100"
     >
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => router.push("/music-player")}
-        className="flex-row items-center gap-3 px-4"
-        style={{ height: 60 }}
-      >
-        <Image
-          source={{ uri: currentAlbum.coverUri || track.coverUri || "" }}
-          style={{ width: 42, height: 42, borderRadius: 8 }}
-          resizeMode="cover"
-        />
-        <View className="flex-1 min-w-0">
-          <Text className="text-sm font-semibold text-black" numberOfLines={1}>{track.title}</Text>
-          <Text className="text-xs text-ink-400" numberOfLines={1}>{track.artist}</Text>
-        </View>
-        <TouchableOpacity onPress={previous} hitSlop={12} className="w-9 h-9 items-center justify-center">
-          <Feather name="skip-back" size={20} color="#000" />
+      <Image
+        source={{ uri: currentAlbum.coverUri || track.coverUri || "" }}
+        style={{ width: 44, height: 44, borderRadius: 8 }}
+        resizeMode="cover"
+      />
+      <View className="flex-1 min-w-0 px-3">
+        <Text className="text-sm font-semibold text-black leading-5" numberOfLines={1}>
+          {track.title}
+        </Text>
+        <Text className="text-xs text-ink-400 leading-4" numberOfLines={1}>
+          {track.artist}
+        </Text>
+      </View>
+      <View className="flex-row items-center" style={{ gap: 2 }}>
+        <TouchableOpacity
+          onPress={previous}
+          hitSlop={10}
+          className="w-9 h-9 items-center justify-center"
+        >
+          <Feather name="skip-back" size={18} color="#555" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={isPlaying ? pause : play} hitSlop={12} className="w-9 h-9 items-center justify-center">
-          <Feather name={isPlaying ? "pause" : "play"} size={22} color="#000" />
+        <TouchableOpacity
+          onPress={isPlaying ? pause : play}
+          hitSlop={10}
+          className="w-10 h-10 bg-black rounded-full items-center justify-center mx-1"
+        >
+          <Feather name={isPlaying ? "pause" : "play"} size={18} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={next} hitSlop={12} className="w-9 h-9 items-center justify-center">
-          <Feather name="skip-forward" size={20} color="#000" />
+        <TouchableOpacity
+          onPress={next}
+          hitSlop={10}
+          className="w-9 h-9 items-center justify-center"
+        >
+          <Feather name="skip-forward" size={18} color="#555" />
         </TouchableOpacity>
-      </TouchableOpacity>
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 }

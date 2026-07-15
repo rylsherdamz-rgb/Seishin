@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert, Modal } from "react-native";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
@@ -11,9 +12,19 @@ import { uid } from "@/utils/id";
 import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
 
+function fmtSize(bytes?: number) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 export default function NoteEditorScreen() {
   const { id, eventId, action } = useLocalSearchParams<{ id?: string; eventId?: string; action?: string }>();
-  const { notes, addNote, updateNote, deleteNote } = useNotesStore();
+  const notes = useNotesStore((s) => s.notes);
+  const addNote = useNotesStore((s) => s.addNote);
+  const updateNote = useNotesStore((s) => s.updateNote);
+  const deleteNote = useNotesStore((s) => s.deleteNote);
   const existing = id ? notes.find((n) => n.id === id) : undefined;
 
   const [title, setTitle] = useState(existing?.title ?? "");
@@ -28,6 +39,7 @@ export default function NoteEditorScreen() {
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeBusy, setYoutubeBusy] = useState(false);
+  const youtubeSnapPoints = useMemo(() => ["40%"], []);
   const noteIdRef = useRef<string | undefined>(existing?.id);
   // Ensures a launch "action" (from the Notes "+" menu) fires its picker only once.
   const actionFired = useRef(false);
@@ -54,7 +66,7 @@ export default function NoteEditorScreen() {
     else if (action === "youtube") setShowYoutubeInput(true);
   }, [action]);
 
-  function persist(next?: Partial<{ title: string; body: string; tags: string[]; pinned: boolean; attachments: NoteAttachment[] }>) {
+  const persist = useCallback((next?: Partial<{ title: string; body: string; tags: string[]; pinned: boolean; attachments: NoteAttachment[] }>) => {
     const t = next?.title ?? title;
     const b = next?.body ?? body;
     const tg = next?.tags ?? tags;
@@ -81,43 +93,43 @@ export default function NoteEditorScreen() {
         updatedAt: now,
       });
     }
-  }
+  }, [title, body, tags, pinned, attachments, eventId]);
 
-  function handleBack() {
+  const handleBack = useCallback(() => {
     persist();
     router.back();
-  }
+  }, [persist]);
 
-  function togglePin() {
+  const togglePin = useCallback(() => {
     const next = !pinned;
     setPinned(next);
     persist({ pinned: next });
-  }
+  }, [pinned, persist]);
 
-  function addTag() {
+  const addTag = useCallback(() => {
     const t = tagInput.trim().replace(/^#/, "").toLowerCase();
     if (!t || tags.includes(t)) { setTagInput(""); return; }
     const next = [...tags, t];
     setTags(next);
     setTagInput("");
     persist({ tags: next });
-  }
+  }, [tagInput, tags, persist]);
 
-  function removeTag(t: string) {
+  const removeTag = useCallback((t: string) => {
     const next = tags.filter((x) => x !== t);
     setTags(next);
     persist({ tags: next });
-  }
+  }, [tags, persist]);
 
-  function removeAttachment(attId: string) {
+  const removeAttachment = useCallback((attId: string) => {
     const next = attachments.filter((a) => a.id !== attId);
     setAttachments(next);
     persist({ attachments: next });
-  }
+  }, [attachments, persist]);
 
   // Append OCR-extracted text to the note body under a labeled divider so
   // scanned content becomes part of the note (the "highlighted note").
-  async function runOcrIntoBody(imageUri: string) {
+  const runOcrIntoBody = useCallback(async (imageUri: string) => {
     setOcrBusy(true);
     try {
       const text = (await recognizeText(imageUri)).trim();
@@ -132,9 +144,9 @@ export default function NoteEditorScreen() {
     } finally {
       setOcrBusy(false);
     }
-  }
+  }, [body, persist]);
 
-  async function fetchYoutubeTranscript() {
+  const fetchYoutubeTranscript = useCallback(async () => {
     const vid = extractVideoId(youtubeUrl.trim());
     if (!vid) {
       Alert.alert("Invalid URL", "Please enter a valid YouTube video URL (e.g. https://youtube.com/watch?v=...)");
@@ -169,9 +181,9 @@ export default function NoteEditorScreen() {
     } finally {
       setYoutubeBusy(false);
     }
-  }
+  }, [youtubeUrl, body, title, attachments, persist]);
 
-  async function addPhoto(fromCamera: boolean) {
+  const addPhoto = useCallback(async (fromCamera: boolean) => {
     const picker = fromCamera ? launchCameraAsync : launchImageLibraryAsync;
     const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
@@ -189,9 +201,9 @@ export default function NoteEditorScreen() {
     persist({ attachments: next });
     // Best-effort: pull any text out of the photo into the note body.
     runOcrIntoBody(asset.uri);
-  }
+  }, [attachments, persist, runOcrIntoBody]);
 
-  async function addFile() {
+  const addFile = useCallback(async () => {
     try {
       const result = await getDocumentAsync({ type: "*/*", copyToCacheDirectory: true, multiple: false });
       if (result.canceled || !result.assets[0]) return;
@@ -212,21 +224,18 @@ export default function NoteEditorScreen() {
     } catch {
       setShowFileError(true);
     }
-  }
+  }, [attachments, persist, runOcrIntoBody]);
 
-  function handleDelete() {
+  const handleDelete = useCallback(() => {
     setShowDeleteConfirm(true);
-  }
+  }, []);
 
-  const imageAtts = attachments.filter((a) => a.type === "image");
-  const fileAtts = attachments.filter((a) => a.type === "file");
+  const renderBackdrop = useCallback((props: any) => (
+    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.3} />
+  ), []);
 
-  function fmtSize(bytes?: number) {
-    if (!bytes) return "";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  }
+  const imageAtts = useMemo(() => attachments.filter((a) => a.type === "image"), [attachments]);
+  const fileAtts = useMemo(() => attachments.filter((a) => a.type === "file"), [attachments]);
 
   return (
     <View className="flex-1 bg-white">
@@ -373,49 +382,55 @@ export default function NoteEditorScreen() {
           </View>
         </ScrollView>
       </View>
-      <Modal visible={showYoutubeInput || youtubeBusy} transparent animationType="fade" onRequestClose={() => { if (!youtubeBusy) { setShowYoutubeInput(false); setYoutubeUrl(""); } }}>
-        <View className="flex-1 bg-black/30 items-center justify-center px-6">
-          <View className="w-full bg-white rounded-2xl p-5">
-            <Text className="text-base font-semibold text-black mb-1">YouTube Video Summary</Text>
-            <Text className="text-xs text-ink-400 mb-4">Paste a YouTube link to generate a timestamped transcript</Text>
-            {youtubeBusy ? (
-              <View className="items-center py-8">
-                <ActivityIndicator size="large" color="#000000" />
-                <Text className="text-sm text-ink-500 mt-3">Fetching transcript and thumbnail...</Text>
+      <BottomSheet
+        index={showYoutubeInput || youtubeBusy ? 0 : -1}
+        snapPoints={youtubeSnapPoints}
+        enablePanDownToClose
+        handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
+        backgroundStyle={{ backgroundColor: "#ffffff" }}
+        backdropComponent={renderBackdrop}
+        onChange={(index: number) => { if (index === -1 && !youtubeBusy) { setShowYoutubeInput(false); setYoutubeUrl(""); } }}
+      >
+        <BottomSheetView className="px-5 pb-8 pt-2">
+          <Text className="text-base font-semibold text-black mb-1">YouTube Video Summary</Text>
+          <Text className="text-xs text-ink-400 mb-4">Paste a YouTube link to generate a timestamped transcript</Text>
+          {youtubeBusy ? (
+            <View className="items-center py-8">
+              <ActivityIndicator size="large" color="#000000" />
+              <Text className="text-sm text-ink-500 mt-3">Fetching transcript and thumbnail...</Text>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                className="h-11 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
+                placeholder="https://youtube.com/watch?v=..."
+                placeholderTextColor="#999"
+                value={youtubeUrl}
+                onChangeText={setYoutubeUrl}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="go"
+                onSubmitEditing={fetchYoutubeTranscript}
+              />
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => { setShowYoutubeInput(false); setYoutubeUrl(""); }}
+                  className="flex-1 h-11 border border-ink-200 rounded-xl items-center justify-center"
+                >
+                  <Text className="text-sm font-medium text-black">Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={fetchYoutubeTranscript}
+                  disabled={!youtubeUrl.trim()}
+                  className="flex-1 h-11 bg-black rounded-xl items-center justify-center"
+                >
+                  <Text className="text-sm font-medium text-white">Generate</Text>
+                </TouchableOpacity>
               </View>
-            ) : (
-              <>
-                <TextInput
-                  className="h-11 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
-                  placeholder="https://youtube.com/watch?v=..."
-                  placeholderTextColor="#999"
-                  value={youtubeUrl}
-                  onChangeText={setYoutubeUrl}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="go"
-                  onSubmitEditing={fetchYoutubeTranscript}
-                />
-                <View className="flex-row gap-2">
-                  <TouchableOpacity
-                    onPress={() => { setShowYoutubeInput(false); setYoutubeUrl(""); }}
-                    className="flex-1 h-11 border border-ink-200 rounded-xl items-center justify-center"
-                  >
-                    <Text className="text-sm font-medium text-black">Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={fetchYoutubeTranscript}
-                    disabled={!youtubeUrl.trim()}
-                    className="flex-1 h-11 bg-black rounded-xl items-center justify-center"
-                  >
-                    <Text className="text-sm font-medium text-white">Generate</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+            </>
+          )}
+        </BottomSheetView>
+      </BottomSheet>
       <SheetModal
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}

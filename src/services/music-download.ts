@@ -340,7 +340,9 @@ async function downloadSingleTrack(
   try {
     const headRes = await fetch(audioUrl, { method: "HEAD" });
     totalBytes = parseInt(headRes.headers.get("Content-Length") || "0", 10);
-  } catch {}
+  } catch {
+    console.warn(`[download] ${title}: HEAD request failed — check internet connection`);
+  }
   console.log(`[download] ${title}: HEAD -> ${totalBytes} bytes`);
 
   // Try File.downloadFileAsync (new API, supports onProgress via native events)

@@ -26,21 +26,12 @@ export interface AgentMessage {
   attachments?: AgentAttachment[];
 }
 
-export interface Skill {
-  name: string;
-  version: string;
-  description: string;
-  tools: string[];
-  installed: boolean;
-}
-
 type Provider = "nim" | "local";
 type ModelState = "unloaded" | "loading" | "ready" | "error";
 
 interface AgentState {
   messages: AgentMessage[];
   currentProvider: Provider;
-  installedSkills: Skill[];
   isProcessing: boolean;
   streamTick: number;
   modelState: ModelState;
@@ -50,8 +41,6 @@ interface AgentState {
   load: () => void;
   addMessage: (msg: AgentMessage) => void;
   setProvider: (provider: Provider) => void;
-  installSkill: (skill: Skill) => void;
-  removeSkill: (name: string) => void;
   clearConversation: () => void;
   setProcessing: (v: boolean) => void;
   updateAssistantMessage: (id: string, content: string, toolCalls?: ToolCallData[]) => void;
@@ -59,13 +48,11 @@ interface AgentState {
 }
 
 const MESSAGES_KEY = "conversation";
-const SKILLS_KEY = "skills";
 const MAX_MESSAGES = 100;
 
 export const useAgentStore = create<AgentState>((set, get) => ({
   messages: [],
   currentProvider: "local",
-  installedSkills: [],
   isProcessing: false,
   streamTick: 0,
   modelState: "unloaded",
@@ -74,10 +61,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
   load: () => {
     const msgs = agentStorage.getString(MESSAGES_KEY);
-    const skills = agentStorage.getString(SKILLS_KEY);
     const provider = agentStorage.getString("provider");
     if (msgs) set({ messages: JSON.parse(msgs) });
-    if (skills) set({ installedSkills: JSON.parse(skills) });
     if (provider) set({ currentProvider: provider as Provider });
   },
 
@@ -90,18 +75,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   setProvider: (provider) => {
     agentStorage.set("provider", provider);
     set({ currentProvider: provider });
-  },
-
-  installSkill: (skill) => {
-    const installedSkills = [...get().installedSkills, { ...skill, installed: true }];
-    agentStorage.set(SKILLS_KEY, JSON.stringify(installedSkills));
-    set({ installedSkills });
-  },
-
-  removeSkill: (name) => {
-    const installedSkills = get().installedSkills.filter((s) => s.name !== name);
-    agentStorage.set(SKILLS_KEY, JSON.stringify(installedSkills));
-    set({ installedSkills });
   },
 
   clearConversation: () => {

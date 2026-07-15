@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
@@ -11,9 +11,23 @@ import { IconButton } from "@/components/ui/IconButton";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import Feather from "@expo/vector-icons/Feather";
 
+const FILTERS = ["all", "notification", "email", "chat"] as const;
+const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
+  notification: "bell", email: "mail", chat: "message-circle",
+};
+
 export default function NotesScreen() {
-  const { notes, query, loadNotes, setQuery, getFilteredNotes } = useNotesStore();
-  const { items, loadItems, markRead, deleteItem, clearAll, getUnreadCount } = useInboxStore();
+  const notes = useNotesStore((s) => s.notes);
+  const query = useNotesStore((s) => s.query);
+  const loadNotes = useNotesStore((s) => s.loadNotes);
+  const setQuery = useNotesStore((s) => s.setQuery);
+  const getFilteredNotes = useNotesStore((s) => s.getFilteredNotes);
+  const items = useInboxStore((s) => s.items);
+  const loadItems = useInboxStore((s) => s.loadItems);
+  const markRead = useInboxStore((s) => s.markRead);
+  const deleteItem = useInboxStore((s) => s.deleteItem);
+  const clearAll = useInboxStore((s) => s.clearAll);
+  const getUnreadCount = useInboxStore((s) => s.getUnreadCount);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [tab, setTab] = useState<"notes" | "inbox">("notes");
   const [localFilter, setLocalFilter] = useState<string>("all");
@@ -21,36 +35,34 @@ export default function NotesScreen() {
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  useEffect(() => { loadNotes(); loadItems(); }, []);
-  useFocusEffect(useCallback(() => { loadNotes(); }, []));
+  useEffect(() => { loadNotes(); loadItems(); }, [loadNotes, loadItems]);
+  useFocusEffect(useCallback(() => { loadNotes(); }, [loadNotes]));
 
-  const filteredNotes = getFilteredNotes().filter((n) => !activeTag || n.tags.includes(activeTag));
-  const pinned = filteredNotes.filter((n) => n.pinned);
-  const others = filteredNotes.filter((n) => !n.pinned);
+  const filteredNotes = useMemo(() => {
+    return getFilteredNotes().filter((n) => !activeTag || n.tags.includes(activeTag));
+  }, [getFilteredNotes, activeTag]);
 
-  const allTags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
+  const pinned = useMemo(() => filteredNotes.filter((n) => n.pinned), [filteredNotes]);
+  const others = useMemo(() => filteredNotes.filter((n) => !n.pinned), [filteredNotes]);
 
-  const inboxFiltered = items.filter((i) => {
-    if (localFilter === "all") return true;
-    return i.type === localFilter;
-  });
+  const allTags = useMemo(
+    () => Array.from(new Set(notes.flatMap((n) => n.tags))).sort(),
+    [notes]
+  );
 
-  const FILTERS = ["all", "notification", "email", "chat"] as const;
-  const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
-    notification: "bell", email: "mail", chat: "message-circle",
-  };
+  const inboxFiltered = useMemo(() => {
+    return items.filter((i) => localFilter === "all" || i.type === localFilter);
+  }, [items, localFilter]);
 
-  function openNote(id?: string) {
+  const openNote = useCallback((id?: string) => {
     router.push(id ? { pathname: "/note", params: { id } } : "/note");
-  }
+  }, []);
 
   const [showNewNoteSheet, setShowNewNoteSheet] = useState(false);
 
-  function onAddPress() {
-    setShowNewNoteSheet(true);
-  }
+  const onAddPress = useCallback(() => setShowNewNoteSheet(true), []);
 
-  function renderCard(item: Note) {
+  const renderCard = useCallback((item: Note) => {
     const firstImage = item.attachments.find((a) => a.type === "image");
     const fileCount = item.attachments.filter((a) => a.type === "file").length;
     return (
@@ -104,15 +116,100 @@ export default function NotesScreen() {
         </View>
       </TouchableOpacity>
     );
-  }
+  }, [openNote]);
 
-  const columns = (list: Note[]) => {
+  const columns = useCallback((list: Note[]) => {
     const rows: Note[][] = [];
     for (let i = 0; i < list.length; i += 2) rows.push(list.slice(i, i + 2));
     return rows;
-  };
+  }, []);
 
   const hasNotes = pinned.length + others.length > 0;
+
+  const noteListData = useMemo(() => {
+    const rows: ({ _header: string } | Note[])[] = [];
+    if (pinned.length > 0) rows.push({ _header: "Pinned" });
+    rows.push(...columns(pinned));
+    if (pinned.length > 0 && others.length > 0) rows.push({ _header: "Others" });
+    rows.push(...columns(others));
+    return rows;
+  }, [pinned, others, columns]);
+
+  const renderTagItem = useCallback(({ item: t }: { item: string }) => {
+    const active = t === "all" ? activeTag === null : activeTag === t;
+    return (
+      <TouchableOpacity
+        onPress={() => setActiveTag(t === "all" ? null : t)}
+        activeOpacity={0.7}
+        className={`px-3.5 py-2 rounded-full border ${active ? "bg-black border-black" : "bg-white border-ink-200"}`}
+      >
+        <Text className={`text-xs font-semibold ${active ? "text-white" : "text-ink-500"}`}>
+          {t === "all" ? "All" : `#${t}`}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [activeTag]);
+
+  const renderNoteItem = useCallback(({ item }: { item: { _header: string } | Note[] }) => {
+    if ("_header" in item) {
+      return (
+        <Text className="text-[11px] font-bold text-ink-400 tracking-widest px-2 pt-3 pb-1">
+          {item._header.toUpperCase()}
+        </Text>
+      );
+    }
+    return (
+      <View className="flex-row items-start">
+        {item.map(renderCard)}
+        {item.length === 1 && <View className="flex-1 m-1.5" />}
+      </View>
+    );
+  }, [renderCard]);
+
+  const renderInboxItem = useCallback(({ item }: { item: InboxItem }) => (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onLongPress={() => { setSheetItem(item); setShowItemSheet(true); }}
+      onPress={() => { if (!item.read) markRead(item.id); }}
+    >
+      <Card variant="elevated" className={`mb-2.5 ${!item.read ? "border-l-[3px] border-l-black" : ""}`}>
+        <View className="flex-row items-start gap-3">
+          <View className={`w-9 h-9 rounded-full items-center justify-center ${item.read ? "bg-ink-100" : "bg-black"}`}>
+            <Feather
+              name={typeIcons[item.type] || "bell"}
+              size={14}
+              color={item.read ? "#999999" : "#ffffff"}
+            />
+          </View>
+          <View className="flex-1">
+            <View className="flex-row items-center gap-2">
+              <Text
+                className={`text-sm flex-1 ${item.read ? "text-ink-500" : "text-black font-medium"}`}
+                numberOfLines={1}
+              >
+                {item.title}
+              </Text>
+              <Text className="text-xs text-ink-300">
+                {new Date(item.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              </Text>
+            </View>
+            <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={2}>
+              {item.body}
+            </Text>
+            <View className="flex-row items-center gap-1 mt-1.5">
+              <Feather name="at-sign" size={10} color="#cccccc" />
+              <Text className="text-xs text-ink-200">{item.source}</Text>
+            </View>
+          </View>
+        </View>
+      </Card>
+    </TouchableOpacity>
+  ), [markRead]);
+
+  const handleClearConfirm = useCallback(() => setShowClearConfirm(true), []);
+
+  const sheetTitle = sheetItem?.title;
+  const sheetBody = sheetItem?.body;
 
   return (
     <View className="flex-1 bg-white">
@@ -139,7 +236,7 @@ export default function NotesScreen() {
             </TouchableOpacity>
           ) : (
             items.length > 0 && (
-              <IconButton icon="trash-2" onPress={() => setShowClearConfirm(true)} />
+              <IconButton icon="trash-2" onPress={handleClearConfirm} />
             )
           )}
         </View>
@@ -182,49 +279,23 @@ export default function NotesScreen() {
                 data={["all", ...allTags]}
                 keyExtractor={(t) => t}
                 contentContainerClassName="px-4 gap-2"
-                renderItem={({ item: t }) => {
-                  const active = t === "all" ? activeTag === null : activeTag === t;
-                  return (
-                    <TouchableOpacity
-                      onPress={() => setActiveTag(t === "all" ? null : t)}
-                      activeOpacity={0.7}
-                      className={`px-3.5 py-2 rounded-full border ${active ? "bg-black border-black" : "bg-white border-ink-200"}`}
-                    >
-                      <Text className={`text-xs font-semibold ${active ? "text-white" : "text-ink-500"}`}>
-                        {t === "all" ? "All" : `#${t}`}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }}
+                removeClippedSubviews
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                renderItem={renderTagItem}
               />
             </View>
           )}
 
           {hasNotes ? (
             <FlatList
-              data={[
-                ...(pinned.length > 0 ? [{ _header: "Pinned" } as const] : []),
-                ...columns(pinned),
-                ...(pinned.length > 0 && others.length > 0 ? [{ _header: "Others" } as const] : []),
-                ...columns(others),
-              ]}
+              data={noteListData}
               keyExtractor={(row, i) => ("_header" in row ? `h-${row._header}` : `row-${i}-${row[0]?.id}`)}
               contentContainerClassName="px-2.5 pb-8"
-              renderItem={({ item }) => {
-                if ("_header" in item) {
-                  return (
-                    <Text className="text-[11px] font-bold text-ink-400 tracking-widest px-2 pt-3 pb-1">
-                      {item._header.toUpperCase()}
-                    </Text>
-                  );
-                }
-                return (
-                  <View className="flex-row items-start">
-                    {item.map(renderCard)}
-                    {item.length === 1 && <View className="flex-1 m-1.5" />}
-                  </View>
-                );
-              }}
+              removeClippedSubviews
+              maxToRenderPerBatch={8}
+              windowSize={5}
+              renderItem={renderNoteItem}
             />
           ) : (
             <EmptyState
@@ -251,45 +322,10 @@ export default function NotesScreen() {
             data={inboxFiltered}
             keyExtractor={(item) => item.id}
             contentContainerClassName="px-4 pb-8"
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onLongPress={() => { setSheetItem(item); setShowItemSheet(true); }}
-                onPress={() => { if (!item.read) markRead(item.id); }}
-              >
-                <Card variant="elevated" className={`mb-2.5 ${!item.read ? "border-l-[3px] border-l-black" : ""}`}>
-                  <View className="flex-row items-start gap-3">
-                    <View className={`w-9 h-9 rounded-full items-center justify-center ${item.read ? "bg-ink-100" : "bg-black"}`}>
-                      <Feather
-                        name={typeIcons[item.type] || "bell"}
-                        size={14}
-                        color={item.read ? "#999999" : "#ffffff"}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row items-center gap-2">
-                        <Text
-                          className={`text-sm flex-1 ${item.read ? "text-ink-500" : "text-black font-medium"}`}
-                          numberOfLines={1}
-                        >
-                          {item.title}
-                        </Text>
-                        <Text className="text-xs text-ink-300">
-                          {new Date(item.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                        </Text>
-                      </View>
-                      <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={2}>
-                        {item.body}
-                      </Text>
-                      <View className="flex-row items-center gap-1 mt-1.5">
-                        <Feather name="at-sign" size={10} color="#cccccc" />
-                        <Text className="text-xs text-ink-200">{item.source}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </Card>
-              </TouchableOpacity>
-            )}
+            removeClippedSubviews
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            renderItem={renderInboxItem}
             ListEmptyComponent={
               <EmptyState icon="inbox" title="No messages yet" subtitle="Notifications, emails, and chats appear here" />
             }
@@ -300,8 +336,8 @@ export default function NotesScreen() {
       <SheetModal
         visible={showItemSheet && sheetItem !== null}
         onClose={() => { setShowItemSheet(false); setSheetItem(null); }}
-        title={sheetItem?.title}
-        message={sheetItem?.body}
+        title={sheetTitle}
+        message={sheetBody}
         options={[
           { icon: "check-circle", label: "Mark Read", onPress: () => { if (sheetItem) markRead(sheetItem.id); } },
           { icon: "trash-2", label: "Delete", destructive: true, onPress: () => { if (sheetItem) deleteItem(sheetItem.id); } },

@@ -40,9 +40,10 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["50%", "80%"], []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const emptyArr = useRef([]).current;
 
-  const eventNotes = useNotesStore((s) => event ? s.getNotesForEvent(event.id) : []);
-  const eventTodos = useTodoStore((s) => event ? s.getTodosForEvent(event.id) : []);
+  const eventNotes = useNotesStore((s) => event ? s.getNotesForEvent(event.id) : emptyArr);
+  const eventTodos = useTodoStore((s) => event ? s.getTodosForEvent(event.id) : emptyArr);
 
   const handleClose = useCallback(() => {
     sheetRef.current?.close();
@@ -53,6 +54,10 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
     setShowDeleteConfirm(true);
   }, []);
 
+  const renderBackdrop = useCallback((props: any) => (
+    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
+  ), []);
+
   return (
     <BottomSheet
       ref={sheetRef}
@@ -61,10 +66,8 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
       index={0}
       handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
       backgroundStyle={{ backgroundColor: "#ffffff" }}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-      )}
-      onClose={onClose}
+      backdropComponent={renderBackdrop}
+      onChange={(index: number) => { if (index === -1) onClose?.(); }}
     >
       <BottomSheetView className="flex-1 px-5 pb-6">
         {event ? (
@@ -134,7 +137,7 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
                 {eventTodos.map((t) => (
                   <View key={t.id} className="flex-row items-center gap-3 bg-ink-50 rounded-xl px-4 py-3 mb-1.5">
                     <TouchableOpacity
-                      onPress={() => { useTodoStore.getState().toggleTodo(t.id); }}
+                      onPress={() => { onTodoToggle?.(t.id); }}
                       className={`w-6 h-6 rounded-md border-2 items-center justify-center ${
                         t.completed ? "bg-black border-black" : "border-ink-300"
                       }`}

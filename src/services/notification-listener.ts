@@ -1,92 +1,55 @@
-import { useEffect, useCallback, useRef } from "react";
-import NotificationListener from "expo-android-notification-listener-service";
-import type { NotificationData } from "expo-android-notification-listener-service";
-import { useInboxStore, InboxItem } from "@/stores/inbox-store";
-import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
-import { useSettingsStore } from "@/stores/settings-store";
+import { NativeModules, NativeEventEmitter, Platform, Linking } from "react-native";
 
-export type { NotificationData };
+const { NotificationBridge } = NativeModules;
 
-export function useNotificationListener() {
-  const { addItem } = useInboxStore();
-  const { addEvent } = useCalendarStore();
-  const { notificationFilter } = useSettingsStore();
-  const listenerRef = useRef<any>(null);
-
-  useEffect(() => {
-    const sub = NotificationListener.addListener(
-      "onNotificationReceived",
-      (data: NotificationData) => {
-        if (notificationFilter.length > 0 && !notificationFilter.includes(data.packageName)) return;
-
-        const item: InboxItem = {
-          id: `notif-${data.id}-${Date.now()}`,
-          type: "notification",
-          title: data.title || data.appName,
-          body: data.text || data.bigText || "",
-          timestamp: new Date(data.postTime).toISOString(),
-          source: data.appName || data.packageName,
-          read: false,
-        };
-        addItem(item);
-
-        const parsed = parseNotificationForEvent(data);
-        if (parsed) {
-          addEvent(parsed);
-        }
-      }
-    );
-
-    listenerRef.current = sub;
-    return () => sub.remove();
-  }, [notificationFilter]);
-
-  const isGranted = useCallback(() => {
-    return NotificationListener.isNotificationPermissionGranted();
-  }, []);
-
-  const openSettings = useCallback(() => {
-    NotificationListener.openNotificationListenerSettings();
-  }, []);
-
-  const setFilter = useCallback((packages: string[]) => {
-    NotificationListener.setAllowedPackages(packages);
-  }, []);
-
-  return { isGranted, openSettings, setFilter };
+export interface PhoneNotification {
+  app: string;
+  title: string;
+  text: string;
+  timestamp: number;
+  key: string;
 }
 
-export function parseNotificationForEvent(data: NotificationData): CalendarEvent | null {
-  const text = `${data.title} ${data.text} ${data.bigText} ${data.subText}`;
+type Listener = (notification: PhoneNotification) => void;
 
-  const timeMatch = text.match(/(\d{1,2}):(\d{2})\s*(?:am|pm)?/i);
-  const dateMatch = text.match(/(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4})?)/i);
+const listeners = new Set<Listener>();
+let emitter: NativeEventEmitter | null = null;
 
-  if (timeMatch || dateMatch) {
-    const now = new Date();
-    const eventDate = new Date(now);
-    if (timeMatch) {
-      let hours = parseInt(timeMatch[1]);
-      const minutes = parseInt(timeMatch[2]);
-      const isPM = timeMatch[0].toLowerCase().includes("pm");
-      if (isPM && hours !== 12) hours += 12;
-      if (!isPM && hours === 12) hours = 0;
-      eventDate.setHours(hours, minutes, 0, 0);
-    }
-
-    return {
-      id: `notif-event-${data.id}-${Date.now()}`,
-      title: data.title || "From Notification",
-      startDate: eventDate.toISOString(),
-      endDate: new Date(eventDate.getTime() + 3600000).toISOString(),
-      source: "notification",
-      description: data.text || data.bigText,
-    };
+function getEmitter() {
+  if (emitter) return emitter;
+  if (NotificationBridge) {
+    emitter = new NativeEventEmitter(NotificationBridge);
   }
-
-  return null;
+  return emitter;
 }
 
-export function formatNotification(data: NotificationData): string {
-  return `${data.appName}: ${data.title}${data.text ? " - " + data.text : ""}`;
+export function onNotificationReceived(listener: Listener) {
+  listeners.add(listener);
+
+  const e = getEmitter();
+  const subscription = e?.addListener("onNotificationReceived", (data: any) => {
+    const notif: PhoneNotification = {
+      app: data.app ?? "",
+      title: data.title ?? "",
+      text: data.text ?? "",
+      timestamp: data.timestamp ?? 0,
+      key: data.key ?? "",
+    };
+    for (const fn of listeners) fn(notif);
+  });
+
+  return () => {
+    listeners.delete(listener);
+    subscription?.remove();
+  };
+}
+
+export function isNotificationListenerAvailable(): boolean {
+  return Platform.OS === "android" && NotificationBridge != null;
+}
+
+export function openNotificationAccessSettings() {
+  if (Platform.OS === "android") {
+    Linking.openSettings();
+  }
 }

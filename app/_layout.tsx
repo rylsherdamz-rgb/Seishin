@@ -99,21 +99,11 @@ function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
 function SplashScreen() {
   const logoScale = useSharedValue(0.3);
   const logoOpacity = useSharedValue(0);
-  const textOpacity = useSharedValue(0);
-  const subtitleOpacity = useSharedValue(0);
   const bgOpacity = useSharedValue(1);
 
   const logoStyle = useAnimatedStyle(() => ({
     transform: [{ scale: logoScale.value }],
     opacity: logoOpacity.value,
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-  }));
-
-  const subtitleStyle = useAnimatedStyle(() => ({
-    opacity: subtitleOpacity.value,
   }));
 
   const bgStyle = useAnimatedStyle(() => ({
@@ -123,22 +113,14 @@ function SplashScreen() {
   useEffect(() => {
     logoOpacity.value = withTiming(1, { duration: 400 });
     logoScale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
-    textOpacity.value = withDelay(300, withTiming(1, { duration: 300 }));
-    subtitleOpacity.value = withDelay(500, withTiming(1, { duration: 300 }));
     bgOpacity.value = withDelay(1800, withTiming(0, { duration: 500 }));
   }, []);
 
   return (
     <Animated.View className="flex-1 bg-white items-center justify-center" style={bgStyle}>
       <Animated.View style={logoStyle}>
-        <Logo size={100} />
+        <Logo size={120} />
       </Animated.View>
-      <Animated.Text style={textStyle} className="text-xl font-semibold tracking-tight text-black mt-6">
-        Seishin
-      </Animated.Text>
-      <Animated.Text style={subtitleStyle} className="text-sm text-ink-300 mt-1">
-        Life Manager
-      </Animated.Text>
     </Animated.View>
   );
 }
@@ -168,14 +150,16 @@ export default function RootLayout() {
   if (phase === "onboarding") {
     return (
       <SafeAreaProvider>
-        <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
-        <StatusBar style="light" />
-        <OnboardingScreen
-          onComplete={() => {
-            settingsStorage.set("hasSeenOnboarding", true);
-            setPhase("app");
-          }}
-        />
+        <SafeAreaView style={{ flex: 1 }}>
+          <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
+          <StatusBar style="light" />
+          <OnboardingScreen
+            onComplete={() => {
+              settingsStorage.set("hasSeenOnboarding", true);
+              setPhase("app");
+            }}
+          />
+        </SafeAreaView>
       </SafeAreaProvider>
     );
   }

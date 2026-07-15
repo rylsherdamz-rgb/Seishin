@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, FlatList, ActivityIndicator } from "react-native";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from "react-native";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 
 import { router } from "expo-router";
 import { fetch as expoFetch } from "expo/fetch";
@@ -61,8 +62,25 @@ function MenuRow({
   );
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 export default function SettingsScreen() {
-  const { loadSettings, cleanupPolicies, setCleanupPolicies, apiKeys, setApiKey, nimEndpoint, setNimEndpoint, nimModel, setNimModel, modelPath, setModelPath } = useSettingsStore();
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const cleanupPolicies = useSettingsStore((s) => s.cleanupPolicies);
+  const setCleanupPolicies = useSettingsStore((s) => s.setCleanupPolicies);
+  const apiKeys = useSettingsStore((s) => s.apiKeys);
+  const setApiKey = useSettingsStore((s) => s.setApiKey);
+  const nimEndpoint = useSettingsStore((s) => s.nimEndpoint);
+  const setNimEndpoint = useSettingsStore((s) => s.setNimEndpoint);
+  const nimModel = useSettingsStore((s) => s.nimModel);
+  const setNimModel = useSettingsStore((s) => s.setNimModel);
+  const modelPath = useSettingsStore((s) => s.modelPath);
+  const setModelPath = useSettingsStore((s) => s.setModelPath);
   const { isGranted, openSettings } = useNotifications();
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [nimKey, setNimKey] = useState("");
@@ -78,8 +96,14 @@ export default function SettingsScreen() {
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
+  const modelSheetRef = useRef<BottomSheet>(null);
+  const modelSnapPoints = useMemo(() => ["70%", "95%"], []);
 
   const [ggufFileName, setGgufFileName] = useState("");
+  const [ggufCopying, setGgufCopying] = useState(false);
+  const [ggufCopyProgress, setGgufCopyProgress] = useState("");
+  const [ggufFileSize, setGgufFileSize] = useState(0);
+  const [ggufPicking, setGgufPicking] = useState(false);
   const [modalConfig, setModalConfig] = useState<{ title: string; message: string } | null>(null);
   const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
@@ -100,15 +124,15 @@ export default function SettingsScreen() {
     }
   }, [apiKeys.nim, nimEndpoint, nimModel, modelPath]);
 
-  function confirmClear(title: string, onClear: () => void) {
+  const confirmClear = useCallback((title: string, onClear: () => void) => {
     setConfirmConfig({
       title: "Clear " + title,
       message: "This action cannot be undone.",
       onConfirm: () => { onClear(); setSizes(getStorageSizes()); },
     });
-  }
+  }, [setConfirmConfig, setSizes]);
 
-  function confirmFactoryReset() {
+  const confirmFactoryReset = useCallback(() => {
     setConfirmConfig({
       title: "Factory Reset",
       message: "This will delete ALL data. Are you sure?",
@@ -119,27 +143,16 @@ export default function SettingsScreen() {
         setModalConfig({ title: "Done", message: "All data has been cleared." });
       },
     });
-  }
+  }, [setConfirmConfig, setModalConfig, setSizes]);
 
-  function saveNimConfig() {
+  const saveNimConfig = useCallback(() => {
     setApiKey("nim", nimKey);
     setNimEndpoint(nimEp);
     setNimModel(nimMd);
     setModalConfig({ title: "Saved", message: "NVIDIA NIM config updated. Switch to NIM mode in the Agent tab." });
-  }
+  }, [nimKey, nimEp, nimMd, setApiKey, setNimEndpoint, setNimModel, setModalConfig]);
 
-  const [ggufCopying, setGgufCopying] = useState(false);
-  const [ggufCopyProgress, setGgufCopyProgress] = useState("");
-  const [ggufFileSize, setGgufFileSize] = useState(0);
-
-  function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  }
-
-  async function saveModelPath() {
+  const saveModelPath = useCallback(async () => {
     if (!ggufPath) {
       setModelPath(null);
       setModalConfig({ title: "Saved", message: "Model path cleared." });
@@ -163,9 +176,29 @@ export default function SettingsScreen() {
       setGgufCopying(false);
       setGgufCopyProgress("");
     }
-  }
+  }, [ggufPath, ggufFileName, setModelPath, setGgufPath, setModalConfig, setGgufCopying, setGgufCopyProgress]);
 
-  async function openModelPicker() {
+  const pickGgufFile = useCallback(async () => {
+    try {
+      setGgufPicking(true);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: "*/*",
+        copyToCacheDirectory: false,
+      });
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        setGgufPath(asset.uri);
+        setGgufFileName(asset.name || "");
+        setGgufFileSize(asset.size ?? 0);
+      }
+    } catch (e) {
+      setModalConfig({ title: "Could not browse files", message: "The file picker did not respond. Try again." });
+    } finally {
+      setGgufPicking(false);
+    }
+  }, [setGgufPicking, setGgufPath, setGgufFileName, setGgufFileSize, setModalConfig]);
+
+  const openModelPicker = useCallback(async () => {
     setShowModelPicker(true);
     if (models.length > 0) return;
     setLoadingModels(true);
@@ -186,33 +219,30 @@ export default function SettingsScreen() {
     } finally {
       setLoadingModels(false);
     }
-  }
+  }, [models, nimEp, nimKey, apiKeys, setShowModelPicker, setLoadingModels, setModels, setModalConfig]);
 
-  const [ggufPicking, setGgufPicking] = useState(false);
+  const filteredModels = useMemo(() => models.filter((m) => m.toLowerCase().includes(modelSearch.toLowerCase())), [models, modelSearch]);
 
-  async function pickGgufFile() {
-    try {
-      setGgufPicking(true);
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
-        copyToCacheDirectory: false,
-      });
-      if (!result.canceled && result.assets?.length > 0) {
-        const asset = result.assets[0];
-        setGgufPath(asset.uri);
-        setGgufFileName(asset.name || "");
-        setGgufFileSize(asset.size ?? 0);
-      }
-    } catch (e) {
-      setModalConfig({ title: "Could not browse files", message: "The file picker did not respond. Try again." });
-    } finally {
-      setGgufPicking(false);
-    }
-  }
+  const renderBackdrop = useCallback((props: any) => (
+    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
+  ), []);
 
-  const filteredModels = models.filter((m) =>
-    m.toLowerCase().includes(modelSearch.toLowerCase())
-  );
+  const renderModelItem = useCallback(({ item }: { item: string }) => (
+    <TouchableOpacity
+      onPress={() => { setNimMd(item); setShowModelPicker(false); setModelSearch(""); }}
+      className={`flex-row items-center gap-3 py-3 px-3 rounded-lg mb-1 ${
+        item === nimMd ? "bg-black" : "bg-ink-100"
+      }`}
+    >
+      <Feather name="cpu" size={14} color={item === nimMd ? "#ffffff" : "#999999"} />
+      <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
+        {item}
+      </Text>
+      {item === nimMd && (
+        <Feather name="check" size={14} color="#ffffff" />
+      )}
+    </TouchableOpacity>
+  ), [nimMd, setNimMd, setShowModelPicker, setModelSearch]);
 
   return (
     <View className="flex-1 bg-white">
@@ -454,10 +484,17 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      <Modal visible={showModelPicker} transparent animationType="slide" onRequestClose={() => setShowModelPicker(false)}>
-        <View className="flex-1 justify-end bg-black/40">
-          <View className="bg-white rounded-t-sheet max-h-[70%] min-h-[50%] px-5 pt-3 pb-10 shadow-float">
-            <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
+        <BottomSheet
+          ref={modelSheetRef}
+          snapPoints={modelSnapPoints}
+          enablePanDownToClose
+          index={showModelPicker ? 0 : -1}
+          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
+          backgroundStyle={{ backgroundColor: "#ffffff" }}
+          backdropComponent={renderBackdrop}
+          onChange={(index: number) => { if (index === -1) setShowModelPicker(false); }}
+        >
+          <BottomSheetView className="flex-1 px-5 pt-0 pb-10">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold tracking-tightest text-black">Select Model</Text>
               <TouchableOpacity onPress={() => setShowModelPicker(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
@@ -488,27 +525,14 @@ export default function SettingsScreen() {
                 data={filteredModels}
                 keyExtractor={(item) => item}
                 showsVerticalScrollIndicator={false}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    onPress={() => { setNimMd(item); setShowModelPicker(false); setModelSearch(""); }}
-                    className={`flex-row items-center gap-3 py-3 px-3 rounded-lg mb-1 ${
-                      item === nimMd ? "bg-black" : "bg-ink-100"
-                    }`}
-                  >
-                    <Feather name="cpu" size={14} color={item === nimMd ? "#ffffff" : "#999999"} />
-                    <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
-                      {item}
-                    </Text>
-                    {item === nimMd && (
-                      <Feather name="check" size={14} color="#ffffff" />
-                    )}
-                  </TouchableOpacity>
-                )}
+                removeClippedSubviews
+                maxToRenderPerBatch={20}
+                windowSize={10}
+                renderItem={renderModelItem}
               />
             )}
-          </View>
-        </View>
-      </Modal>
+          </BottomSheetView>
+        </BottomSheet>
       <SheetModal
         visible={modalConfig !== null}
         onClose={() => setModalConfig(null)}

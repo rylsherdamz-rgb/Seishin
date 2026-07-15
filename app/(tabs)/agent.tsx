@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Keyboard, Platform, Modal, Image, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Keyboard, Platform, Image, ActivityIndicator, KeyboardAvoidingView,
 } from "react-native";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
 
 import { router } from "expo-router";
@@ -44,18 +45,27 @@ function ThinkingIndicator() {
 }
 
 export default function AgentScreen() {
-  const {
-    messages, currentProvider, installedSkills, isProcessing, streamTick,
-    load, setProvider, removeSkill, clearConversation,
-    modelState, modelProgress, modelError, setModelState,
-  } = useAgentStore();
-  const { apiKeys, nimModel, nimEndpoint, loadSettings, modelPath } = useSettingsStore();
+  const messages = useAgentStore((s) => s.messages);
+  const currentProvider = useAgentStore((s) => s.currentProvider);
+  const isProcessing = useAgentStore((s) => s.isProcessing);
+  const streamTick = useAgentStore((s) => s.streamTick);
+  const load = useAgentStore((s) => s.load);
+  const setProvider = useAgentStore((s) => s.setProvider);
+  const clearConversation = useAgentStore((s) => s.clearConversation);
+  const modelState = useAgentStore((s) => s.modelState);
+  const modelProgress = useAgentStore((s) => s.modelProgress);
+  const modelError = useAgentStore((s) => s.modelError);
+  const setModelState = useAgentStore((s) => s.setModelState);
+  const apiKeys = useSettingsStore((s) => s.apiKeys);
+  const nimModel = useSettingsStore((s) => s.nimModel);
+  const nimEndpoint = useSettingsStore((s) => s.nimEndpoint);
+  const loadSettings = useSettingsStore((s) => s.loadSettings);
+  const modelPath = useSettingsStore((s) => s.modelPath);
   const [input, setInput] = useState("");
-  const [showSkills, setShowSkills] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<AgentAttachment[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const pickerSnapPoints = useMemo(() => ["35%"], []);
   const flatListRef = useRef<FlatList>(null);
   const loadingRef = useRef(false);
 
@@ -66,7 +76,7 @@ export default function AgentScreen() {
       const s = getModelState();
       setModelState(s.state, s.progress, s.error);
     });
-    return unsub;
+    return () => { unsub(); };
   }, []);
 
   useEffect(() => {
@@ -91,19 +101,7 @@ export default function AgentScreen() {
     }
   }, [messages.length]);
 
-  useEffect(() => {
-    const onShow = (e: { endCoordinates: { height: number } }) => setKeyboardHeight(e.endCoordinates.height);
-    const onHide = () => setKeyboardHeight(0);
-    const show = Platform.OS === "ios"
-      ? Keyboard.addListener("keyboardWillShow", onShow)
-      : Keyboard.addListener("keyboardDidShow", onShow);
-    const hide = Platform.OS === "ios"
-      ? Keyboard.addListener("keyboardWillHide", onHide)
-      : Keyboard.addListener("keyboardDidHide", onHide);
-    return () => { show.remove(); hide.remove(); };
-  }, []);
-
-  async function handleSend() {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || isProcessing) return;
     setInput("");
@@ -129,13 +127,13 @@ export default function AgentScreen() {
     }
 
     await runAgentLoop(text, { attachments, extractedContext });
-  }
+  }, [input, isProcessing, pendingAttachments]);
 
-  function showAttachmentPicker() {
+  const showAttachmentPicker = useCallback(() => {
     setShowPicker(true);
-  }
+  }, []);
 
-  async function addPhoto(fromCamera: boolean) {
+  const addPhoto = useCallback(async (fromCamera: boolean) => {
     const picker = fromCamera ? launchCameraAsync : launchImageLibraryAsync;
     const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
     if (result.canceled || !result.assets[0]) return;
@@ -144,9 +142,9 @@ export default function AgentScreen() {
       ...prev,
       { type: "image", uri: asset.uri, name: asset.fileName ?? undefined, mimeType: asset.mimeType ?? "image/*" },
     ]);
-  }
+  }, []);
 
-  async function addFile() {
+  const addFile = useCallback(async () => {
     const result = await getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
@@ -154,24 +152,91 @@ export default function AgentScreen() {
       ...prev,
       { type: "file", uri: asset.uri, name: asset.name ?? undefined, mimeType: asset.mimeType ?? undefined },
     ]);
-  }
+  }, []);
 
-  function removePendingAttachment(index: number) {
+  const removePendingAttachment = useCallback((index: number) => {
     setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
-  }
+  }, []);
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  async function copyToClipboard(text: string, id: string) {
+  const copyToClipboard = useCallback(async (text: string, id: string) => {
     await Clipboard.setStringAsync(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-  }
+  }, []);
+
+  const renderBackdrop = useCallback((props: any) => (
+    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
+  ), []);
+
+  const renderItem = useCallback(({ item }: { item: AgentMessage }) => {
+    const isUser = item.role === "user";
+    if (!isUser && !item.content) return null;
+    return (
+      <View
+        className={`mb-3 ${isUser ? "items-end" : "items-start"}`}
+      >
+        <View className={`max-w-[88%] px-4 py-3 ${
+          isUser
+            ? "bg-black rounded-2xl rounded-br-md"
+            : item.role === "tool"
+            ? "bg-ink-25 rounded-2xl rounded-bl-md border border-ink-150"
+            : "bg-white rounded-2xl rounded-bl-md border border-ink-100"
+        }`}>
+          {item.toolName && (
+            <View className="flex-row items-center gap-1 mb-1">
+              <Feather name="terminal" size={10} color="#999999" />
+              <Text className="text-xs text-ink-400 font-mono">{item.toolName}</Text>
+            </View>
+          )}
+          {isUser ? (
+            <Text className="text-sm leading-5 text-white">{item.content}</Text>
+          ) : (
+            <Markdown content={item.content} />
+          )}
+          {item.attachments && item.attachments.length > 0 && (
+            <View className="flex-row flex-wrap gap-1.5 mt-2">
+              {item.attachments.map((att: AgentAttachment, i: number) =>
+                att.type === "image" ? (
+                  <Image key={i} source={{ uri: att.uri }} className="w-20 h-20 rounded-lg" />
+                ) : (
+                  <View key={i} className="flex-row items-center gap-1 bg-ink-100 rounded-lg px-2 py-1.5">
+                    <Feather name="file" size={12} color="#666" />
+                    <Text className="text-xs text-ink-500">{att.name || "File"}</Text>
+                  </View>
+                )
+              )}
+            </View>
+          )}
+          <View className="flex-row items-center justify-between mt-2">
+            <Text className={`text-xs ${isUser ? "text-ink-200" : "text-ink-400"}`}>
+              {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </Text>
+            {!isUser && !!item.content && (
+              <TouchableOpacity
+                onPress={() => copyToClipboard(item.content, item.id)}
+                activeOpacity={0.6}
+                className="flex-row items-center gap-1 ml-3 py-0.5"
+              >
+                <Feather name={copiedId === item.id ? "check" : "copy"} size={12} color="#999999" />
+                <Text className="text-xs text-ink-400">{copiedId === item.id ? "Copied" : "Copy"}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  }, [copiedId, copyToClipboard, streamTick]);
 
   const hasKey = !!apiKeys.nim;
 
   return (
-    <View className="flex-1 bg-white">
-      <View className="flex-1" style={{ paddingBottom: Math.min(keyboardHeight, 160) }}>
+    <KeyboardAvoidingView
+      className="flex-1 bg-white"
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+    >
+      <View className="flex-1">
         <View className="px-4 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View>
@@ -190,14 +255,6 @@ export default function AgentScreen() {
               </Text>
             </View>
             <View className="flex-row gap-2">
-              <TouchableOpacity
-                onPress={() => setShowSkills(!showSkills)}
-                className={`w-9 h-9 rounded-full items-center justify-center ${
-                  showSkills ? "bg-black" : "bg-ink-100"
-                }`}
-              >
-                <Feather name="package" size={14} color={showSkills ? "#ffffff" : "#666666"} />
-              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push("/settings")}
                 className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
@@ -243,33 +300,6 @@ export default function AgentScreen() {
             )}
           </View>
         </View>
-
-        {showSkills && (
-          <Animated.View key="agent-skills-panel" entering={FadeInDown.duration(200)} className="mx-4 mb-3 bg-ink-100 rounded-xl p-4">
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-sm font-medium text-black">Skills</Text>
-              <Text className="text-xs text-ink-300">{installedSkills.length} installed</Text>
-            </View>
-            {installedSkills.length === 0 ? (
-              <View className="py-4 items-center">
-                <Feather name="package" size={20} color="#cccccc" />
-                <Text className="text-xs text-ink-300 mt-2">No skills installed</Text>
-              </View>
-            ) : (
-              installedSkills.map((s) => (
-                <View key={s.name} className="flex-row items-center justify-between py-2 border-b border-ink-200 last:border-b-0">
-                  <View className="flex-1">
-                    <Text className="text-sm text-black font-medium">{s.name}</Text>
-                    <Text className="text-xs text-ink-500">{s.description}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => removeSkill(s.name)}>
-                    <Feather name="x-circle" size={16} color="#999999" />
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-          </Animated.View>
-        )}
 
         {!hasKey && currentProvider === "nim" && (
           <View key="agent-nim-nokey-banner" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
@@ -319,68 +349,11 @@ export default function AgentScreen() {
           extraData={streamTick}
           keyExtractor={(item) => item.id}
           contentContainerClassName="px-4 pb-2"
+          removeClippedSubviews
+          maxToRenderPerBatch={15}
+          windowSize={10}
           ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
-          renderItem={({ item }) => {
-            const isUser = item.role === "user";
-            // Don't render an empty assistant bubble (e.g. while the first token
-            // is still coming, or a tool-only turn) — the footer dots show
-            // "thinking", and tool results render as their own bubbles.
-            if (!isUser && !item.content) return null;
-            return (
-              <View
-                className={`mb-3 ${isUser ? "items-end" : "items-start"}`}
-              >
-                <View className={`max-w-[88%] px-4 py-3 ${
-                  isUser
-                    ? "bg-black rounded-2xl rounded-br-md"
-                    : item.role === "tool"
-                    ? "bg-ink-25 rounded-2xl rounded-bl-md border border-ink-150"
-                    : "bg-white rounded-2xl rounded-bl-md border border-ink-100"
-                }`}>
-                  {item.toolName && (
-                    <View className="flex-row items-center gap-1 mb-1">
-                      <Feather name="terminal" size={10} color="#999999" />
-                      <Text className="text-xs text-ink-400 font-mono">{item.toolName}</Text>
-                    </View>
-                  )}
-                  {isUser ? (
-                    <Text className="text-sm leading-5 text-white">{item.content}</Text>
-                  ) : (
-                    <Markdown content={item.content} />
-                  )}
-                  {item.attachments && item.attachments.length > 0 && (
-                    <View className="flex-row flex-wrap gap-1.5 mt-2">
-                      {item.attachments.map((att: AgentAttachment, i: number) =>
-                        att.type === "image" ? (
-                          <Image key={i} source={{ uri: att.uri }} className="w-20 h-20 rounded-lg" />
-                        ) : (
-                          <View key={i} className="flex-row items-center gap-1 bg-ink-100 rounded-lg px-2 py-1.5">
-                            <Feather name="file" size={12} color="#666" />
-                            <Text className="text-xs text-ink-500">{att.name || "File"}</Text>
-                          </View>
-                        )
-                      )}
-                    </View>
-                  )}
-                  <View className="flex-row items-center justify-between mt-2">
-                    <Text className={`text-xs ${isUser ? "text-ink-200" : "text-ink-400"}`}>
-                      {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </Text>
-                    {!isUser && !!item.content && (
-                      <TouchableOpacity
-                        onPress={() => copyToClipboard(item.content, item.id)}
-                        activeOpacity={0.6}
-                        className="flex-row items-center gap-1 ml-3 py-0.5"
-                      >
-                        <Feather name={copiedId === item.id ? "check" : "copy"} size={12} color="#999999" />
-                        <Text className="text-xs text-ink-400">{copiedId === item.id ? "Copied" : "Copy"}</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              </View>
-            );
-          }}
+          renderItem={renderItem}
           ListEmptyComponent={
             <View className="items-center justify-center py-24 px-8">
               <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
@@ -458,68 +431,75 @@ export default function AgentScreen() {
             )}
           </View>
         </View>
-        {showPicker && (
-          <Modal transparent animationType="slide" onRequestClose={() => setShowPicker(false)}>
-            <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setShowPicker(false)}>
-              <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-2xl px-4 pb-8 pt-2" onPress={() => {}}>
-                <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 py-3.5"
-                  onPress={() => { setShowPicker(false); addPhoto(true); }}
-                >
-                  <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="camera" size={16} color="#000" />
-                  </View>
-                  <Text className="text-base text-black">Take Photo</Text>
-                </TouchableOpacity>
-                <View className="h-px bg-ink-100" />
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 py-3.5"
-                  onPress={() => { setShowPicker(false); addPhoto(false); }}
-                >
-                  <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="image" size={16} color="#000" />
-                  </View>
-                  <Text className="text-base text-black">Choose from Library</Text>
-                </TouchableOpacity>
-                <View className="h-px bg-ink-100" />
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 py-3.5"
-                  onPress={() => { setShowPicker(false); addFile(); }}
-                >
-                  <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="file" size={16} color="#000" />
-                  </View>
-                  <Text className="text-base text-black">Pick File</Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
+        <BottomSheet
+          snapPoints={pickerSnapPoints}
+          enableDynamicSizing
+          enablePanDownToClose
+          index={showPicker ? 0 : -1}
+          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
+          backgroundStyle={{ backgroundColor: "#ffffff" }}
+          backdropComponent={renderBackdrop}
+          onChange={(index: number) => { if (index === -1) setShowPicker(false); }}
+        >
+          <BottomSheetView className="px-4 pb-8 pt-2">
+            <TouchableOpacity
+              className="flex-row items-center gap-3 py-3.5"
+              onPress={() => { setShowPicker(false); addPhoto(true); }}
+            >
+              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                <Feather name="camera" size={16} color="#000" />
+              </View>
+              <Text className="text-base text-black">Take Photo</Text>
             </TouchableOpacity>
-          </Modal>
-        )}
-        {showClearConfirm && (
-          <Modal transparent animationType="slide" onRequestClose={() => setShowClearConfirm(false)}>
-            <TouchableOpacity className="flex-1 justify-end bg-black/40" activeOpacity={1} onPress={() => setShowClearConfirm(false)}>
-              <TouchableOpacity activeOpacity={1} className="bg-white rounded-t-2xl px-4 pb-8 pt-2" onPress={() => {}}>
-                <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
-                <Text className="text-base font-medium text-black mb-1">Clear conversation?</Text>
-                <Text className="text-sm text-ink-400 mb-5">All messages will be deleted.</Text>
-                <TouchableOpacity
-                  className="h-12 bg-danger rounded-xl items-center justify-center"
-                  onPress={() => { setShowClearConfirm(false); clearConversation(); }}
-                >
-                  <Text className="text-sm font-medium text-white">Clear All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  className="h-12 items-center justify-center mt-2"
-                  onPress={() => setShowClearConfirm(false)}
-                >
-                  <Text className="text-sm text-ink-500">Cancel</Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
+            <View className="h-px bg-ink-100" />
+            <TouchableOpacity
+              className="flex-row items-center gap-3 py-3.5"
+              onPress={() => { setShowPicker(false); addPhoto(false); }}
+            >
+              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                <Feather name="image" size={16} color="#000" />
+              </View>
+              <Text className="text-base text-black">Choose from Library</Text>
             </TouchableOpacity>
-          </Modal>
-        )}
+            <View className="h-px bg-ink-100" />
+            <TouchableOpacity
+              className="flex-row items-center gap-3 py-3.5"
+              onPress={() => { setShowPicker(false); addFile(); }}
+            >
+              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                <Feather name="file" size={14} color="#000" />
+              </View>
+              <Text className="text-base text-black">Pick File</Text>
+            </TouchableOpacity>
+          </BottomSheetView>
+        </BottomSheet>
+        <BottomSheet
+          snapPoints={pickerSnapPoints}
+          enablePanDownToClose
+          index={showClearConfirm ? 0 : -1}
+          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
+          backgroundStyle={{ backgroundColor: "#ffffff" }}
+          backdropComponent={renderBackdrop}
+          onChange={(index: number) => { if (index === -1) setShowClearConfirm(false); }}
+        >
+          <BottomSheetView className="px-4 pb-8 pt-2">
+            <Text className="text-base font-medium text-black mb-1">Clear conversation?</Text>
+            <Text className="text-sm text-ink-400 mb-5">All messages will be deleted.</Text>
+            <TouchableOpacity
+              className="h-12 bg-danger rounded-xl items-center justify-center"
+              onPress={() => { setShowClearConfirm(false); clearConversation(); }}
+            >
+              <Text className="text-sm font-medium text-white">Clear All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="h-12 items-center justify-center mt-2"
+              onPress={() => setShowClearConfirm(false)}
+            >
+              <Text className="text-sm text-ink-500">Cancel</Text>
+            </TouchableOpacity>
+          </BottomSheetView>
+        </BottomSheet>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

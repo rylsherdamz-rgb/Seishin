@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
 import { uid } from "@/utils/id";
@@ -15,11 +14,23 @@ import Feather from "@expo/vector-icons/Feather";
 
 type TodoFilter = "all" | "active" | "completed";
 
+const priorityColors: Record<string, string> = {
+  low: "text-ink-300",
+  medium: "text-black",
+  high: "text-danger",
+};
+
 export default function TodoScreen() {
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
-  const {
-    todos, loadTodos, addTodo, toggleTodo, deleteTodo, clearCompleted, setFilter, getFilteredTodos, getStats,
-  } = useTodoStore();
+  const todos = useTodoStore((s) => s.todos);
+  const loadTodos = useTodoStore((s) => s.loadTodos);
+  const addTodo = useTodoStore((s) => s.addTodo);
+  const toggleTodo = useTodoStore((s) => s.toggleTodo);
+  const deleteTodo = useTodoStore((s) => s.deleteTodo);
+  const clearCompleted = useTodoStore((s) => s.clearCompleted);
+  const setFilter = useTodoStore((s) => s.setFilter);
+  const getFilteredTodos = useTodoStore((s) => s.getFilteredTodos);
+  const getStats = useTodoStore((s) => s.getStats);
   const [newTitle, setNewTitle] = useState("");
   const [newDueDate, setNewDueDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -28,12 +39,12 @@ export default function TodoScreen() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [sheetItem, setSheetItem] = useState<Todo | null>(null);
 
-  useEffect(() => { loadTodos(); }, []);
+  useEffect(() => { loadTodos(); }, [loadTodos]);
 
-  const filtered = getFilteredTodos();
-  const stats = getStats();
+  const filtered = useMemo(() => getFilteredTodos(), [getFilteredTodos]);
+  const stats = useMemo(() => getStats(), [getStats]);
 
-  function handleAdd() {
+  const handleAdd = useCallback(() => {
     const title = newTitle.trim();
     if (!title) return;
     addTodo({
@@ -50,13 +61,62 @@ export default function TodoScreen() {
     setNewTitle("");
     setNewDueDate(null);
     setShowAdd(false);
-  }
+  }, [newTitle, newDueDate, eventId, addTodo]);
 
-  const priorityColors: Record<string, string> = {
-    low: "text-ink-300",
-    medium: "text-black",
-    high: "text-danger",
-  };
+  const handleFilterChange = useCallback((f: TodoFilter) => {
+    localFilter(f);
+    setFilter(f);
+  }, [setFilter]);
+
+  const renderItem = useCallback(({ item }: { item: Todo }) => {
+    const todayStr = new Date().toLocaleDateString("en-CA");
+    const dueStr = item.dueDate ? new Date(item.dueDate).toLocaleDateString("en-CA") : null;
+    const overdue = !!dueStr && dueStr < todayStr && !item.completed;
+    const dueToday = !!dueStr && dueStr === todayStr && !item.completed;
+    return (
+    <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
+      <Card variant="elevated" className="flex-row items-center gap-3 mb-2.5">
+        <TouchableOpacity
+          onPress={(e) => { e.stopPropagation(); toggleTodo(item.id); }}
+          className={`w-5 h-5 rounded-md border-2 items-center justify-center ${
+            item.completed ? "bg-black border-black" : "border-ink-300"
+          }`}
+        >
+          {item.completed && <Feather name="check" size={10} color="#ffffff" />}
+        </TouchableOpacity>
+        <View className="flex-1">
+          <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
+            {item.title}
+          </Text>
+          {item.dueDate && (
+            <View className="flex-row items-center gap-1.5 mt-1">
+              <Feather name="clock" size={10} color={overdue ? "#000000" : "#999999"} />
+              <Text className={`text-xs ${overdue ? "text-black font-medium" : "text-ink-300"}`}>
+                {new Date(item.dueDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+              </Text>
+              {overdue && (
+                <View className="px-1.5 py-0.5 bg-black rounded-full">
+                  <Text className="text-[9px] font-bold text-white tracking-wide">OVERDUE</Text>
+                </View>
+              )}
+              {dueToday && (
+                <View className="px-1.5 py-0.5 bg-ink-100 rounded-full">
+                  <Text className="text-[9px] font-bold text-ink-600 tracking-wide">TODAY</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+        <Text className={`text-xs font-semibold ${priorityColors[item.priority]}`}>
+          {item.priority}
+        </Text>
+        <Feather name="chevron-up" size={14} color="#cccccc" />
+      </Card>
+    </TouchableOpacity>
+    );
+  }, [toggleTodo]);
+
+  const handleSheetClose = useCallback(() => setSheetItem(null), []);
 
   return (
     <View className="flex-1 bg-white">
@@ -90,7 +150,7 @@ export default function TodoScreen() {
             key={f}
             label={f.charAt(0).toUpperCase() + f.slice(1)}
             active={filter === f}
-            onPress={() => { localFilter(f); setFilter(f); }}
+            onPress={() => handleFilterChange(f)}
           />
         ))}
       </View>
@@ -161,53 +221,11 @@ export default function TodoScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8"
-        renderItem={({ item }) => {
-          const todayStr = new Date().toLocaleDateString("en-CA");
-          const dueStr = item.dueDate ? new Date(item.dueDate).toLocaleDateString("en-CA") : null;
-          const overdue = !!dueStr && dueStr < todayStr && !item.completed;
-          const dueToday = !!dueStr && dueStr === todayStr && !item.completed;
-          return (
-          <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
-            <Card variant="elevated" className="flex-row items-center gap-3 mb-2.5">
-              <TouchableOpacity
-                onPress={(e) => { e.stopPropagation(); toggleTodo(item.id); }}
-                className={`w-5 h-5 rounded-md border-2 items-center justify-center ${
-                  item.completed ? "bg-black border-black" : "border-ink-300"
-                }`}
-              >
-                {item.completed && <Feather name="check" size={10} color="#ffffff" />}
-              </TouchableOpacity>
-              <View className="flex-1">
-                <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
-                  {item.title}
-                </Text>
-                {item.dueDate && (
-                  <View className="flex-row items-center gap-1.5 mt-1">
-                    <Feather name="clock" size={10} color={overdue ? "#000000" : "#999999"} />
-                    <Text className={`text-xs ${overdue ? "text-black font-medium" : "text-ink-300"}`}>
-                      {new Date(item.dueDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                    </Text>
-                    {overdue && (
-                      <View className="px-1.5 py-0.5 bg-black rounded-full">
-                        <Text className="text-[9px] font-bold text-white tracking-wide">OVERDUE</Text>
-                      </View>
-                    )}
-                    {dueToday && (
-                      <View className="px-1.5 py-0.5 bg-ink-100 rounded-full">
-                        <Text className="text-[9px] font-bold text-ink-600 tracking-wide">TODAY</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-              <Text className={`text-xs font-semibold ${priorityColors[item.priority]}`}>
-                {item.priority}
-              </Text>
-              <Feather name="chevron-up" size={14} color="#cccccc" />
-            </Card>
-          </TouchableOpacity>
-          );
-        }}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={8}
+        renderItem={renderItem}
         ListEmptyComponent={
           <EmptyState icon="check-square" title="No todos yet" subtitle="Tap + to add one" />
         }
@@ -234,7 +252,7 @@ export default function TodoScreen() {
           }}
           onTodoToggle={(id) => { toggleTodo(id); setSheetItem(null); }}
           onTodoDelete={(id) => { deleteTodo(id); setSheetItem(null); }}
-          onClose={() => setSheetItem(null)}
+          onClose={handleSheetClose}
         />
       )}
     </View>
