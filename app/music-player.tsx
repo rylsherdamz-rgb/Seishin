@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
-  View, Text, Image, TouchableOpacity, ScrollView, PanResponder, Dimensions, FlatList,
+  View, Text, Pressable, ScrollView, PanResponder, Dimensions, FlatList,
 } from "react-native";
+import { Image } from "expo-image";
 import { Stack, router } from "expo-router";
 import { useMusicStore } from "@/stores/music-store";
 import { useAudioPlayer } from "@/services/audio-player";
@@ -49,7 +50,7 @@ export default function MusicPlayerScreen() {
   const [showQueue, setShowQueue] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragX, setDragX] = useState(0);
-  const lyricsScrollRef = useRef<FlatList>(null);
+  const lyricsScrollRef = useRef<FlatList<any>>(null);
 
   const panResponder = useMemo(
     () =>
@@ -126,8 +127,7 @@ export default function MusicPlayerScreen() {
   const renderQueueTrack = useCallback(({ item, index }: { item: any; index: number }) => {
     const isCurrent = index === currentTrackIndex;
     return (
-      <TouchableOpacity
-        key={item.id}
+      <Pressable
         onPress={() => {
           setCurrentTrackIndex(index);
           loadCurrentTrack(true).then(() => play());
@@ -139,7 +139,7 @@ export default function MusicPlayerScreen() {
             {index + 1}
           </Text>
         </View>
-        <Image source={{ uri: item.coverUri || currentAlbum?.coverUri || "" }} className="w-10 h-10 rounded-md bg-ink-100" resizeMode="cover" />
+        <Image source={{ uri: item.coverUri || currentAlbum?.coverUri || "" }} className="w-10 h-10 rounded-md bg-ink-100" contentFit="cover" />
         <View className="flex-1 min-w-0">
           <Text className={`text-sm ${isCurrent ? "font-bold text-black" : "font-medium text-ink-700"}`} numberOfLines={1}>
             {item.title}
@@ -148,7 +148,7 @@ export default function MusicPlayerScreen() {
         </View>
         <Text className="text-xs text-ink-400 tabular-nums">{formatTime(item.duration * 1000)}</Text>
         {isCurrent && <Feather name="speaker" size={14} color="#000" />}
-      </TouchableOpacity>
+      </Pressable>
     );
   }, [currentTrackIndex, currentAlbum?.coverUri, setCurrentTrackIndex, loadCurrentTrack, play]);
 
@@ -184,7 +184,6 @@ export default function MusicPlayerScreen() {
 
   const nowLyrics = showLyrics && currentTrackLyrics;
 
-  const repeatIcon = repeat === "one" ? "repeat-1" : "repeat";
   const repeatColor = repeat !== "off" ? "#000" : "#999";
   const shuffleColor = shuffle ? "#000" : "#999";
 
@@ -193,9 +192,9 @@ export default function MusicPlayerScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <View className="pt-2 px-4 pb-2 flex-row items-center justify-between">
-        <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 rounded-full items-center justify-center">
+        <Pressable onPress={() => router.back()} className="w-10 h-10 rounded-full items-center justify-center">
           <Feather name="chevron-down" size={24} color="#000" />
-        </TouchableOpacity>
+        </Pressable>
         <Text className="text-xs font-semibold text-ink-400 uppercase tracking-widest">Now Playing</Text>
         <View className="w-10 h-10" />
       </View>
@@ -241,7 +240,7 @@ export default function MusicPlayerScreen() {
               key={currentTrackIndex}
               source={{ uri: track?.coverUri || currentAlbum.coverUri || "https://via.placeholder.com/300" }}
               style={{ width: COVER_SIZE, height: COVER_SIZE, borderRadius: 20 }}
-              resizeMode="cover"
+              contentFit="cover"
             />
           </View>
 
@@ -255,7 +254,7 @@ export default function MusicPlayerScreen() {
             </Text>
           </View>
 
-          <View className="px-6 mt-6" style={{ height: 48 }}>
+          <View className="px-6 mt-6 h-12">
             <View className="flex-row items-center gap-3" {...panResponder.panHandlers}>
               <Text className="text-xs text-ink-400 tabular-nums w-10 text-right">{formatTime(displayMs)}</Text>
               <View className="flex-1 h-1.5 bg-ink-100 rounded-full relative justify-center">
@@ -270,49 +269,45 @@ export default function MusicPlayerScreen() {
           </View>
 
           <View className="flex-row items-center justify-center px-8 mt-4 gap-8">
-            <TouchableOpacity onPress={handleToggleShuffle} activeOpacity={0.5}>
+            <Pressable onPress={handleToggleShuffle}>
               <Feather name="shuffle" size={18} color={shuffleColor} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={previous} className="w-12 h-12 items-center justify-center">
+            </Pressable>
+            <Pressable onPress={previous} className="w-12 h-12 items-center justify-center">
               <Feather name="skip-back" size={24} color="#000" />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               onPress={isPlaying ? pause : play}
               className="w-20 h-20 bg-black rounded-full items-center justify-center shadow-float"
             >
               <Feather name={isPlaying ? "pause" : "play"} size={32} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={next} className="w-12 h-12 items-center justify-center">
+            </Pressable>
+            <Pressable onPress={next} className="w-12 h-12 items-center justify-center">
               <Feather name="skip-forward" size={24} color="#000" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={cycleRepeat} activeOpacity={0.5}>
-              <Feather name={repeatIcon} size={18} color={repeatColor} />
-            </TouchableOpacity>
+            </Pressable>
+            <Pressable onPress={cycleRepeat}>
+              <Feather name="repeat" size={18} color={repeatColor} />
+            </Pressable>
           </View>
         </ScrollView>
       )}
 
       {!showQueue && (
         <View className="px-8 pb-6 pt-2 flex-row items-center justify-between border-t border-ink-50">
-          <TouchableOpacity onPress={handleToggleFav} activeOpacity={0.5} className="items-center" style={{ width: 60 }}>
+          <Pressable onPress={handleToggleFav} className="items-center w-[60px]">
             <Feather name={isFav ? "heart" : "heart"} size={20} color={isFav ? "#ff3b30" : "#999"} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.5}
+          </Pressable>
+          <Pressable
             onPress={handleToggleQueue}
-            className="items-center"
-            style={{ width: 60 }}
+            className="items-center w-[60px]"
           >
             <Feather name="list" size={20} color={showQueue ? "#000" : "#999"} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.5}
+          </Pressable>
+          <Pressable
             onPress={handleToggleLyrics}
-            className="items-center"
-            style={{ width: 60 }}
+            className="items-center w-[60px]"
           >
             <Feather name="file-text" size={20} color={showLyrics ? "#000" : "#999"} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
     </View>

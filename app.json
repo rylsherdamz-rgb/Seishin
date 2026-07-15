@@ -58,7 +58,8 @@
           "enableBackgroundPlayback": true
         }
       ],
-      "llama.rn"
+      "llama.rn",
+      "expo-image"
     ]
   }
 }

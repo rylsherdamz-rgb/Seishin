@@ -1,7 +1,8 @@
 import { useCallback, useRef, useMemo, useEffect, useState } from "react";
 import {
-  View, Text, Image, TouchableOpacity, Dimensions, FlatList, PanResponder,
+  View, Text, Pressable, Dimensions, PanResponder, FlatList,
 } from "react-native";
+import { Image } from "expo-image";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useMusicStore } from "@/stores/music-store";
 import { useAudioPlayer } from "@/services/audio-player";
@@ -120,7 +121,7 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
   const renderQueueItem = useCallback(({ item, index }: { item: any; index: number }) => {
     const isCurrent = index === currentTrackIndex;
     return (
-      <TouchableOpacity
+      <Pressable
         onPress={() => handleQueueSelect(index)}
         className={`flex-row items-center gap-3 py-2.5 px-3 rounded-xl mb-1 ${isCurrent ? "bg-ink-50" : ""}`}
       >
@@ -130,14 +131,14 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
         <Image
           source={{ uri: item.coverUri || currentAlbum?.coverUri || "" }}
           className="w-9 h-9 rounded-md bg-ink-100"
-          resizeMode="cover"
+          contentFit="cover"
         />
         <View className="flex-1 min-w-0">
           <Text className={`text-sm ${isCurrent ? "font-bold text-black" : "text-ink-700"}`} numberOfLines={1}>{item.title}</Text>
           <Text className="text-xs text-ink-400">{item.artist}</Text>
         </View>
         <Text className="text-xs text-ink-400 tabular-nums">{formatTime(item.duration * 1000)}</Text>
-      </TouchableOpacity>
+      </Pressable>
     );
   }, [currentTrackIndex, currentAlbum?.coverUri, handleQueueSelect]);
 
@@ -167,7 +168,6 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
     if (currentTrack) toggleFavorite(currentTrack.id);
   }, [currentTrack, toggleFavorite]);
 
-  const repeatIcon = repeat === "one" ? "repeat-1" : "repeat";
   const repeatColor = repeat !== "off" ? "#000" : "#999";
   const shuffleColor = shuffle ? "#000" : "#999";
 
@@ -187,9 +187,9 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
       <BottomSheetView className="flex-1 px-4 pb-6">
         <View className="flex-row items-center justify-between mb-4 px-2">
           <Text className="text-xs font-semibold text-ink-400 uppercase tracking-widest">Now Playing</Text>
-          <TouchableOpacity onPress={handleClose} className="w-8 h-8 rounded-full items-center justify-center">
+          <Pressable onPress={handleClose} className="w-8 h-8 rounded-full items-center justify-center">
             <Feather name="chevron-down" size={22} color="#000" />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         {!showLyrics && !showQueue && (
@@ -198,7 +198,7 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
               key={currentTrackIndex}
               source={{ uri: currentAlbum.coverUri || track?.coverUri || "https://via.placeholder.com/300" }}
               style={{ width: COVER_SIZE, height: COVER_SIZE, borderRadius: 20 }}
-              resizeMode="cover"
+              contentFit="cover"
             />
           </View>
         )}
@@ -237,8 +237,8 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
 
         {!showQueue && (
           <>
-            <View className="px-2 mt-auto" style={{ marginTop: 16 }}>
-              <View className="flex-row items-center" style={{ gap: 10 }} {...panResponder.panHandlers}>
+            <View className="px-2 mt-4">
+              <View className="flex-row items-center gap-2.5" {...panResponder.panHandlers}>
                 <Text className="text-xs text-ink-400 tabular-nums w-10 text-right">{formatTime(displayMs)}</Text>
                 <View className="flex-1 h-1.5 bg-ink-100 rounded-full relative justify-center">
                   <View className="h-full bg-black rounded-full" style={{ width: `${pct}%` }} />
@@ -248,37 +248,37 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
               </View>
             </View>
 
-            <View className="flex-row items-center justify-center px-4 mt-4" style={{ gap: 28 }}>
-              <TouchableOpacity onPress={handleToggleShuffle}>
+            <View className="flex-row items-center justify-center px-4 mt-4 gap-7">
+              <Pressable onPress={handleToggleShuffle}>
                 <Feather name="shuffle" size={18} color={shuffleColor} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={previous} className="w-10 h-10 items-center justify-center">
+              </Pressable>
+              <Pressable onPress={previous} className="w-10 h-10 items-center justify-center">
                 <Feather name="skip-back" size={22} color="#000" />
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Pressable>
+              <Pressable
                 onPress={isPlaying ? pause : play}
                 className="w-16 h-16 bg-black rounded-full items-center justify-center shadow-float"
               >
                 <Feather name={isPlaying ? "pause" : "play"} size={28} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={next} className="w-10 h-10 items-center justify-center">
+              </Pressable>
+              <Pressable onPress={next} className="w-10 h-10 items-center justify-center">
                 <Feather name="skip-forward" size={22} color="#000" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={cycleRepeat}>
-                <Feather name={repeatIcon} size={18} color={repeatColor} />
-              </TouchableOpacity>
+              </Pressable>
+              <Pressable onPress={cycleRepeat}>
+                <Feather name="repeat" size={18} color={repeatColor} />
+              </Pressable>
             </View>
 
             <View className="flex-row items-center justify-around px-4 mt-4 pb-2">
-              <TouchableOpacity onPress={handleToggleFav} className="items-center" style={{ width: 56 }}>
+              <Pressable onPress={handleToggleFav} className="items-center w-14">
                 <Feather name="heart" size={20} color={isFav ? "#ff3b30" : "#999"} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={toggleQueue} className="items-center" style={{ width: 56 }}>
+              </Pressable>
+              <Pressable onPress={toggleQueue} className="items-center w-14">
                 <Feather name="list" size={20} color={showQueue ? "#000" : "#999"} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={toggleLyrics} className="items-center" style={{ width: 56 }}>
+              </Pressable>
+              <Pressable onPress={toggleLyrics} className="items-center w-14">
                 <Feather name="file-text" size={20} color={showLyrics ? "#000" : "#999"} />
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </>
         )}
