@@ -83,14 +83,25 @@ export const useMusicStore = create<MusicState>((set, get) => ({
 
   loadAlbums: () => {
     const keys = musicStorage.getAllKeys();
-    const albums: Album[] = keys
+    const albumKeys = keys.filter((k) => k.startsWith("album-"));
+    const albums: Album[] = albumKeys
       .map((key) => {
         const data = musicStorage.getString(key);
         return data ? JSON.parse(data) : null;
       })
       .filter(Boolean) as Album[];
     albums.sort((a, b) => new Date(b.downloadedAt).getTime() - new Date(a.downloadedAt).getTime());
-    set({ albums });
+
+    const favRaw = musicStorage.getString("pref-favorites");
+    const repeatRaw = musicStorage.getString("pref-repeat");
+    const shuffleRaw = musicStorage.getString("pref-shuffle");
+
+    set({
+      albums,
+      favorites: favRaw ? JSON.parse(favRaw) : [],
+      repeat: (repeatRaw === "all" || repeatRaw === "one" || repeatRaw === "off") ? repeatRaw : "off",
+      shuffle: shuffleRaw === "true" ? true : false,
+    });
   },
 
   addAlbum: (album) => {
@@ -163,11 +174,13 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   toggleFavorite: (trackId) => {
-    set((state) => ({
-      favorites: state.favorites.includes(trackId)
+    set((state) => {
+      const favorites = state.favorites.includes(trackId)
         ? state.favorites.filter((id) => id !== trackId)
-        : [...state.favorites, trackId],
-    }));
+        : [...state.favorites, trackId];
+      musicStorage.set("pref-favorites", JSON.stringify(favorites));
+      return { favorites };
+    });
   },
 
   isFavorite: (trackId) => {
@@ -175,10 +188,12 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   setRepeat: (mode) => {
+    musicStorage.set("pref-repeat", mode);
     set({ repeat: mode });
   },
 
   setShuffle: (enabled) => {
+    musicStorage.set("pref-shuffle", String(enabled));
     set({ shuffle: enabled });
   },
 

@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
 import { warmInnertube } from "@/services/music-download";
 
@@ -165,21 +166,23 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
-          <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="music-download" options={{ animation: "slide_from_right" }} />
-            <Stack.Screen name="music-player" options={{ animation: "slide_from_bottom" }} />
-          </Stack>
-        </SafeAreaView>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
+            <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
+            <StatusBar style="light" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="music-download" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="music-player" options={{ animation: "slide_from_bottom" }} />
+            </Stack>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

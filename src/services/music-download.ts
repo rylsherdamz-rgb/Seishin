@@ -313,10 +313,9 @@ async function downloadSingleTrack(
       try {
         audioUrl = await f.decipher(player);
         if (audioUrl) break;
-      } catch {}
+} catch { console.warn("[download] decipher attempt failed for format"); }
     }
   }
-
   if (!audioUrl) {
     const err = new Error("Could not obtain audio URL (all decipher attempts failed)");
     onError?.(err, title);
@@ -398,7 +397,7 @@ async function downloadSingleTrack(
             progress: pct, albumTitle, albumArtist, status: "downloading-audio",
           });
         }
-      } catch {}
+      } catch { console.warn(`[download] ${title}: progress polling failed`); }
     }
   })();
 

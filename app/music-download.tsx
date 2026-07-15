@@ -25,61 +25,8 @@ function getThumbUrl(thumbnail: string, videoId?: string): string {
 
 function findDl(downloads: DownloadItem[], id: string): DownloadItem | undefined {
   return downloads.find((d) => d.id === id);
-}
-
-export default function MusicDownloadScreen() {
-  const insets = useSafeAreaInsets();
-  const [query, setQuery] = useState("");
-  const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [detailModal, setDetailModal] = useState<{
-    type: "album" | "playlist";
-    data: AlbumResult | PlaylistResult;
-    tracks: SearchResult[];
-    loading: boolean;
-  } | null>(null);
-  const addAlbum = useMusicStore((s) => s.addAlbum);
-  const loadAlbums = useMusicStore((s) => s.loadAlbums);
-  const storeDownloads = useMusicStore((s) => s.downloads);
-  const addDownload = useMusicStore((s) => s.addDownload);
-  const updateDownload = useMusicStore((s) => s.updateDownload);
-  const removeDownload = useMusicStore((s) => s.removeDownload);
-  const sheetRef = useRef<BottomSheet>(null);
-  const sheetSnapPoints = useMemo(() => ["70%", "95%"], []);
-
-  const downloadsRef = useRef(storeDownloads);
-  downloadsRef.current = storeDownloads;
-
-  const doSearch = useCallback(async () => {
-    if (!query.trim()) return;
-    setSearching(true);
-    setSearched(true);
-    try {
-      const result = await searchTracks(query.trim());
-      setSearchResult(result);
-    } catch {
-      setSearchResult({ songs: [], albums: [], playlists: [] });
-    } finally {
-      setSearching(false);
-    }
-  }, [query]);
-
-  const onTrackComplete = useCallback((data: TrackData) => {
-    addAlbum({
-      id: `album-${data.id}`,
-      title: data.title,
-      artist: data.artist,
-      coverUri: data.coverUri,
-      trackCount: 1,
-      totalDuration: data.duration,
-      downloadedAt: data.downloadedAt,
-      tracks: [data],
-    });
-    loadAlbums();
-  }, [addAlbum, loadAlbums]);
-
-  const doDownloadTrack = useCallback(async (track: SearchResult) => {
+} export default function MusicDownloadScreen() {
+  const insets = useSafeAreaInsets(); const [query, setQuery] = useState(""); const [searchResult, setSearchResult] = useState<SearchResponse | null>(null); const [searching, setSearching] = useState(false); const [searched, setSearched] = useState(false); const [detailModal, setDetailModal] = useState<{ type: "album" | "playlist"; data: AlbumResult | PlaylistResult; tracks: SearchResult[]; loading: boolean; } | null>(null); const addAlbum = useMusicStore((s) => s.addAlbum); const loadAlbums = useMusicStore((s) => s.loadAlbums); const storeDownloads = useMusicStore((s) => s.downloads); const addDownload = useMusicStore((s) => s.addDownload); const updateDownload = useMusicStore((s) => s.updateDownload); const removeDownload = useMusicStore((s) => s.removeDownload); const sheetRef = useRef<BottomSheet>(null); const sheetSnapPoints = useMemo(() => ["70%", "95%"], []); const downloadsRef = useRef(storeDownloads); downloadsRef.current = storeDownloads; const doSearch = useCallback(async () => { if (!query.trim()) return; setSearching(true); setSearched(true); try { const result = await searchTracks(query.trim()); setSearchResult(result); } catch { setSearchResult({ songs: [], albums: [], playlists: [] }); } finally { setSearching(false); } }, [query]); const onTrackComplete = useCallback((data: TrackData) => { addAlbum({ id: `album-${data.id}`, title: data.title, artist: data.artist, coverUri: data.coverUri, trackCount: 1, totalDuration: data.duration, downloadedAt: data.downloadedAt, tracks: [data], }); loadAlbums(); }, [addAlbum, loadAlbums]); const doDownloadTrack = useCallback(async (track: SearchResult) => {
     const dlKey = `track-${track.videoId}`;
     if (findDl(downloadsRef.current, dlKey)?.status === "downloading") return;
     addDownload({ id: dlKey, title: track.title, artist: track.artist, progress: 0, status: "downloading" });
@@ -111,7 +58,7 @@ export default function MusicDownloadScreen() {
           completed++;
           updateDownload(dlKey, { progress: completed / 20, title: `${completed} tracks` });
         },
-        onError: () => {},
+        onError: () => { },
       });
       const album = {
         id: `album-${item.browseId}`,
@@ -142,7 +89,7 @@ export default function MusicDownloadScreen() {
           completed++;
           updateDownload(dlKey, { progress: completed / 50, title: `${completed} tracks` });
         },
-        onError: () => {},
+        onError: () => { },
       });
       const album = {
         id: `pl-${item.browseId}`,
@@ -259,8 +206,8 @@ export default function MusicDownloadScreen() {
                   className={`w-9 h-9 rounded-full items-center justify-center ${isDone ? "bg-success/10" : isDl ? "border-2 border-black" : "bg-black"}`}
                 >
                   {isDl ? <Text className="text-[10px] font-bold">{Math.round(dl.progress * 100)}%</Text>
-                  : isDone ? <Feather name="check" size={16} color="#2fbf71" />
-                  : <Feather name="download" size={16} color="#fff" />}
+                    : isDone ? <Feather name="check" size={16} color="#2fbf71" />
+                      : <Feather name="download" size={16} color="#fff" />}
                 </TouchableOpacity>
               </TouchableOpacity>
             );
@@ -295,8 +242,8 @@ export default function MusicDownloadScreen() {
                   className={`w-9 h-9 rounded-full items-center justify-center ${isDone ? "bg-success/10" : isDl ? "border-2 border-black" : "bg-black"}`}
                 >
                   {isDl ? <Text className="text-[10px] font-bold">{Math.round(dl.progress * 100)}%</Text>
-                  : isDone ? <Feather name="check" size={16} color="#2fbf71" />
-                  : <Feather name="download" size={16} color="#fff" />}
+                    : isDone ? <Feather name="check" size={16} color="#2fbf71" />
+                      : <Feather name="download" size={16} color="#fff" />}
                 </TouchableOpacity>
               </TouchableOpacity>
             );
@@ -329,7 +276,7 @@ export default function MusicDownloadScreen() {
   }, []);
 
   return (
-    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
+    <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">

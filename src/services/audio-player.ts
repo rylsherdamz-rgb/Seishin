@@ -132,7 +132,7 @@ class AudioPlayerService {
     if (this.player && typeof (this.player as any).setPlaybackRate === "function") {
       (this.player as any).setPlaybackRate(rate);
     } else if (this.player) {
-      try { (this.player as any).playbackRate = rate; } catch {}
+      try { (this.player as any).playbackRate = rate; } catch { console.warn("[audio] setPlaybackRate failed"); }
     }
   }
 

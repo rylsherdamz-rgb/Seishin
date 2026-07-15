@@ -1,7 +1,7 @@
 import { Innertube } from "youtubei.js";
 import { setupPlatformEvaluator } from "./evaluator";
 import { getDocumentAsync } from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import { Paths, File } from "expo-file-system";
 import OpenAI from "openai";
 import { useSettingsStore } from "@/stores/settings-store";
 import { isModelLoaded, generateResponse } from "./local-llama";
@@ -216,7 +216,7 @@ export async function summarizeTranscript(
       });
       const summary = res.choices?.[0]?.message?.content?.trim() || "";
       if (summary) return summary;
-    } catch {}
+    } catch { console.warn("[summary] NIM summary generation failed"); }
   }
 
   if (isModelLoaded()) {
@@ -224,7 +224,7 @@ export async function summarizeTranscript(
       const prompt = `${SUMMARY_SYSTEM_PROMPT}\n\n${transcript}\n\nNow produce the summary:`;
       const result = await generateResponse(prompt);
       if (result.trim()) return result.trim();
-    } catch {}
+    } catch { console.warn("[summary] local model summarization failed"); }
   }
 
   return buildSummaryText(videoInfo, segments);
@@ -234,8 +234,8 @@ export async function downloadThumbnail(videoInfo: VideoInfo): Promise<string | 
   if (!videoInfo.thumbnailUrl) return null;
   try {
     const ext = videoInfo.thumbnailUrl.match(/\.(jpg|jpeg|png|webp)/i)?.[1] || "jpg";
-    const dest = `${FileSystem.cacheDirectory}yt-thumb-${videoInfo.videoId}.${ext}`;
-    const result = await FileSystem.downloadAsync(videoInfo.thumbnailUrl, dest);
+    const result = await File.downloadFileAsync(videoInfo.thumbnailUrl, new File(Paths.cache, `yt-thumb-${videoInfo.videoId}.${ext}`));
+    return result.uri || null;
     return result.uri;
   } catch {
     return null;
