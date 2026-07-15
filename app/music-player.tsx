@@ -50,7 +50,7 @@ export default function MusicPlayerScreen() {
   const [showQueue, setShowQueue] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragX, setDragX] = useState(0);
-  const lyricsScrollRef = useRef<FlatList<any>>(null);
+  const lyricsScrollRef = useRef<ScrollView>(null);
 
   const panResponder = useMemo(
     () =>
@@ -104,22 +104,9 @@ export default function MusicPlayerScreen() {
 
   useEffect(() => {
     if (showLyrics && currentLyricIndex >= 0 && lyricsScrollRef.current) {
-      lyricsScrollRef.current.scrollToIndex({ index: Math.max(0, currentLyricIndex - 1), animated: false, viewPosition: 0.5 });
+      lyricsScrollRef.current.scrollTo({ y: Math.max(0, (currentLyricIndex - 1) * 36), animated: false });
     }
   }, [currentLyricIndex, showLyrics]);
-
-  const renderLyricsItem = useCallback(({ item: line, index }: { item: { time: number; text: string }; index: number }) => {
-    const isCurrent = index === currentLyricIndex;
-    return (
-      <Text
-        className={`text-center py-2 leading-7 ${
-          isCurrent ? "text-xl font-bold text-black" : "text-base text-ink-400"
-        }`}
-      >
-        {line.text || "♪"}
-      </Text>
-    );
-  }, [currentLyricIndex]);
 
   const handleToggleQueue = useCallback(() => setShowQueue((v) => !v), []);
   const handleToggleLyrics = useCallback(() => setShowLyrics((v) => !v), []);
@@ -215,21 +202,30 @@ export default function MusicPlayerScreen() {
               />
             </View>
           ) : nowLyrics ? (
-            <FlatList
+            <ScrollView
                 ref={lyricsScrollRef}
-                data={currentTrackLyrics}
-                keyExtractor={(_, i) => String(i)}
                 className="flex-1 mt-4 px-6"
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingVertical: 20 }}
-                renderItem={renderLyricsItem}
-                ListEmptyComponent={
+              >
+                {currentTrackLyrics.length === 0 ? (
                   <View className="items-center py-16">
                     <Feather name="file-text" size={32} color="#ccc" />
                     <Text className="text-ink-400 mt-2">No lyrics available</Text>
                   </View>
-                }
-              />
+                ) : (
+                  currentTrackLyrics.map((line, index) => (
+                    <Text
+                      key={index}
+                      className={`text-center py-2 leading-7 ${
+                        index === currentLyricIndex ? "text-xl font-bold text-black" : "text-base text-ink-400"
+                      }`}
+                    >
+                      {line.text || "♪"}
+                    </Text>
+                  ))
+                )}
+              </ScrollView>
           ) : null}
         </View>
       ) : (
