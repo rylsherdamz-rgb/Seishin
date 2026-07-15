@@ -215,14 +215,22 @@ export default function MusicPlayerScreen() {
               />
             </View>
           ) : nowLyrics ? (
-            <View className="flex-1 px-6 mt-4">
-              <FlatList
+            <FlatList
                 ref={lyricsScrollRef}
                 data={currentTrackLyrics}
                 keyExtractor={(_, i) => String(i)}
+                className="flex-1 mt-4 px-6"
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingVertical: 20 }}
                 renderItem={renderLyricsItem}
+                removeClippedSubviews
+                maxToRenderPerBatch={15}
+                windowSize={15}
+                onScrollToIndexFailed={(info) => {
+                  setTimeout(() => {
+                    lyricsScrollRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0.5 });
+                  }, 100);
+                }}
                 ListEmptyComponent={
                   <View className="items-center py-16">
                     <Feather name="file-text" size={32} color="#ccc" />
@@ -230,7 +238,6 @@ export default function MusicPlayerScreen() {
                   </View>
                 }
               />
-            </View>
           ) : null}
         </View>
       ) : (
