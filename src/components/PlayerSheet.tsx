@@ -1,12 +1,6 @@
 import { useCallback, useRef, useMemo, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  Dimensions,
-  FlatList,
-  PanResponder,
+  View, Text, Image, TouchableOpacity, Dimensions, FlatList, PanResponder,
 } from "react-native";
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useMusicStore } from "@/stores/music-store";
@@ -42,8 +36,14 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
   const isPlaying = useMusicStore((s) => s.isPlaying);
   const position = useMusicStore((s) => s.position);
   const duration = useMusicStore((s) => s.duration);
+  const favorites = useMusicStore((s) => s.favorites);
+  const repeat = useMusicStore((s) => s.repeat);
+  const shuffle = useMusicStore((s) => s.shuffle);
   const setCurrentTrackIndex = useMusicStore((s) => s.setCurrentTrackIndex);
   const setPosition = useMusicStore((s) => s.setPosition);
+  const toggleFavorite = useMusicStore((s) => s.toggleFavorite);
+  const setRepeat = useMusicStore((s) => s.setRepeat);
+  const setShuffle = useMusicStore((s) => s.setShuffle);
   const { initialize, loadCurrentTrack, play, pause, seek, next, previous, currentTrack } = useAudioPlayer();
   const loadedAlbumRef = useRef<string | null>(null);
   const loadedIndexRef = useRef<number>(-1);
@@ -151,6 +151,26 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
     </Text>
   ), [currentLyricIndex]);
 
+  const isFav = currentTrack ? favorites.includes(currentTrack.id) : false;
+
+  const cycleRepeat = useCallback(() => {
+    const modes: ("off" | "all" | "one")[] = ["off", "all", "one"];
+    const idx = modes.indexOf(repeat);
+    setRepeat(modes[(idx + 1) % modes.length]);
+  }, [repeat, setRepeat]);
+
+  const handleToggleShuffle = useCallback(() => {
+    setShuffle(!shuffle);
+  }, [shuffle, setShuffle]);
+
+  const handleToggleFav = useCallback(() => {
+    if (currentTrack) toggleFavorite(currentTrack.id);
+  }, [currentTrack, toggleFavorite]);
+
+  const repeatIcon = repeat === "one" ? "repeat-1" : "repeat";
+  const repeatColor = repeat !== "off" ? "#000" : "#999";
+  const shuffleColor = shuffle ? "#000" : "#999";
+
   if (!currentAlbum) return null;
 
   return (
@@ -175,6 +195,7 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
         {!showLyrics && !showQueue && (
           <View className="items-center mt-2">
             <Image
+              key={currentTrackIndex}
               source={{ uri: currentAlbum.coverUri || track?.coverUri || "https://via.placeholder.com/300" }}
               style={{ width: COVER_SIZE, height: COVER_SIZE, borderRadius: 20 }}
               resizeMode="cover"
@@ -228,35 +249,35 @@ export function PlayerSheet({ visible, onClose }: PlayerSheetProps) {
             </View>
 
             <View className="flex-row items-center justify-center px-4 mt-4" style={{ gap: 28 }}>
-              <TouchableOpacity><Feather name="shuffle" size={18} color="#999" /></TouchableOpacity>
+              <TouchableOpacity onPress={handleToggleShuffle}>
+                <Feather name="shuffle" size={18} color={shuffleColor} />
+              </TouchableOpacity>
               <TouchableOpacity onPress={previous} className="w-10 h-10 items-center justify-center">
                 <Feather name="skip-back" size={22} color="#000" />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={isPlaying ? pause : play}
-                className="w-16 h-16 bg-black rounded-full items-center justify-center elevation-lg"
-                style={{ shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 }}
+                className="w-16 h-16 bg-black rounded-full items-center justify-center shadow-float"
               >
                 <Feather name={isPlaying ? "pause" : "play"} size={28} color="#fff" />
               </TouchableOpacity>
               <TouchableOpacity onPress={next} className="w-10 h-10 items-center justify-center">
                 <Feather name="skip-forward" size={22} color="#000" />
               </TouchableOpacity>
-              <TouchableOpacity><Feather name="repeat" size={18} color="#999" /></TouchableOpacity>
+              <TouchableOpacity onPress={cycleRepeat}>
+                <Feather name={repeatIcon} size={18} color={repeatColor} />
+              </TouchableOpacity>
             </View>
 
             <View className="flex-row items-center justify-around px-4 mt-4 pb-2">
+              <TouchableOpacity onPress={handleToggleFav} className="items-center" style={{ width: 56 }}>
+                <Feather name="heart" size={20} color={isFav ? "#ff3b30" : "#999"} />
+              </TouchableOpacity>
               <TouchableOpacity onPress={toggleQueue} className="items-center" style={{ width: 56 }}>
                 <Feather name="list" size={20} color={showQueue ? "#000" : "#999"} />
               </TouchableOpacity>
               <TouchableOpacity onPress={toggleLyrics} className="items-center" style={{ width: 56 }}>
                 <Feather name="file-text" size={20} color={showLyrics ? "#000" : "#999"} />
-              </TouchableOpacity>
-              <TouchableOpacity className="items-center" style={{ width: 56 }}>
-                <Feather name="heart" size={20} color="#999" />
-              </TouchableOpacity>
-              <TouchableOpacity className="items-center" style={{ width: 56 }}>
-                <Feather name="share-2" size={20} color="#999" />
               </TouchableOpacity>
             </View>
           </>

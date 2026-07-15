@@ -1,13 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  ScrollView,
-  PanResponder,
-  Dimensions,
-  FlatList,
+  View, Text, Image, TouchableOpacity, ScrollView, PanResponder, Dimensions, FlatList,
 } from "react-native";
 import { Stack, router } from "expo-router";
 import { useMusicStore } from "@/stores/music-store";
@@ -17,7 +10,6 @@ import Feather from "@expo/vector-icons/Feather";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const COVER_SIZE = SCREEN_WIDTH - 64;
-const PROGRESS_BAR_HEIGHT = 48;
 
 const formatTime = (ms: number) => {
   if (!ms || isNaN(ms)) return "0:00";
@@ -39,10 +31,14 @@ export default function MusicPlayerScreen() {
   const isPlaying = useMusicStore((s) => s.isPlaying);
   const position = useMusicStore((s) => s.position);
   const duration = useMusicStore((s) => s.duration);
+  const favorites = useMusicStore((s) => s.favorites);
+  const repeat = useMusicStore((s) => s.repeat);
+  const shuffle = useMusicStore((s) => s.shuffle);
   const setCurrentTrackIndex = useMusicStore((s) => s.setCurrentTrackIndex);
   const setPosition = useMusicStore((s) => s.setPosition);
-  const playNext = useMusicStore((s) => s.playNext);
-  const playPrevious = useMusicStore((s) => s.playPrevious);
+  const toggleFavorite = useMusicStore((s) => s.toggleFavorite);
+  const setRepeat = useMusicStore((s) => s.setRepeat);
+  const setShuffle = useMusicStore((s) => s.setShuffle);
 
   const { initialize, loadCurrentTrack, play, pause, seek, next, previous, currentTrack } =
     useAudioPlayer();
@@ -156,6 +152,22 @@ export default function MusicPlayerScreen() {
     );
   }, [currentTrackIndex, currentAlbum?.coverUri, setCurrentTrackIndex, loadCurrentTrack, play]);
 
+  const isFav = currentTrack ? favorites.includes(currentTrack.id) : false;
+
+  const cycleRepeat = useCallback(() => {
+    const modes: ("off" | "all" | "one")[] = ["off", "all", "one"];
+    const idx = modes.indexOf(repeat);
+    setRepeat(modes[(idx + 1) % modes.length]);
+  }, [repeat, setRepeat]);
+
+  const handleToggleShuffle = useCallback(() => {
+    setShuffle(!shuffle);
+  }, [shuffle, setShuffle]);
+
+  const handleToggleFav = useCallback(() => {
+    if (currentTrack) toggleFavorite(currentTrack.id);
+  }, [currentTrack, toggleFavorite]);
+
   if (!currentAlbum) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
@@ -172,6 +184,10 @@ export default function MusicPlayerScreen() {
 
   const nowLyrics = showLyrics && currentTrackLyrics;
 
+  const repeatIcon = repeat === "one" ? "repeat-1" : "repeat";
+  const repeatColor = repeat !== "off" ? "#000" : "#999";
+  const shuffleColor = shuffle ? "#000" : "#999";
+
   return (
     <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
@@ -181,53 +197,54 @@ export default function MusicPlayerScreen() {
           <Feather name="chevron-down" size={24} color="#000" />
         </TouchableOpacity>
         <Text className="text-xs font-semibold text-ink-400 uppercase tracking-widest">Now Playing</Text>
-        <TouchableOpacity className="w-10 h-10 rounded-full items-center justify-center">
-          <Feather name="more-horizontal" size={22} color="#000" />
-        </TouchableOpacity>
+        <View className="w-10 h-10" />
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerClassName="pb-10">
-        {!nowLyrics && !showQueue && (
+      {showLyrics || showQueue ? (
+        <View className="flex-1">
+          {showQueue ? (
+            <View className="px-4 mt-4 flex-1">
+              <Text className="text-lg font-bold text-black mb-3">Queue</Text>
+              <FlatList
+                data={currentAlbum.tracks}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                removeClippedSubviews
+                maxToRenderPerBatch={10}
+                windowSize={10}
+                renderItem={renderQueueTrack}
+              />
+            </View>
+          ) : nowLyrics ? (
+            <View className="flex-1 px-6 mt-4">
+              <FlatList
+                ref={lyricsScrollRef}
+                data={currentTrackLyrics}
+                keyExtractor={(_, i) => String(i)}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingVertical: 20 }}
+                renderItem={renderLyricsItem}
+                ListEmptyComponent={
+                  <View className="items-center py-16">
+                    <Feather name="file-text" size={32} color="#ccc" />
+                    <Text className="text-ink-400 mt-2">No lyrics available</Text>
+                  </View>
+                }
+              />
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerClassName="pb-10">
           <View className="items-center px-8 mt-2">
             <Image
-              source={{ uri: currentAlbum.coverUri || track?.coverUri || "https://via.placeholder.com/300" }}
+              key={currentTrackIndex}
+              source={{ uri: track?.coverUri || currentAlbum.coverUri || "https://via.placeholder.com/300" }}
               style={{ width: COVER_SIZE, height: COVER_SIZE, borderRadius: 20 }}
               resizeMode="cover"
             />
           </View>
-        )}
 
-        {showQueue ? (
-          <View className="px-4 mt-4 flex-1">
-            <Text className="text-lg font-bold text-black mb-3">Queue</Text>
-            <FlatList
-              data={currentAlbum.tracks}
-              keyExtractor={(item) => item.id}
-              showsVerticalScrollIndicator={false}
-              removeClippedSubviews
-              maxToRenderPerBatch={10}
-              windowSize={10}
-              renderItem={renderQueueTrack}
-            />
-          </View>
-        ) : nowLyrics ? (
-          <View className="flex-1 px-6 mt-4" style={{ minHeight: COVER_SIZE }}>
-            <FlatList
-              ref={lyricsScrollRef}
-              data={currentTrackLyrics}
-              keyExtractor={(_, i) => String(i)}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ paddingVertical: 20 }}
-              renderItem={renderLyricsItem}
-              ListEmptyComponent={
-                <View className="items-center py-16">
-                  <Feather name="file-text" size={32} color="#ccc" />
-                  <Text className="text-ink-400 mt-2">No lyrics available</Text>
-                </View>
-              }
-            />
-          </View>
-        ) : (
           <View className="px-8 mt-6 items-center">
             <Text className="text-xl font-bold text-black text-center" numberOfLines={2}>
               {track?.title || currentAlbum.title}
@@ -237,55 +254,48 @@ export default function MusicPlayerScreen() {
               {currentAlbum.title} · Track {currentTrackIndex + 1} of {currentAlbum.trackCount}
             </Text>
           </View>
-        )}
 
-        {!showQueue && (
-          <>
-            <View className="px-6 mt-6" style={{ height: PROGRESS_BAR_HEIGHT }}>
-              <View
-                className="flex-row items-center gap-3"
-                {...panResponder.panHandlers}
-              >
-                <Text className="text-xs text-ink-400 tabular-nums w-10 text-right">{formatTime(displayMs)}</Text>
-                <View className="flex-1 h-1.5 bg-ink-100 rounded-full relative justify-center">
-                  <View className="h-full bg-black rounded-full" style={{ width: `${pct}%` }} />
-                  <View
-                    className="absolute w-3.5 h-3.5 bg-black rounded-full"
-                    style={{ left: `${pct}%`, marginLeft: -7 }}
-                  />
-                </View>
-                <Text className="text-xs text-ink-400 tabular-nums w-10">{formatTime(duration)}</Text>
+          <View className="px-6 mt-6" style={{ height: 48 }}>
+            <View className="flex-row items-center gap-3" {...panResponder.panHandlers}>
+              <Text className="text-xs text-ink-400 tabular-nums w-10 text-right">{formatTime(displayMs)}</Text>
+              <View className="flex-1 h-1.5 bg-ink-100 rounded-full relative justify-center">
+                <View className="h-full bg-black rounded-full" style={{ width: `${pct}%` }} />
+                <View
+                  className="absolute w-3.5 h-3.5 bg-black rounded-full"
+                  style={{ left: `${pct}%`, marginLeft: -7 }}
+                />
               </View>
+              <Text className="text-xs text-ink-400 tabular-nums w-10">{formatTime(duration)}</Text>
             </View>
+          </View>
 
-            <View className="flex-row items-center justify-center px-8 mt-4 gap-8">
-              <TouchableOpacity activeOpacity={0.5}>
-                <Feather name="shuffle" size={18} color="#999" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={previous} className="w-12 h-12 items-center justify-center">
-                <Feather name="skip-back" size={24} color="#000" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={isPlaying ? pause : play}
-                className="w-20 h-20 bg-black rounded-full items-center justify-center shadow-float"
-              >
-                <Feather name={isPlaying ? "pause" : "play"} size={32} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity                 onPress={next} className="w-12 h-12 items-center justify-center">
-                <Feather name="skip-forward" size={24} color="#000" />
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.5}>
-                <Feather name="repeat" size={18} color="#999" />
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-      </ScrollView>
+          <View className="flex-row items-center justify-center px-8 mt-4 gap-8">
+            <TouchableOpacity onPress={handleToggleShuffle} activeOpacity={0.5}>
+              <Feather name="shuffle" size={18} color={shuffleColor} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={previous} className="w-12 h-12 items-center justify-center">
+              <Feather name="skip-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={isPlaying ? pause : play}
+              className="w-20 h-20 bg-black rounded-full items-center justify-center shadow-float"
+            >
+              <Feather name={isPlaying ? "pause" : "play"} size={32} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={next} className="w-12 h-12 items-center justify-center">
+              <Feather name="skip-forward" size={24} color="#000" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={cycleRepeat} activeOpacity={0.5}>
+              <Feather name={repeatIcon} size={18} color={repeatColor} />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      )}
 
       {!showQueue && (
         <View className="px-8 pb-6 pt-2 flex-row items-center justify-between border-t border-ink-50">
-          <TouchableOpacity activeOpacity={0.5} className="items-center" style={{ width: 60 }}>
-            <Feather name="heart" size={20} color="#999" />
+          <TouchableOpacity onPress={handleToggleFav} activeOpacity={0.5} className="items-center" style={{ width: 60 }}>
+            <Feather name={isFav ? "heart" : "heart"} size={20} color={isFav ? "#ff3b30" : "#999"} />
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.5}
@@ -302,9 +312,6 @@ export default function MusicPlayerScreen() {
             style={{ width: 60 }}
           >
             <Feather name="file-text" size={20} color={showLyrics ? "#000" : "#999"} />
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.5} className="items-center" style={{ width: 60 }}>
-            <Feather name="share-2" size={20} color="#999" />
           </TouchableOpacity>
         </View>
       )}

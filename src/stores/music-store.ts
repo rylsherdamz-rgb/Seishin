@@ -44,6 +44,9 @@ interface MusicState {
   position: number;
   duration: number;
   downloads: DownloadItem[];
+  favorites: string[];
+  repeat: "off" | "all" | "one";
+  shuffle: boolean;
 
   loadAlbums: () => void;
   addAlbum: (album: Album) => void;
@@ -56,6 +59,10 @@ interface MusicState {
   setDuration: (duration: number) => void;
   playNext: () => void;
   playPrevious: () => void;
+  toggleFavorite: (trackId: string) => void;
+  isFavorite: (trackId: string) => boolean;
+  setRepeat: (mode: "off" | "all" | "one") => void;
+  setShuffle: (enabled: boolean) => void;
   clearAll: () => void;
   addDownload: (item: DownloadItem) => void;
   updateDownload: (id: string, update: Partial<DownloadItem>) => void;
@@ -70,6 +77,9 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   position: 0,
   duration: 0,
   downloads: [],
+  favorites: [],
+  repeat: "off",
+  shuffle: false,
 
   loadAlbums: () => {
     const keys = musicStorage.getAllKeys();
@@ -124,17 +134,52 @@ export const useMusicStore = create<MusicState>((set, get) => ({
   },
 
   playNext: () => {
-    const { currentAlbum, currentTrackIndex } = get();
-    if (currentAlbum && currentTrackIndex < currentAlbum.tracks.length - 1) {
+    const { currentAlbum, currentTrackIndex, repeat, shuffle } = get();
+    if (!currentAlbum) return;
+    if (repeat === "one") {
+      set({ position: 0 });
+      return;
+    }
+    if (shuffle) {
+      const next = Math.floor(Math.random() * currentAlbum.tracks.length);
+      set({ currentTrackIndex: next, position: 0 });
+      return;
+    }
+    if (currentTrackIndex < currentAlbum.tracks.length - 1) {
       set({ currentTrackIndex: currentTrackIndex + 1, position: 0 });
+    } else if (repeat === "all") {
+      set({ currentTrackIndex: 0, position: 0 });
     }
   },
 
   playPrevious: () => {
-    const { currentTrackIndex } = get();
+    const { currentTrackIndex, currentAlbum, repeat } = get();
+    if (!currentAlbum) return;
     if (currentTrackIndex > 0) {
       set({ currentTrackIndex: currentTrackIndex - 1, position: 0 });
+    } else if (repeat === "all") {
+      set({ currentTrackIndex: currentAlbum.tracks.length - 1, position: 0 });
     }
+  },
+
+  toggleFavorite: (trackId) => {
+    set((state) => ({
+      favorites: state.favorites.includes(trackId)
+        ? state.favorites.filter((id) => id !== trackId)
+        : [...state.favorites, trackId],
+    }));
+  },
+
+  isFavorite: (trackId) => {
+    return get().favorites.includes(trackId);
+  },
+
+  setRepeat: (mode) => {
+    set({ repeat: mode });
+  },
+
+  setShuffle: (enabled) => {
+    set({ shuffle: enabled });
   },
 
   addDownload: (item) => {

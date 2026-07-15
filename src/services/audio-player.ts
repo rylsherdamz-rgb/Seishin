@@ -86,16 +86,35 @@ class AudioPlayerService {
   private async playFollowingTrack() {
     const store = useMusicStore.getState();
     const album = store.currentAlbum;
-    if (!album || store.currentTrackIndex >= album.tracks.length - 1) {
-      store.setPlaying(false);
+    if (!album) { store.setPlaying(false); return; }
+
+    if (store.repeat === "one") {
+      store.setPosition(0);
+      this.seekTo(0);
+      this.play();
       return;
     }
 
-    store.playNext();
+    if (store.shuffle) {
+      const next = Math.floor(Math.random() * album.tracks.length);
+      store.setCurrentTrackIndex(next);
+    } else {
+      if (store.currentTrackIndex >= album.tracks.length - 1) {
+        if (store.repeat === "all") {
+          store.setCurrentTrackIndex(0);
+        } else {
+          store.setPlaying(false);
+          return;
+        }
+      } else {
+        store.playNext();
+      }
+    }
+
     const state = useMusicStore.getState();
     const nextAlbum = state.currentAlbum;
     const nextTrack = nextAlbum?.tracks[state.currentTrackIndex];
-    if (!nextAlbum || !nextTrack) return;
+    if (!nextAlbum || !nextTrack) { store.setPlaying(false); return; }
 
     await this.loadTrack(nextTrack.audioUri, {
       title: nextTrack.title,
