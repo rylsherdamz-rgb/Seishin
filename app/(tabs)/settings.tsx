@@ -362,15 +362,6 @@ export default function SettingsScreen() {
             </Card>
           )}
 
-          <SectionHeader title="Music Download" />
-          <Card className="mb-4">
-            <View className="bg-ink-50 rounded-lg p-3">
-              <Text className="text-xs text-ink-500">
-                Search any song or paste a YouTube URL/playlist. Downloads full audio, cover art (per track), and lyrics — all from YouTube, no API keys needed.
-              </Text>
-            </View>
-          </Card>
-
           <SectionHeader title="Notifications" />
           <Card className="mb-4 p-0 overflow-hidden">
             <MenuRow

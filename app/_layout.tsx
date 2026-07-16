@@ -10,7 +10,6 @@ import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
-import { warmInnertube } from "@/services/music-download";
 
 
 const ONBOARDING_PAGES = [
@@ -140,7 +139,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (phase === "app") {
       router.replace("/(tabs)");
-      warmInnertube();
     }
   }, [phase]);
 
@@ -177,8 +175,6 @@ export default function RootLayout() {
               <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
-              <Stack.Screen name="music-download" options={{ animation: "slide_from_right" }} />
-              <Stack.Screen name="music-player" options={{ animation: "slide_from_bottom" }} />
             </Stack>
           </SafeAreaView>
         </SafeAreaProvider>
