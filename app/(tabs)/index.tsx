@@ -7,6 +7,7 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 
+import { router } from "expo-router";
 import { uid } from "@/utils/id";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Calendar, LocaleConfig } from "react-native-calendars";
@@ -205,8 +206,9 @@ export default function CalendarScreen() {
 
   const [sheetItem, setSheetItem] = useState<CalendarItem | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"menu" | "form">("menu");
   const eventSheetRef = useRef<BottomSheet>(null);
-  const eventSnapPoints = useMemo(() => ["45%"], []);
+  const eventSnapPoints = useMemo(() => sheetMode === "menu" ? ["38%"] : ["55%"], [sheetMode]);
   const [eventTitle, setEventTitle] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
@@ -260,6 +262,7 @@ export default function CalendarScreen() {
     const d = new Date(day.dateString + "T00:00:00");
     setEventDate(d);
     setSelectedDate(day.dateString);
+    setSheetMode("form");
     setShowModal(true);
   }, [setSelectedDate]);
 
@@ -354,7 +357,7 @@ export default function CalendarScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={() => { resetForm(); setShowModal(true); }}
+          onPress={() => { resetForm(); setSheetMode("menu"); setShowModal(true); }}
           activeOpacity={0.85}
           className="w-11 h-11 bg-black rounded-full items-center justify-center shadow-raised"
         >
@@ -482,79 +485,127 @@ export default function CalendarScreen() {
           enablePanDownToClose
           index={showModal ? 0 : -1}
           backgroundStyle={{ backgroundColor: "#ffffff" }}
-          onChange={(index: number) => { if (index === -1) setShowModal(false); }}
+          onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); } }}
         >
-          <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}>
-            <View className="flex-row justify-between items-center mb-5">
-              <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
-                <Feather name="x" size={16} color="#666666" />
-              </TouchableOpacity>
-            </View>
+          <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 }}>
+            {sheetMode === "menu" ? (
+              <>
+                <View className="flex-row justify-between items-center mb-4">
+                  <Text className="text-lg font-semibold tracking-tightest text-black">Add to Calendar</Text>
+                  <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="x" size={16} color="#666666" />
+                  </TouchableOpacity>
+                </View>
 
-            <Text className="text-xs font-medium text-ink-400 mb-1.5">Title</Text>
-            <TextInput
-              className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
-              placeholder="Event title"
-              placeholderTextColor="#999999"
-              value={eventTitle}
-              onChangeText={setEventTitle}
-            />
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
+                  onPress={() => { resetForm(); setSheetMode("form"); }}
+                >
+                  <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
+                    <Feather name="calendar" size={16} color="#ffffff" />
+                  </View>
+                  <Text className="text-sm font-medium text-black">Add Event</Text>
+                </TouchableOpacity>
 
-            <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
-            >
-              <Feather name="calendar" size={14} color="#666666" />
-              <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
+                  onPress={() => { setShowModal(false); router.push("/todo"); }}
+                >
+                  <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="check-square" size={16} color="#000000" />
+                  </View>
+                  <Text className="text-sm font-medium text-black">Add Todo</Text>
+                </TouchableOpacity>
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={eventDate}
-                mode="date"
-                onChange={onDateChange}
-              />
+                <TouchableOpacity
+                  className="flex-row items-center gap-3 py-3.5"
+                  onPress={() => { setShowModal(false); router.push("/note"); }}
+                >
+                  <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="file-text" size={16} color="#000000" />
+                  </View>
+                  <Text className="text-sm font-medium text-black">New Note</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View className="flex-row justify-between items-center mb-5">
+                  <View className="flex-row items-center gap-2">
+                    <TouchableOpacity onPress={() => setSheetMode("menu")} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                      <Feather name="chevron-left" size={16} color="#666666" />
+                    </TouchableOpacity>
+                    <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="x" size={16} color="#666666" />
+                  </TouchableOpacity>
+                </View>
+
+                <Text className="text-xs font-medium text-ink-400 mb-1.5">Title</Text>
+                <TextInput
+                  className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
+                  placeholder="Event title"
+                  placeholderTextColor="#999999"
+                  value={eventTitle}
+                  onChangeText={setEventTitle}
+                />
+
+                <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
+                >
+                  <Feather name="calendar" size={14} color="#666666" />
+                  <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={eventDate}
+                    mode="date"
+                    onChange={onDateChange}
+                  />
+                )}
+
+                <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
+                <TouchableOpacity
+                  onPress={() => setShowTimePicker(true)}
+                  className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
+                >
+                  <Feather name="clock" size={14} color="#666666" />
+                  <Text className="text-sm text-black ml-2">
+                    {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </Text>
+                </TouchableOpacity>
+
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={eventTime}
+                    mode="time"
+                    onChange={onTimeChange}
+                  />
+                )}
+
+                <Text className="text-xs font-medium text-ink-400 mb-1.5">Notes</Text>
+                <TextInput
+                  className="min-h-[72px] bg-ink-50 rounded-xl px-4 py-3 text-sm text-black mb-6"
+                  placeholder="Add notes for this event"
+                  placeholderTextColor="#999999"
+                  value={eventNotes}
+                  onChangeText={setEventNotes}
+                  multiline
+                  textAlignVertical="top"
+                />
+
+                <TouchableOpacity
+                  onPress={saveEvent}
+                  activeOpacity={0.85}
+                  className="bg-black h-12 rounded-xl items-center justify-center shadow-raised"
+                >
+                  <Text className="text-white text-base font-semibold">Save Event</Text>
+                </TouchableOpacity>
+              </>
             )}
-
-            <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
-            <TouchableOpacity
-              onPress={() => setShowTimePicker(true)}
-              className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
-            >
-              <Feather name="clock" size={14} color="#666666" />
-              <Text className="text-sm text-black ml-2">
-                {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </Text>
-            </TouchableOpacity>
-
-            {showTimePicker && (
-              <DateTimePicker
-                value={eventTime}
-                mode="time"
-                onChange={onTimeChange}
-              />
-            )}
-
-            <Text className="text-xs font-medium text-ink-400 mb-1.5">Notes</Text>
-            <TextInput
-              className="min-h-[72px] bg-ink-50 rounded-xl px-4 py-3 text-sm text-black mb-6"
-              placeholder="Add notes for this event"
-              placeholderTextColor="#999999"
-              value={eventNotes}
-              onChangeText={setEventNotes}
-              multiline
-              textAlignVertical="top"
-            />
-
-            <TouchableOpacity
-              onPress={saveEvent}
-              activeOpacity={0.85}
-              className="bg-black h-12 rounded-xl items-center justify-center shadow-raised"
-            >
-              <Text className="text-white text-base font-semibold">Save Event</Text>
-            </TouchableOpacity>
           </BottomSheetView>
         </BottomSheet>
       <SheetModal
