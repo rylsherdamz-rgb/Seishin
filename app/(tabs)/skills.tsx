@@ -1,72 +1,68 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
-  ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, FlatList,
+  ScrollView, ActivityIndicator,
 } from "react-native";
-import { fetchAllSkills, fetchSkillsByCategory, fetchCategories, NPXSkill } from "@/services/npxskills";
-import { addCustomSkill, getSkills, Skill } from "@/services/skills";
+import { fetchCategories, fetchSkillBatch, NPXSkill } from "@/services/npxskills";
+import { addCustomSkill, getSkills } from "@/services/skills";
 import Feather from "@expo/vector-icons/Feather";
+
+const PAGE_SIZE = 5;
 
 export default function SkillsScreen() {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [skills, setSkills] = useState<NPXSkill[]>([]);
-  const [allSkills, setAllSkills] = useState<NPXSkill[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingCat, setLoadingCat] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalInCategory, setTotalInCategory] = useState(0);
   const [search, setSearch] = useState("");
   const [installing, setInstalling] = useState<string | null>(null);
   const [localSkillIds, setLocalSkillIds] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const offsetRef = useRef(0);
 
   useEffect(() => {
     setLocalSkillIds(getSkills().map((s) => s.id));
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const cats = await fetchCategories();
-        setCategories(cats);
-        const all = await fetchAllSkills();
-        setAllSkills(all);
-        setSkills(all);
-      } catch {
-        // silently handle
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchCategories()
+      .then(setCategories)
+      .catch((e) => setError(e.message || "Could not load skills catalog"));
   }, []);
 
   const handleCategoryPress = useCallback(async (cat: string) => {
     if (selectedCategory === cat) {
       setSelectedCategory(null);
-      setSkills(allSkills);
+      setSkills([]);
       return;
     }
     setSelectedCategory(cat);
-    setLoading(true);
+    setSkills([]);
+    setError(null);
+    setLoadingCat(true);
+    offsetRef.current = 0;
     try {
-      const filtered = allSkills.filter((s) => s.category === cat);
-      if (filtered.length > 0) {
-        setSkills(filtered);
-      } else {
-        const fetched = await fetchSkillsByCategory(cat);
-        setSkills((prev) => {
-          const existingIds = new Set(prev.map((s) => s.id));
-          const newOnes = fetched.filter((s) => !existingIds.has(s.id));
-          return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
-        });
-        setAllSkills((prev) => {
-          const existingIds = new Set(prev.map((s) => s.id));
-          const newOnes = fetched.filter((s) => !existingIds.has(s.id));
-          return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
-        });
-        setSkills(fetched);
-      }
+      const { skills: batch, total } = await fetchSkillBatch(cat, 0, PAGE_SIZE);
+      setSkills(batch);
+      setTotalInCategory(total);
+      offsetRef.current = batch.length;
+    } catch (e: any) {
+      setError(e.message || "Failed to load skills");
     } finally {
-      setLoading(false);
+      setLoadingCat(false);
     }
-  }, [selectedCategory, allSkills]);
+  }, [selectedCategory]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!selectedCategory || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const { skills: batch } = await fetchSkillBatch(selectedCategory, offsetRef.current, PAGE_SIZE);
+      setSkills((prev) => [...prev, ...batch]);
+      offsetRef.current += batch.length;
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [selectedCategory, loadingMore]);
 
   const handleInstall = useCallback(async (skill: NPXSkill) => {
     setInstalling(skill.id);
@@ -93,6 +89,8 @@ export default function SkillsScreen() {
       s.category.toLowerCase().includes(q)
     );
   }, [search, skills]);
+
+  const hasMore = offsetRef.current < totalInCategory;
 
   const renderSkill = useCallback(({ item }: { item: NPXSkill }) => {
     const installed = localSkillIds.includes(`npx-${item.id}`);
@@ -172,7 +170,12 @@ export default function SkillsScreen() {
         </ScrollView>
       </View>
 
-      {loading ? (
+      {error ? (
+        <View className="flex-1 items-center justify-center px-8">
+          <Feather name="alert-circle" size={32} color="#ff3b30" />
+          <Text className="text-sm text-danger mt-3 text-center">{error}</Text>
+        </View>
+      ) : loadingCat ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="small" color="#000000" />
           <Text className="text-sm text-ink-400 mt-3">Loading skills...</Text>
@@ -181,7 +184,7 @@ export default function SkillsScreen() {
         <View className="flex-1 items-center justify-center px-8">
           <Feather name="search" size={32} color="#cccccc" />
           <Text className="text-sm text-ink-300 mt-3 text-center">
-            {search ? "No skills match your search" : "No skills available"}
+            {search ? "No skills match your search" : selectedCategory ? "No skills in this category" : "Select a category above"}
           </Text>
         </View>
       ) : (
@@ -191,6 +194,23 @@ export default function SkillsScreen() {
           contentContainerClassName="px-4 pb-8"
           showsVerticalScrollIndicator={false}
           renderItem={renderSkill}
+          ListFooterComponent={
+            hasMore ? (
+              <TouchableOpacity
+                onPress={handleLoadMore}
+                disabled={loadingMore}
+                className="bg-ink-100 rounded-xl py-3 items-center justify-center mt-2"
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color="#666666" />
+                ) : (
+                  <Text className="text-sm text-ink-600 font-medium">
+                    Load more ({totalInCategory - skills.length} remaining)
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null
+          }
         />
       )}
     </View>
