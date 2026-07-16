@@ -11,6 +11,7 @@ import { Logo } from "@/components/Logo";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
 import { Host } from "@expo/ui";
+import { useNotifications } from "@/services/notification-service";
 
 
 const ONBOARDING_PAGES = [
@@ -129,6 +130,7 @@ function SplashScreen() {
 export default function RootLayout() {
   const [phase, setPhase] = useState<"splash" | "loading" | "onboarding" | "app">("splash");
   const router = useRouter();
+  useNotifications();
 
   useEffect(() => {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");

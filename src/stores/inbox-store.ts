@@ -18,6 +18,8 @@ type InboxFilter = "all" | "notifications" | "emails" | "chats";
 interface InboxState {
   items: InboxItem[];
   filter: InboxFilter;
+  selectedIds: Set<string>;
+  selecting: boolean;
   loadItems: () => void;
   addItem: (item: InboxItem) => void;
   markRead: (id: string) => void;
@@ -25,6 +27,12 @@ interface InboxState {
   clearAll: () => void;
   setFilter: (filter: InboxFilter) => void;
   getUnreadCount: () => number;
+  toggleSelect: (id: string) => void;
+  selectAll: () => void;
+  clearSelection: () => void;
+  setSelecting: (v: boolean) => void;
+  deleteSelected: () => void;
+  markSelectedRead: () => void;
 }
 
 const INBOX_KEY = "inbox_items";
@@ -32,6 +40,8 @@ const INBOX_KEY = "inbox_items";
 export const useInboxStore = create<InboxState>((set, get) => ({
   items: [],
   filter: "all",
+  selectedIds: new Set(),
+  selecting: false,
 
   loadItems: () => {
     try {
@@ -41,7 +51,6 @@ export const useInboxStore = create<InboxState>((set, get) => ({
         if (Array.isArray(parsed)) set({ items: parsed });
       }
     } catch {
-      // ponytail: corrupted inbox data → reset to empty, no crash
       notificationsStorage.set(INBOX_KEY, JSON.stringify([]));
     }
   },
@@ -68,10 +77,42 @@ export const useInboxStore = create<InboxState>((set, get) => ({
 
   clearAll: () => {
     notificationsStorage.set(INBOX_KEY, JSON.stringify([]));
-    set({ items: [] });
+    set({ items: [], selectedIds: new Set(), selecting: false });
   },
 
   setFilter: (filter) => set({ filter }),
 
   getUnreadCount: () => get().items.filter((i) => !i.read).length,
+
+  toggleSelect: (id) => {
+    const selectedIds = new Set(get().selectedIds);
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else selectedIds.add(id);
+    set({ selectedIds });
+  },
+
+  selectAll: () => {
+    const all = get().items.map((i) => i.id);
+    set({ selectedIds: new Set(all) });
+  },
+
+  clearSelection: () => set({ selectedIds: new Set(), selecting: false }),
+
+  setSelecting: (v) => set({ selecting: v, selectedIds: new Set() }),
+
+  deleteSelected: () => {
+    const selected = get().selectedIds;
+    const items = get().items.filter((i) => !selected.has(i.id));
+    notificationsStorage.set(INBOX_KEY, JSON.stringify(items));
+    set({ items, selectedIds: new Set(), selecting: false });
+  },
+
+  markSelectedRead: () => {
+    const selected = get().selectedIds;
+    const items = get().items.map((i) =>
+      selected.has(i.id) ? { ...i, read: true } : i
+    );
+    notificationsStorage.set(INBOX_KEY, JSON.stringify(items));
+    set({ items, selectedIds: new Set(), selecting: false });
+  },
 }));

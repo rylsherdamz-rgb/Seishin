@@ -9,6 +9,7 @@ import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useInvitesStore } from "@/stores/invites-store";
+import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
 import { retrieveRelevantContext, retrieveRelevantMemory } from "./retriever";
 import { uid } from "@/utils/id";
@@ -193,6 +194,29 @@ function findByIdOrTitle<T extends { id: string; title: string }>(
   }
 
   return { error: `Provide an id or a title query to identify the ${label}.` };
+}
+
+class ListInboxTool extends BaseTool {
+  name = "list_inbox";
+  description = "List recent notifications/emails/chats in your inbox. Use this to see what notifications you've received.";
+  parameters = {
+    limit: { type: "number", description: "Max items to return (default 20)", optional: true },
+    unreadOnly: { type: "boolean", description: "Only show unread items", optional: true },
+  };
+
+  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+    const { items } = useInboxStore.getState();
+    const limit = (args.limit as number) || 20;
+    const unreadOnly = args.unreadOnly === true;
+    let filtered = [...items];
+    if (unreadOnly) filtered = filtered.filter((i) => !i.read);
+    filtered = filtered.slice(0, limit);
+    if (filtered.length === 0) return this.successResponse("Inbox is empty.");
+    const lines = filtered.map((i) =>
+      `- [${i.source}] ${i.title}${i.body ? ": " + i.body : ""} (${new Date(i.timestamp).toLocaleDateString()})${i.read ? "" : " [unread]"}`
+    );
+    return this.successResponse(lines.join("\n"));
+  }
 }
 
 class UpdateEventTool extends BaseTool {
@@ -580,6 +604,7 @@ export function createDefaultTools(): ToolCollection {
   return new ToolCollection(
     new AddEventTool(),
     new ListEventsTool(),
+    new ListInboxTool(),
     new UpdateEventTool(),
     new DeleteEventTool(),
     new AddTodoTool(),
@@ -643,6 +668,7 @@ Current date and time: ${dateStr} at ${timeStr}
 - add_event — calendar events, meetings, appointments, time-blocked activities.
 - list_events — read saved events (output includes each event's id).
 - list_todos — read saved tasks (output includes each todo's id; pass includeCompleted to see finished ones).
+- list_inbox — read recent notifications, emails, and chats. Useful when the user says "check my notifications" or "what's in my inbox".
 - update_event — edit an existing event.
 - delete_event — remove/cancel an event.
 - complete_todo — mark a todo done (or reopen with done:false).
@@ -965,7 +991,11 @@ export async function runAgentLoop(
 
     const ragContext = retrieveRelevantContext(userInput);
     const ragMemory = retrieveRelevantMemory(userInput);
-    const ragBlock = [ragContext, ragMemory].filter(Boolean).join("\n\n");
+    const { items: inboxItems } = useInboxStore.getState();
+    const inboxBlock = inboxItems.length > 0
+      ? `## Recent Inbox\n${inboxItems.slice(0, 5).map((i) => `- [${i.source}] ${i.title}${i.body ? ": " + i.body : ""} (${new Date(i.timestamp).toLocaleDateString()})${i.read ? "" : " [new]"}`).join("\n")}`
+      : "";
+    const ragBlock = [ragContext, ragMemory, inboxBlock].filter(Boolean).join("\n\n");
     const systemPrompt = ragBlock
       ? `${createSystemPrompt()}\n\n## Automatically Retrieved\n${ragBlock}`
       : createSystemPrompt();

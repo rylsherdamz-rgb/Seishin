@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Alert } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
+import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Card } from "@/components/ui/Card";
@@ -10,6 +11,7 @@ import { Chip } from "@/components/ui/Chip";
 import { IconButton } from "@/components/ui/IconButton";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import Feather from "@expo/vector-icons/Feather";
+import { uid } from "@/utils/id";
 
 const FILTERS = ["all", "notification", "email", "chat"] as const;
 const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
@@ -28,6 +30,15 @@ export default function NotesScreen() {
   const deleteItem = useInboxStore((s) => s.deleteItem);
   const clearAll = useInboxStore((s) => s.clearAll);
   const getUnreadCount = useInboxStore((s) => s.getUnreadCount);
+  const selectedIds = useInboxStore((s) => s.selectedIds);
+  const selecting = useInboxStore((s) => s.selecting);
+  const toggleSelect = useInboxStore((s) => s.toggleSelect);
+  const selectAll = useInboxStore((s) => s.selectAll);
+  const clearSelection = useInboxStore((s) => s.clearSelection);
+  const setSelecting = useInboxStore((s) => s.setSelecting);
+  const deleteSelected = useInboxStore((s) => s.deleteSelected);
+  const markSelectedRead = useInboxStore((s) => s.markSelectedRead);
+  const addMessage = useAgentStore((s) => s.addMessage);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [tab, setTab] = useState<"notes" | "inbox">("notes");
   const [localFilter, setLocalFilter] = useState<string>("all");
@@ -166,45 +177,59 @@ export default function NotesScreen() {
     );
   }, [renderCard]);
 
-  const renderInboxItem = useCallback(({ item }: { item: InboxItem }) => (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onLongPress={() => { setSheetItem(item); setShowItemSheet(true); }}
-      onPress={() => { if (!item.read) markRead(item.id); }}
-    >
-      <Card variant="elevated" className={`mb-2.5 ${!item.read ? "border-l-[3px] border-l-black" : ""}`}>
-        <View className="flex-row items-start gap-3">
-          <View className={`w-9 h-9 rounded-full items-center justify-center ${item.read ? "bg-ink-100" : "bg-black"}`}>
-            <Feather
-              name={typeIcons[item.type] || "bell"}
-              size={14}
-              color={item.read ? "#999999" : "#ffffff"}
-            />
-          </View>
-          <View className="flex-1">
-            <View className="flex-row items-center gap-2">
-              <Text
-                className={`text-sm flex-1 ${item.read ? "text-ink-500" : "text-black font-medium"}`}
-                numberOfLines={1}
-              >
-                {item.title}
-              </Text>
-              <Text className="text-xs text-ink-300">
-                {new Date(item.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-              </Text>
+  const renderInboxItem = useCallback(({ item }: { item: InboxItem }) => {
+    const checked = selectedIds.has(item.id);
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onLongPress={() => {
+          if (selecting) return;
+          setSheetItem(item); setShowItemSheet(true);
+        }}
+        onPress={() => {
+          if (selecting) { toggleSelect(item.id); return; }
+          if (!item.read) markRead(item.id);
+        }}
+      >
+        <Card variant="elevated" className={`mb-2.5 ${!item.read ? "border-l-[3px] border-l-black" : ""}`}>
+          <View className="flex-row items-start gap-3">
+            {selecting && (
+              <View className={`w-6 h-6 rounded-md border-2 items-center justify-center mt-1.5 ${checked ? "bg-black border-black" : "border-ink-300"}`}>
+                {checked && <Feather name="check" size={14} color="#ffffff" />}
+              </View>
+            )}
+            <View className={`w-9 h-9 rounded-full items-center justify-center ${item.read ? "bg-ink-100" : "bg-black"}`}>
+              <Feather
+                name={typeIcons[item.type] || "bell"}
+                size={14}
+                color={item.read ? "#999999" : "#ffffff"}
+              />
             </View>
-            <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={2}>
-              {item.body}
-            </Text>
-            <View className="flex-row items-center gap-1 mt-1.5">
-              <Feather name="at-sign" size={10} color="#cccccc" />
-              <Text className="text-xs text-ink-200">{item.source}</Text>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-2">
+                <Text
+                  className={`text-sm flex-1 ${item.read ? "text-ink-500" : "text-black font-medium"}`}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                <Text className="text-xs text-ink-300">
+                  {new Date(item.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </Text>
+              </View>
+              <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={2}>
+                {item.body}
+              </Text>
+              <View className="flex-row items-center gap-1 mt-1.5">
+                <Feather name="at-sign" size={10} color="#cccccc" />
+                <Text className="text-xs text-ink-200">{item.source}</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  ), [markRead]);
+        </Card>
+      </TouchableOpacity>
+    );
+  }, [markRead, selecting, selectedIds, toggleSelect]);
 
   const handleClearConfirm = useCallback(() => setShowClearConfirm(true), []);
 
@@ -234,9 +259,13 @@ export default function NotesScreen() {
             >
               <Feather name="plus" size={20} color="#ffffff" />
             </TouchableOpacity>
+          ) : selecting ? (
+            <TouchableOpacity onPress={() => setSelecting(false)}>
+              <Text className="text-sm font-medium text-ink-500">Cancel</Text>
+            </TouchableOpacity>
           ) : (
             items.length > 0 && (
-              <IconButton icon="trash-2" onPress={handleClearConfirm} />
+              <IconButton icon="check-square" onPress={() => setSelecting(true)} />
             )
           )}
         </View>
@@ -307,7 +336,7 @@ export default function NotesScreen() {
         </>
       ) : (
         <>
-          <View className="flex-row px-4 gap-2 mb-4">
+          <View className="flex-row px-4 gap-2 mb-2">
             {FILTERS.map((f) => (
               <Chip
                 key={f}
@@ -317,6 +346,49 @@ export default function NotesScreen() {
               />
             ))}
           </View>
+
+          {selecting && (
+            <View className="flex-row items-center justify-between px-4 py-2 mb-2 bg-ink-50 mx-4 rounded-xl">
+              <Text className="text-xs font-medium text-ink-600">{selectedIds.size} selected</Text>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={selectAll}
+                  className="px-3 py-1.5 bg-white rounded-lg border border-ink-200"
+                >
+                  <Text className="text-xs font-medium text-ink-600">Select All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={markSelectedRead}
+                  className="px-3 py-1.5 bg-white rounded-lg border border-ink-200"
+                >
+                  <Text className="text-xs font-medium text-ink-600">Mark Read</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => { deleteSelected(); }}
+                  className="px-3 py-1.5 bg-white rounded-lg border border-danger"
+                >
+                  <Text className="text-xs font-medium text-danger">Delete</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    const selected = items.filter((i) => selectedIds.has(i.id));
+                    const content = selected.map((i) => `[${i.source}] ${i.title}${i.body ? ": " + i.body : ""}`).join("\n");
+                    addMessage({
+                      id: uid("inbox-msg"),
+                      role: "user",
+                      content: `From my inbox:\n${content}\n\nAdd these to my schedule where appropriate.`,
+                      timestamp: new Date().toISOString(),
+                    });
+                    setSelecting(false);
+                    router.push("/agent");
+                  }}
+                  className="px-3 py-1.5 bg-black rounded-lg"
+                >
+                  <Text className="text-xs font-medium text-white">Send to AI</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           <FlatList
             data={inboxFiltered}
@@ -339,6 +411,18 @@ export default function NotesScreen() {
         title={sheetTitle}
         message={sheetBody}
         options={[
+          { icon: "cpu", label: "Send to AI", onPress: () => {
+            if (!sheetItem) return;
+            addMessage({
+              id: uid("inbox-msg"),
+              role: "user",
+              content: `From my inbox (${sheetItem.source}): ${sheetItem.title}${sheetItem.body ? " - " + sheetItem.body : ""}\n\nAdd this to my schedule if relevant.`,
+              timestamp: new Date().toISOString(),
+            });
+            setShowItemSheet(false);
+            setSheetItem(null);
+            router.push("/agent");
+          }},
           { icon: "check-circle", label: "Mark Read", onPress: () => { if (sheetItem) markRead(sheetItem.id); } },
           { icon: "trash-2", label: "Delete", destructive: true, onPress: () => { if (sheetItem) deleteItem(sheetItem.id); } },
         ]}

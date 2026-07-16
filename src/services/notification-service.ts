@@ -5,7 +5,6 @@ import NotificationListener from "expo-android-notification-listener-service";
 import type { NotificationData } from "expo-android-notification-listener-service";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
-import { useSettingsStore } from "@/stores/settings-store";
 
 export type { NotificationData };
 
@@ -22,7 +21,6 @@ Notifications.setNotificationHandler({
 export function useNotifications() {
   const { addItem } = useInboxStore();
   const { addEvent } = useCalendarStore();
-  const { notificationFilter } = useSettingsStore();
   const listenerRef = useRef<any>(null);
   const responseListenerRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
@@ -58,11 +56,9 @@ export function useNotifications() {
       if (responseSub) responseSub.remove();
       subscription.remove();
     };
-  }, [notificationFilter]);
+  }, []);
 
   function handleNotificationData(data: NotificationData) {
-    if (notificationFilter.length > 0 && !notificationFilter.includes(data.packageName)) return;
-
     const item: InboxItem = {
       id: `notif-${data.id}-${Date.now()}`,
       type: "notification",
