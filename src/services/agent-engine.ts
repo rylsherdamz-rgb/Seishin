@@ -10,6 +10,7 @@ import { useNotesStore } from "@/stores/notes-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useInvitesStore } from "@/stores/invites-store";
 import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
+import { retrieveRelevantContext, retrieveRelevantMemory } from "./retriever";
 import { uid } from "@/utils/id";
 import {
   addEntity, addRelation, queryGraph, listEntities, getGraphSummary,
@@ -895,8 +896,12 @@ export async function runAgentLoop(
     });
 
     try {
-      const fullPrompt = extractedContext
-        ? `Context:\n${extractedContext}\n\nUser: ${userInput}\n\nAssistant:`
+      const ragContext = retrieveRelevantContext(userInput);
+      const ragMemory = retrieveRelevantMemory(userInput);
+      const ragBlock = [ragContext, ragMemory].filter(Boolean).join("\n\n");
+      const contextParts = [extractedContext, ragBlock].filter(Boolean);
+      const fullPrompt = contextParts.length > 0
+        ? `Context:\n${contextParts.join("\n\n")}\n\nUser: ${userInput}\n\nAssistant:`
         : `User: ${userInput}\n\nAssistant:`;
 
       let accumulated = "";
@@ -957,12 +962,19 @@ export async function runAgentLoop(
     const tools = createDefaultTools();
     const toolParams = tools.toParams();
 
+    const ragContext = retrieveRelevantContext(userInput);
+    const ragMemory = retrieveRelevantMemory(userInput);
+    const ragBlock = [ragContext, ragMemory].filter(Boolean).join("\n\n");
+    const systemPrompt = ragBlock
+      ? `${createSystemPrompt()}\n\n## Automatically Retrieved\n${ragBlock}`
+      : createSystemPrompt();
+
     // Read the CURRENT store state — agentStore was captured before addMessage,
     // so agentStore.messages is stale and would omit the message just sent
     // (causing the AI to answer the previous prompt — a one-message lag).
     const history = useAgentStore.getState().messages.slice(-20);
     const conversation: OpenAI.ChatCompletionMessageParam[] = [
-      { role: "system", content: createSystemPrompt() },
+      { role: "system", content: systemPrompt },
       ...buildConversation(history),
     ];
 
