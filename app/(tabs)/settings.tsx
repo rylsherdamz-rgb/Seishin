@@ -97,7 +97,7 @@ export default function SettingsScreen() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
   const modelSheetRef = useRef<BottomSheet>(null);
-  const modelSnapPoints = useMemo(() => ["70%", "95%"], []);
+  const modelSnapPoints = useMemo(() => ["40%", "70%"], []);
 
   const [ggufFileName, setGgufFileName] = useState("");
   const [ggufCopying, setGgufCopying] = useState(false);

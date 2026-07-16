@@ -208,7 +208,7 @@ export default function CalendarScreen() {
   const [sheetItem, setSheetItem] = useState<CalendarItem | null>(null);
   const [showModal, setShowModal] = useState(false);
   const eventSheetRef = useRef<BottomSheet>(null);
-  const eventSnapPoints = useMemo(() => ["90%"], []);
+  const eventSnapPoints = useMemo(() => ["45%"], []);
   const [eventTitle, setEventTitle] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [eventDate, setEventDate] = useState(new Date());

@@ -38,7 +38,7 @@ interface ItemSheetProps {
 
 export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDelete, onClose }: ItemSheetProps) {
   const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["50%", "80%"], []);
+  const snapPoints = useMemo(() => ["35%", "60%"], []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const emptyArr = useRef([]).current;
 
