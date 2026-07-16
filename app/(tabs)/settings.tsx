@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Switch } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 
 import { router } from "expo-router";
@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/Button";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
-import { getSkills, toggleSkill, Skill } from "@/services/skills";
 import { fetchNimModels, cacheNimModels, categorizeModel, getTierLabel } from "@/services/nim-models";
 
 const storageCategories = [
@@ -93,9 +92,6 @@ export default function SettingsScreen() {
   const [showAiConfig, setShowAiConfig] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
 
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [showSkills, setShowSkills] = useState(false);
-
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -126,7 +122,6 @@ export default function SettingsScreen() {
       const parts = modelPath.split("/");
       setGgufFileName(parts[parts.length - 1] || "");
     }
-    setSkills(getSkills());
   }, [apiKeys.nim, nimEndpoint, nimModel, modelPath]);
 
   const confirmClear = useCallback((title: string, onClear: () => void) => {
@@ -155,7 +150,7 @@ export default function SettingsScreen() {
     setNimEndpoint(nimEp);
     setNimModel(nimMd);
 
-    // Auto-detect models and enable NIM skills when a key is provided
+    // Auto-detect available models when a key is provided
     if (nimKey) {
       try {
         const result = await fetchNimModels(nimEp || "https://integrate.api.nvidia.com/v1", nimKey);
@@ -164,10 +159,6 @@ export default function SettingsScreen() {
         if (result.largeModel && !nimMd.includes("70b") && !nimMd.includes("nemotron")) {
           setNimMd(result.recommended);
         }
-
-        // Auto-enable the NIM skill
-        const updated = toggleSkill("skill-nim-enhanced");
-        setSkills(updated);
       } catch {
         // Non-blocking — user can still use their configured model
       }
@@ -427,60 +418,6 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
                 <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
-            </Card>
-          )}
-
-          <SectionHeader title="Skills" />
-          <TouchableOpacity onPress={() => setShowSkills(!showSkills)} activeOpacity={0.7}>
-            <Card variant="elevated" className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name="layers" size={16} color="#000000" />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-medium text-black">AI Skills</Text>
-                  <Text className="text-xs text-ink-400 mt-0.5">
-                    {skills.filter((s) => s.enabled).length} of {skills.length} active
-                  </Text>
-                </View>
-              </View>
-              <Feather name={showSkills ? "chevron-up" : "chevron-down"} size={18} color="#bbbbbb" />
-            </Card>
-          </TouchableOpacity>
-
-          {showSkills && (
-            <Card className="mb-4 p-0 overflow-hidden">
-              {skills.map((skill) => {
-                const tier = categorizeModel(skill.id);
-                return (
-                  <View key={skill.id} className="flex-row items-center gap-3 py-3 px-4 border-b border-ink-100 last:border-b-0">
-                    <Switch
-                      value={skill.enabled}
-                      onValueChange={() => {
-                        const updated = toggleSkill(skill.id);
-                        setSkills(updated);
-                      }}
-                      trackColor={{ false: "#e5e5e5", true: "#000000" }}
-                      thumbColor={skill.enabled ? "#ffffff" : "#ffffff"}
-                      ios_backgroundColor="#e5e5e5"
-                    />
-                    <View className="flex-1">
-                      <Text className="text-sm font-medium text-black">{skill.name}</Text>
-                      <Text className="text-xs text-ink-400 mt-0.5">{skill.description}</Text>
-                    </View>
-                    {skill.builtIn ? (
-                      <View className="px-2 py-0.5 bg-ink-100 rounded">
-                        <Text className="text-[10px] text-ink-500 font-medium">built-in</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })}
-              <View className="py-3 px-4">
-                <Text className="text-xs text-ink-400">
-                  Skills inject behavior instructions into the AI's system prompt. Toggle off unused skills to reduce token usage.
-                </Text>
-              </View>
             </Card>
           )}
 

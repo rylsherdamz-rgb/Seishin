@@ -21,7 +21,6 @@ interface SettingsState {
   nimEndpoint: string;
   nimModel: string;
   nimLargeModel: string | null;
-  nimSkillsEnabled: boolean;
   nimCachedModels: string[];
   modelPath: string | null;
   cleanupPolicies: CleanupPolicy;
@@ -33,7 +32,6 @@ interface SettingsState {
   setNimEndpoint: (endpoint: string) => void;
   setNimModel: (model: string) => void;
   setNimLargeModel: (model: string | null) => void;
-  setNimSkillsEnabled: (enabled: boolean) => void;
   setNimCachedModels: (models: string[]) => void;
   setModelPath: (path: string | null) => void;
   setCleanupPolicies: (policies: Partial<CleanupPolicy>) => void;
@@ -53,7 +51,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   nimEndpoint: "https://integrate.api.nvidia.com/v1",
   nimModel: "meta/llama-3.2-1b-instruct",
   nimLargeModel: null,
-  nimSkillsEnabled: false,
   nimCachedModels: [],
   modelPath: null,
   cleanupPolicies: DEFAULT_CLEANUP,
@@ -65,7 +62,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const nimEndpoint = settingsStorage.getString("nimEndpoint");
     const nimModel = settingsStorage.getString("nimModel");
     const nimLargeModel = settingsStorage.getString("nimLargeModel");
-    const nimSkillsEnabled = settingsStorage.getString("nimSkillsEnabled");
     const nimCachedModels = settingsStorage.getString("nimCachedModels");
     const modelPath = settingsStorage.getString("modelPath");
     const cleanupRaw = settingsStorage.getString("cleanupPolicies");
@@ -76,7 +72,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (nimEndpoint) set({ nimEndpoint });
     if (nimModel) set({ nimModel });
     if (nimLargeModel) set({ nimLargeModel });
-    if (nimSkillsEnabled) set({ nimSkillsEnabled: JSON.parse(nimSkillsEnabled) });
     if (nimCachedModels) set({ nimCachedModels: JSON.parse(nimCachedModels) });
     if (modelPath) set({ modelPath });
     if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
@@ -108,11 +103,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (model) settingsStorage.set("nimLargeModel", model);
     else settingsStorage.remove("nimLargeModel");
     set({ nimLargeModel: model });
-  },
-
-  setNimSkillsEnabled: (enabled) => {
-    settingsStorage.set("nimSkillsEnabled", JSON.stringify(enabled));
-    set({ nimSkillsEnabled: enabled });
   },
 
   setNimCachedModels: (models) => {

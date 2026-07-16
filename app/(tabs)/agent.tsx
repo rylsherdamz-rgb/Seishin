@@ -14,7 +14,6 @@ import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
 import { recognizeText } from "@/services/ocr";
 import { uid } from "@/utils/id";
 import { categorizeModel, getTierLabel } from "@/services/nim-models";
-import { getEnabledSkillNames } from "@/services/skills";
 import * as Clipboard from "expo-clipboard";
 import { Markdown } from "@/components/Markdown";
 import Feather from "@expo/vector-icons/Feather";
@@ -323,17 +322,7 @@ export default function AgentScreen() {
                 </View>
               </TouchableOpacity>
             )}
-            {currentProvider === "nim" && getEnabledSkillNames().length > 0 && (
-              <TouchableOpacity
-                key="nim-skills-pill"
-                onPress={() => router.push("/settings")}
-                className="px-2.5 py-1 rounded-full bg-ink-100 flex-row items-center gap-1"
-              >
-                <Text className="text-[10px] text-ink-500 font-medium">
-                  {getEnabledSkillNames().length} skill{getEnabledSkillNames().length > 1 ? "s" : ""}
-                </Text>
-              </TouchableOpacity>
-            )}
+
           </View>
         </View>
 

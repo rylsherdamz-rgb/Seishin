@@ -13,7 +13,6 @@ import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
 import { retrieveRelevantContext, retrieveRelevantMemory } from "./retriever";
 import { uid } from "@/utils/id";
 import { pickModelForTask, detectQueryComplexity, categorizeModel, getTierLabel } from "./nim-models";
-import { getEnabledSkillsContent, getEnabledSkillNames } from "./skills";
 import {
   addEntity, addRelation, queryGraph, listEntities, getGraphSummary,
   appendToSessionLog, getSessionLog, getRelated, findPath,
@@ -621,11 +620,7 @@ export function createSystemPrompt(): string {
 
   const memoryBlock = memoryContext.length > 0 ? `\n${memoryContext.join("\n\n")}\n` : "";
 
-  const skillsContent = getEnabledSkillsContent();
-  const skillNames = getEnabledSkillNames();
-  const skillsBlock = skillsContent ? `\n\n## ACTIVE SKILLS (${skillNames.join(", ")})\n${skillsContent}` : "";
-
-  return `You are Seishin, a helpful AI assistant on the user's phone. You help with scheduling, todos, reminders, planning, advice, and general questions.${memoryBlock}${skillsBlock}
+  return `You are Seishin, a helpful AI assistant on the user's phone. You help with scheduling, todos, reminders, planning, advice, and general questions.${memoryBlock}
 
 Current date and time: ${dateStr} at ${timeStr}
 
