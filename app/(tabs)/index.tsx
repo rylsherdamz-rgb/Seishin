@@ -6,9 +6,7 @@ import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import * as ImagePicker from "expo-image-picker";
 
-import { router } from "expo-router";
 import { uid } from "@/utils/id";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Calendar, LocaleConfig } from "react-native-calendars";
@@ -215,9 +213,6 @@ export default function CalendarScreen() {
   const [eventTime, setEventTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showAddSheet, setShowAddSheet] = useState(false);
-  const [showNoTextAlert, setShowNoTextAlert] = useState(false);
-  const [showOcrError, setShowOcrError] = useState(false);
   const [showMissingTitle, setShowMissingTitle] = useState(false);
 
   const resetForm = useCallback(() => {
@@ -225,31 +220,6 @@ export default function CalendarScreen() {
     setEventNotes("");
     setEventDate(new Date());
     setEventTime(new Date());
-  }, []);
-
-  const showAddOptions = useCallback(() => {
-    setShowAddSheet(true);
-  }, []);
-
-  const pickImageForOcr = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
-    });
-    if (result.canceled) return;
-    const uri = result.assets[0].uri;
-    try {
-      const { recognizeText } = await import("@/services/ocr");
-      const text = await recognizeText(uri);
-      if (text.trim()) {
-        setEventTitle(text.slice(0, 120));
-        setShowModal(true);
-      } else {
-        setShowNoTextAlert(true);
-      }
-    } catch {
-      setShowOcrError(true);
-    }
   }, []);
 
   const onDateChange = useCallback((_: DateTimePickerEvent, d?: Date) => {
@@ -284,6 +254,13 @@ export default function CalendarScreen() {
 
   const onDayPress = useCallback((day: { dateString: string }) => {
     setSelectedDate(day.dateString);
+  }, [setSelectedDate]);
+
+  const onDayLongPress = useCallback((day: { dateString: string }) => {
+    const d = new Date(day.dateString + "T00:00:00");
+    setEventDate(d);
+    setSelectedDate(day.dateString);
+    setShowModal(true);
   }, [setSelectedDate]);
 
   const renderItem = useCallback(
@@ -377,7 +354,7 @@ export default function CalendarScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={showAddOptions}
+          onPress={() => { resetForm(); setShowModal(true); }}
           activeOpacity={0.85}
           className="w-11 h-11 bg-black rounded-full items-center justify-center shadow-raised"
         >
@@ -388,6 +365,7 @@ export default function CalendarScreen() {
       <Calendar
         current={selectedDate}
         onDayPress={onDayPress}
+        onDayLongPress={onDayLongPress}
         markedDates={markedDates}
         markingType="multi-dot"
         theme={{
@@ -579,30 +557,6 @@ export default function CalendarScreen() {
             </TouchableOpacity>
           </BottomSheetView>
         </BottomSheet>
-      <SheetModal
-        visible={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
-        title="Add to Calendar"
-        message="Choose how to add"
-        options={[
-          { icon: "calendar", label: "Add Event", onPress: () => { resetForm(); setShowModal(true); } },
-          { icon: "check-square", label: "Add Todo", onPress: () => router.push("/todo") },
-          { icon: "file-text", label: "New Note", onPress: () => router.push("/note") },
-          { icon: "camera", label: "Scan Image", onPress: () => { resetForm(); pickImageForOcr(); } },
-        ]}
-      />
-      <SheetModal
-        visible={showNoTextAlert}
-        onClose={() => setShowNoTextAlert(false)}
-        title="No text found"
-        message="Could not extract text from image."
-      />
-      <SheetModal
-        visible={showOcrError}
-        onClose={() => setShowOcrError(false)}
-        title="OCR failed"
-        message="The image could not be processed. Try a clearer photo."
-      />
       <SheetModal
         visible={showMissingTitle}
         onClose={() => setShowMissingTitle(false)}
