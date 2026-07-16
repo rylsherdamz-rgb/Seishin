@@ -174,9 +174,14 @@ export default function AgentScreen() {
     if (!isUser && !item.content) return null;
     return (
       <View
-        className={`mb-3 ${isUser ? "items-end" : "items-start"}`}
+        className={`flex-row mb-3 ${isUser ? "justify-end" : "justify-start"} items-end gap-2`}
       >
-        <View className={`max-w-[88%] px-4 py-3 ${
+        {!isUser && (
+          <View className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center shrink-0">
+            <Feather name="cpu" size={12} color="#000000" />
+          </View>
+        )}
+        <View className={`max-w-[80%] px-4 py-3 ${
           isUser
             ? "bg-black rounded-2xl rounded-br-md"
             : item.role === "tool"
@@ -184,9 +189,12 @@ export default function AgentScreen() {
             : "bg-white rounded-2xl rounded-bl-md border border-ink-100"
         }`}>
           {item.toolName && (
-            <View className="flex-row items-center gap-1 mb-1">
-              <Feather name="terminal" size={10} color="#999999" />
-              <Text className="text-xs text-ink-400 font-mono">{item.toolName}</Text>
+            <View className="flex-row items-center gap-1 mb-1.5 pb-1.5 border-b border-ink-100">
+              <View className="w-5 h-5 bg-ink-100 rounded items-center justify-center">
+                <Feather name="terminal" size={8} color="#666666" />
+              </View>
+              <Text className="text-xs text-ink-500 font-mono flex-1">{item.toolName}</Text>
+              <Feather name="check-circle" size={10} color="#2fbf71" />
             </View>
           )}
           {isUser ? (
@@ -224,6 +232,11 @@ export default function AgentScreen() {
             )}
           </View>
         </View>
+        {isUser && (
+          <View className="w-7 h-7 bg-black rounded-full items-center justify-center shrink-0">
+            <Feather name="user" size={12} color="#ffffff" />
+          </View>
+        )}
       </View>
     );
   }, [copiedId, copyToClipboard, streamTick]);
@@ -243,7 +256,7 @@ export default function AgentScreen() {
               <Text className="text-2xl font-semibold tracking-tightest text-black">AI Agent</Text>
               <Text className="text-sm text-ink-500 mt-0.5">
                 {currentProvider === "nim"
-                  ? "NVIDIA NIM"
+                  ? `NVIDIA NIM · ${nimModel.split("/").pop() || "model"}`
                   : modelState === "loading"
                     ? "Loading model..."
                     : modelState === "ready"
@@ -387,6 +400,27 @@ export default function AgentScreen() {
                   <Feather name="x" size={10} color="#fff" />
                 </TouchableOpacity>
               </View>
+            ))}
+          </ScrollView>
+        )}
+        {!isProcessing && messages.length === 0 && (
+          <ScrollView horizontal className="px-4 py-2 bg-white" showsHorizontalScrollIndicator={false}>
+            {[
+              { icon: "check-square" as const, label: "Add a todo", action: "Add a todo to buy groceries" },
+              { icon: "calendar" as const, label: "Schedule event", action: "Schedule a meeting tomorrow at 3pm" },
+              { icon: "file-text" as const, label: "Take a note", action: "Save a note about my project ideas" },
+              { icon: "list" as const, label: "What's today?", action: "What's on my calendar today?" },
+            ].map((suggestion) => (
+              <TouchableOpacity
+                key={suggestion.label}
+                onPress={() => {
+                  setInput(suggestion.action);
+                }}
+                className="flex-row items-center gap-1.5 px-3 py-2 mr-2 bg-ink-50 rounded-full border border-ink-100"
+              >
+                <Feather name={suggestion.icon} size={11} color="#666666" />
+                <Text className="text-xs text-ink-600 font-medium">{suggestion.label}</Text>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         )}

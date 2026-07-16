@@ -314,6 +314,27 @@ export default function SettingsScreen() {
                 </Text>
                 <Feather name="chevron-down" size={16} color="#bbbbbb" />
               </TouchableOpacity>
+              <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Quick Models</Text>
+              <ScrollView horizontal className="mb-2" showsHorizontalScrollIndicator={false}>
+                {[
+                  { id: "meta/llama-3.2-1b-instruct", label: "Llama 1B", desc: "Fastest" },
+                  { id: "meta/llama-3.2-3b-instruct", label: "Llama 3B", desc: "Balanced" },
+                  { id: "mistralai/mistral-7b-instruct-v0.3", label: "Mistral 7B", desc: "Smart" },
+                  { id: "nvidia/llama-3.1-nemotron-70b-instruct", label: "Nemotron 70B", desc: "Best" },
+                ].map((m) => (
+                  <TouchableOpacity
+                    key={m.id}
+                    onPress={() => setNimMd(m.id)}
+                    className={`px-3 py-2 mr-2 rounded-xl border ${
+                      nimMd === m.id ? "bg-black border-black" : "bg-white border-ink-200"
+                    }`}
+                  >
+                    <Text className={`text-xs font-medium ${nimMd === m.id ? "text-white" : "text-black"}`}>{m.label}</Text>
+                    <Text className={`text-[10px] mt-0.5 ${nimMd === m.id ? "text-white/70" : "text-ink-400"}`}>{m.desc}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
               <TouchableOpacity onPress={saveNimConfig} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
                 <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
