@@ -35,7 +35,6 @@ export function SheetModal({ visible, onClose, title, message, options, confirmL
       onChange={(index: number) => { if (index === -1) onClose(); }}
     >
       <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
-        <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
         {title && (
           <Text className="text-base font-medium text-black mb-1">{title}</Text>
         )}
