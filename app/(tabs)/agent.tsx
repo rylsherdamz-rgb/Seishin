@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Keyboard, Platform, Image, ActivityIndicator, KeyboardAvoidingView,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Keyboard, Platform, Image, ActivityIndicator,
 } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
@@ -67,9 +67,16 @@ export default function AgentScreen() {
   const [pendingAttachments, setPendingAttachments] = useState<AgentAttachment[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const pickerSnapPoints = useMemo(() => ["35%"], []);
   const flatListRef = useRef<FlatList>(null);
   const loadingRef = useRef(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   useEffect(() => {
     load();
@@ -242,12 +249,7 @@ export default function AgentScreen() {
   const hasKey = !!apiKeys.nim;
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior="padding"
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
-      <View className="flex-1">
+    <View className="flex-1 bg-white" style={{ paddingBottom: keyboardHeight }}>
         <View className="px-4 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View>
@@ -538,7 +540,6 @@ export default function AgentScreen() {
             </TouchableOpacity>
           </BottomSheetView>
         </BottomSheet>
-      </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

@@ -82,6 +82,8 @@ export default function SettingsScreen() {
   const setNimModel = useSettingsStore((s) => s.setNimModel);
   const modelPath = useSettingsStore((s) => s.modelPath);
   const setModelPath = useSettingsStore((s) => s.setModelPath);
+  const darkMode = useSettingsStore((s) => s.darkMode);
+  const setDarkMode = useSettingsStore((s) => s.setDarkMode);
   const { isGranted, openSettings } = useNotifications();
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [nimKey, setNimKey] = useState("");
@@ -283,6 +285,24 @@ export default function SettingsScreen() {
           <Card className="mb-4 p-0 overflow-hidden">
             <MenuRow icon="check-square" label="Todo List" subtitle="Manage tasks with dates" onPress={() => router.push("/todo")} />
             <MenuRow icon="send" label="Invites" subtitle="Invitation cards and P2P codes" onPress={() => router.push("/invites")} />
+          </Card>
+
+          <SectionHeader title="Appearance" />
+          <Card className="mb-4 p-0 overflow-hidden">
+            <TouchableOpacity
+              onPress={() => setDarkMode(!darkMode)}
+              className="flex-row items-center gap-3 py-3.5 px-4 border-b border-ink-100"
+            >
+              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                <Feather name={darkMode ? "moon" : "sun"} size={14} color="#000000" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-medium text-black">Dark Mode</Text>
+              </View>
+              <View className={`w-11 h-6 rounded-full items-center ${darkMode ? "bg-black" : "bg-ink-300"} justify-center`}>
+                <View className={`w-5 h-5 rounded-full bg-white ${darkMode ? "self-end mr-0.5" : "self-start ml-0.5"}`} />
+              </View>
+            </TouchableOpacity>
           </Card>
 
           <SectionHeader title="AI Configuration" />

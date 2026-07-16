@@ -208,7 +208,7 @@ export default function CalendarScreen() {
   const [showModal, setShowModal] = useState(false);
   const [sheetMode, setSheetMode] = useState<"menu" | "form">("menu");
   const eventSheetRef = useRef<BottomSheet>(null);
-  const eventSnapPoints = useMemo(() => sheetMode === "menu" ? ["32%"] : ["50%"], [sheetMode]);
+  const eventSnapPoints = useMemo(() => sheetMode === "menu" ? ["25%"] : ["42%"], [sheetMode]);
   const [eventTitle, setEventTitle] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
