@@ -20,6 +20,9 @@ interface SettingsState {
   };
   nimEndpoint: string;
   nimModel: string;
+  nimLargeModel: string | null;
+  nimSkillsEnabled: boolean;
+  nimCachedModels: string[];
   modelPath: string | null;
   cleanupPolicies: CleanupPolicy;
   notificationFilter: string[];
@@ -29,6 +32,9 @@ interface SettingsState {
   setApiKey: (provider: "nim", key: string) => void;
   setNimEndpoint: (endpoint: string) => void;
   setNimModel: (model: string) => void;
+  setNimLargeModel: (model: string | null) => void;
+  setNimSkillsEnabled: (enabled: boolean) => void;
+  setNimCachedModels: (models: string[]) => void;
   setModelPath: (path: string | null) => void;
   setCleanupPolicies: (policies: Partial<CleanupPolicy>) => void;
   setNotificationFilter: (packages: string[]) => void;
@@ -46,6 +52,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   apiKeys: { nim: "", youtubeApiKey: "" },
   nimEndpoint: "https://integrate.api.nvidia.com/v1",
   nimModel: "meta/llama-3.2-1b-instruct",
+  nimLargeModel: null,
+  nimSkillsEnabled: false,
+  nimCachedModels: [],
   modelPath: null,
   cleanupPolicies: DEFAULT_CLEANUP,
   notificationFilter: [],
@@ -55,6 +64,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const apiKeysRaw = settingsStorage.getString("apiKeys");
     const nimEndpoint = settingsStorage.getString("nimEndpoint");
     const nimModel = settingsStorage.getString("nimModel");
+    const nimLargeModel = settingsStorage.getString("nimLargeModel");
+    const nimSkillsEnabled = settingsStorage.getString("nimSkillsEnabled");
+    const nimCachedModels = settingsStorage.getString("nimCachedModels");
     const modelPath = settingsStorage.getString("modelPath");
     const cleanupRaw = settingsStorage.getString("cleanupPolicies");
     const notifFilterRaw = settingsStorage.getString("notificationFilter");
@@ -63,6 +75,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (apiKeysRaw) set({ apiKeys: JSON.parse(apiKeysRaw) });
     if (nimEndpoint) set({ nimEndpoint });
     if (nimModel) set({ nimModel });
+    if (nimLargeModel) set({ nimLargeModel });
+    if (nimSkillsEnabled) set({ nimSkillsEnabled: JSON.parse(nimSkillsEnabled) });
+    if (nimCachedModels) set({ nimCachedModels: JSON.parse(nimCachedModels) });
     if (modelPath) set({ modelPath });
     if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
     if (notifFilterRaw) set({ notificationFilter: JSON.parse(notifFilterRaw) });
@@ -87,6 +102,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setNimModel: (model) => {
     settingsStorage.set("nimModel", model);
     set({ nimModel: model });
+  },
+
+  setNimLargeModel: (model) => {
+    if (model) settingsStorage.set("nimLargeModel", model);
+    else settingsStorage.remove("nimLargeModel");
+    set({ nimLargeModel: model });
+  },
+
+  setNimSkillsEnabled: (enabled) => {
+    settingsStorage.set("nimSkillsEnabled", JSON.stringify(enabled));
+    set({ nimSkillsEnabled: enabled });
+  },
+
+  setNimCachedModels: (models) => {
+    settingsStorage.set("nimCachedModels", JSON.stringify(models));
+    set({ nimCachedModels: models });
   },
 
   setModelPath: (path) => {

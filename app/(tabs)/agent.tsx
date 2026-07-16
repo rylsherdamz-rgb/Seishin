@@ -13,6 +13,8 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
 import { recognizeText } from "@/services/ocr";
 import { uid } from "@/utils/id";
+import { categorizeModel, getTierLabel } from "@/services/nim-models";
+import { getEnabledSkillNames } from "@/services/skills";
 import * as Clipboard from "expo-clipboard";
 import { Markdown } from "@/components/Markdown";
 import Feather from "@expo/vector-icons/Feather";
@@ -58,6 +60,7 @@ export default function AgentScreen() {
   const setModelState = useAgentStore((s) => s.setModelState);
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const nimModel = useSettingsStore((s) => s.nimModel);
+  const nimLargeModel = useSettingsStore((s) => s.nimLargeModel);
   const nimEndpoint = useSettingsStore((s) => s.nimEndpoint);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const modelPath = useSettingsStore((s) => s.modelPath);
@@ -252,7 +255,7 @@ export default function AgentScreen() {
               <Text className="text-2xl font-semibold tracking-tightest text-black">AI Agent</Text>
               <Text className="text-sm text-ink-500 mt-0.5">
                 {currentProvider === "nim"
-                  ? `NVIDIA NIM · ${nimModel.split("/").pop() || "model"}`
+                  ? `NVIDIA NIM${nimLargeModel ? ` · auto-routes ${getTierLabel(categorizeModel(nimModel).tier)}→${getTierLabel(categorizeModel(nimLargeModel).tier)}` : ""}`
                   : modelState === "loading"
                     ? "Loading model..."
                     : modelState === "ready"
@@ -300,10 +303,34 @@ export default function AgentScreen() {
               <TouchableOpacity
                 key="nim-model-pill"
                 onPress={() => router.push("/settings")}
-                className="px-2.5 py-1 rounded-full bg-ink-100"
+                className="px-2.5 py-1 rounded-full bg-ink-100 flex-row items-center gap-1.5"
               >
                 <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
                   {nimModel.split("/").pop() || "model"}
+                </Text>
+                <View className={`px-1.5 py-0.5 rounded-full bg-${
+                  categorizeModel(nimModel).tier === "fast" ? "green-100" :
+                  categorizeModel(nimModel).tier === "balanced" ? "yellow-100" :
+                  categorizeModel(nimModel).tier === "smart" ? "red-100" : "ink-200"
+                }`}>
+                  <Text className={`text-[9px] font-semibold ${
+                    categorizeModel(nimModel).tier === "fast" ? "text-green-700" :
+                    categorizeModel(nimModel).tier === "balanced" ? "text-yellow-700" :
+                    categorizeModel(nimModel).tier === "smart" ? "text-red-700" : "text-ink-500"
+                  }`}>
+                    {getTierLabel(categorizeModel(nimModel).tier)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            {currentProvider === "nim" && getEnabledSkillNames().length > 0 && (
+              <TouchableOpacity
+                key="nim-skills-pill"
+                onPress={() => router.push("/settings")}
+                className="px-2.5 py-1 rounded-full bg-ink-100 flex-row items-center gap-1"
+              >
+                <Text className="text-[10px] text-ink-500 font-medium">
+                  {getEnabledSkillNames().length} skill{getEnabledSkillNames().length > 1 ? "s" : ""}
                 </Text>
               </TouchableOpacity>
             )}

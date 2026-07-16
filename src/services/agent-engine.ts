@@ -12,6 +12,8 @@ import { useInvitesStore } from "@/stores/invites-store";
 import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
 import { retrieveRelevantContext, retrieveRelevantMemory } from "./retriever";
 import { uid } from "@/utils/id";
+import { pickModelForTask, detectQueryComplexity, categorizeModel, getTierLabel } from "./nim-models";
+import { getEnabledSkillsContent, getEnabledSkillNames } from "./skills";
 import {
   addEntity, addRelation, queryGraph, listEntities, getGraphSummary,
   appendToSessionLog, getSessionLog, getRelated, findPath,
@@ -619,7 +621,11 @@ export function createSystemPrompt(): string {
 
   const memoryBlock = memoryContext.length > 0 ? `\n${memoryContext.join("\n\n")}\n` : "";
 
-  return `You are Seishin, a helpful AI assistant on the user's phone. You help with scheduling, todos, reminders, planning, advice, and general questions.${memoryBlock}
+  const skillsContent = getEnabledSkillsContent();
+  const skillNames = getEnabledSkillNames();
+  const skillsBlock = skillsContent ? `\n\n## ACTIVE SKILLS (${skillNames.join(", ")})\n${skillsContent}` : "";
+
+  return `You are Seishin, a helpful AI assistant on the user's phone. You help with scheduling, todos, reminders, planning, advice, and general questions.${memoryBlock}${skillsBlock}
 
 Current date and time: ${dateStr} at ${timeStr}
 
@@ -852,7 +858,7 @@ export async function runAgentLoop(
   opts?: { attachments?: AgentAttachment[]; extractedContext?: string },
 ) {
   const agentStore = useAgentStore.getState();
-  const { apiKeys, nimEndpoint, nimModel } = useSettingsStore.getState();
+  const { apiKeys, nimEndpoint, nimModel, nimLargeModel } = useSettingsStore.getState();
   const { currentProvider } = agentStore;
   const attachments = opts?.attachments;
   const extractedContext = opts?.extractedContext?.trim();
@@ -995,7 +1001,10 @@ export async function runAgentLoop(
       }
     }
 
-    console.log(`[Agent] Streaming to NIM model=${nimModel} msgs=${conversation.length} tools=${toolParams.length}`);
+    const activeModel = pickModelForTask(userInput, nimModel, nimLargeModel);
+    const complexity = detectQueryComplexity(userInput);
+    const tierInfo = categorizeModel(activeModel);
+    console.log(`[Agent] Routing query="${complexity}" model=${activeModel} (${tierInfo.tier})`);
 
     const msgId = `msg-${Date.now()}-asst`;
     agentStore.addMessage({
@@ -1005,7 +1014,7 @@ export async function runAgentLoop(
       timestamp: new Date().toISOString(),
     });
 
-    await streamResponse(openai, nimModel, conversation, toolParams, msgId);
+    await streamResponse(openai, activeModel, conversation, toolParams, msgId);
   } catch (e) {
     console.error("[Agent] Error:", e);
     const rawMsg = e instanceof Error ? e.message : "Unknown error occurred";

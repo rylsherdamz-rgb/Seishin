@@ -8,6 +8,7 @@ const icons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: 
   index: { active: "calendar", inactive: "calendar-outline" },
   notes: { active: "document-text", inactive: "document-text-outline" },
   agent: { active: "flash", inactive: "flash-outline" },
+  skills: { active: "cube", inactive: "cube-outline" },
   settings: { active: "settings", inactive: "settings-outline" },
 };
 
@@ -48,6 +49,7 @@ export default function TabLayout() {
         <Tabs.Screen name="index" options={{ title: "Calendar" }} />
         <Tabs.Screen name="notes" options={{ title: "Notes" }} />
         <Tabs.Screen name="agent" options={{ title: "Agent" }} />
+        <Tabs.Screen name="skills" options={{ title: "Skills" }} />
         <Tabs.Screen name="settings" options={{ title: "Settings" }} />
       </Tabs>
     </View>

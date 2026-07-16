@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Switch } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 
 import { router } from "expo-router";
@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/Button";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
+import { getSkills, toggleSkill, Skill } from "@/services/skills";
+import { fetchNimModels, cacheNimModels, categorizeModel, getTierLabel } from "@/services/nim-models";
 
 const storageCategories = [
   { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
@@ -91,6 +93,8 @@ export default function SettingsScreen() {
   const [showAiConfig, setShowAiConfig] = useState(false);
   const [notifEnabled, setNotifEnabled] = useState(false);
 
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [showSkills, setShowSkills] = useState(false);
 
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [models, setModels] = useState<string[]>([]);
@@ -122,6 +126,7 @@ export default function SettingsScreen() {
       const parts = modelPath.split("/");
       setGgufFileName(parts[parts.length - 1] || "");
     }
+    setSkills(getSkills());
   }, [apiKeys.nim, nimEndpoint, nimModel, modelPath]);
 
   const confirmClear = useCallback((title: string, onClear: () => void) => {
@@ -145,10 +150,29 @@ export default function SettingsScreen() {
     });
   }, [setConfirmConfig, setModalConfig, setSizes]);
 
-  const saveNimConfig = useCallback(() => {
+  const saveNimConfig = useCallback(async () => {
     setApiKey("nim", nimKey);
     setNimEndpoint(nimEp);
     setNimModel(nimMd);
+
+    // Auto-detect models and enable NIM skills when a key is provided
+    if (nimKey) {
+      try {
+        const result = await fetchNimModels(nimEp || "https://integrate.api.nvidia.com/v1", nimKey);
+        cacheNimModels(result.models);
+        setModels(result.models);
+        if (result.largeModel && !nimMd.includes("70b") && !nimMd.includes("nemotron")) {
+          setNimMd(result.recommended);
+        }
+
+        // Auto-enable the NIM skill
+        const updated = toggleSkill("skill-nim-enhanced");
+        setSkills(updated);
+      } catch {
+        // Non-blocking — user can still use their configured model
+      }
+    }
+
     setModalConfig({ title: "Saved", message: "NVIDIA NIM config updated. Switch to NIM mode in the Agent tab." });
   }, [nimKey, nimEp, nimMd, setApiKey, setNimEndpoint, setNimModel, setModalConfig]);
 
@@ -223,22 +247,34 @@ export default function SettingsScreen() {
 
   const filteredModels = useMemo(() => models.filter((m) => m.toLowerCase().includes(modelSearch.toLowerCase())), [models, modelSearch]);
 
-  const renderModelItem = useCallback(({ item }: { item: string }) => (
-    <TouchableOpacity
-      onPress={() => { setNimMd(item); setShowModelPicker(false); setModelSearch(""); }}
-      className={`flex-row items-center gap-3 py-3 px-3 rounded-lg mb-1 ${
-        item === nimMd ? "bg-black" : "bg-ink-100"
-      }`}
-    >
-      <Feather name="cpu" size={14} color={item === nimMd ? "#ffffff" : "#999999"} />
-      <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
-        {item}
-      </Text>
-      {item === nimMd && (
-        <Feather name="check" size={14} color="#ffffff" />
-      )}
-    </TouchableOpacity>
-  ), [nimMd, setNimMd, setShowModelPicker, setModelSearch]);
+  const renderModelItem = useCallback(({ item }: { item: string }) => {
+    const info = categorizeModel(item);
+    return (
+      <TouchableOpacity
+        onPress={() => { setNimMd(item); setShowModelPicker(false); setModelSearch(""); }}
+        className={`flex-row items-center gap-3 py-3 px-3 rounded-lg mb-1 ${
+          item === nimMd ? "bg-black" : "bg-ink-100"
+        }`}
+      >
+        <Feather name="cpu" size={14} color={item === nimMd ? "#ffffff" : "#999999"} />
+        <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
+          {item}
+        </Text>
+        <View className={`px-2 py-0.5 rounded-full bg-${
+          info.tier === "fast" ? "green-100" : info.tier === "balanced" ? "yellow-100" : info.tier === "smart" ? "red-100" : "ink-100"
+        }`}>
+          <Text className={`text-[10px] font-medium text-${
+            info.tier === "fast" ? "green-700" : info.tier === "balanced" ? "yellow-700" : info.tier === "smart" ? "red-700" : "ink-500"
+          }`}>
+            {getTierLabel(info.tier)}
+          </Text>
+        </View>
+        {item === nimMd && (
+          <Feather name="check" size={14} color="#ffffff" />
+        )}
+      </TouchableOpacity>
+    );
+  }, [nimMd, setNimMd, setShowModelPicker, setModelSearch]);
 
   return (
     <View className="flex-1 bg-white">
@@ -305,9 +341,24 @@ export default function SettingsScreen() {
                 onPress={openModelPicker}
                 className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center justify-between mb-2"
               >
-                <Text className={`text-sm flex-1 ${nimMd ? "text-black" : "text-ink-300"}`}>
+                <Text className={`text-sm flex-1 ${nimMd ? "text-black" : "text-ink-300"}`} numberOfLines={1}>
                   {nimMd || "Select a model..."}
                 </Text>
+                {nimMd && (
+                  <View className={`px-2 py-0.5 rounded-full mr-2 ${
+                    categorizeModel(nimMd).tier === "fast" ? "bg-green-100" :
+                    categorizeModel(nimMd).tier === "balanced" ? "bg-yellow-100" :
+                    categorizeModel(nimMd).tier === "smart" ? "bg-red-100" : "bg-ink-100"
+                  }`}>
+                    <Text className={`text-[10px] font-medium ${
+                      categorizeModel(nimMd).tier === "fast" ? "text-green-700" :
+                      categorizeModel(nimMd).tier === "balanced" ? "text-yellow-700" :
+                      categorizeModel(nimMd).tier === "smart" ? "text-red-700" : "text-ink-500"
+                    }`}>
+                      {getTierLabel(categorizeModel(nimMd).tier)}
+                    </Text>
+                  </View>
+                )}
                 <Feather name="chevron-down" size={16} color="#bbbbbb" />
               </TouchableOpacity>
               <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Quick Models</Text>
@@ -376,6 +427,60 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
                 <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
+            </Card>
+          )}
+
+          <SectionHeader title="Skills" />
+          <TouchableOpacity onPress={() => setShowSkills(!showSkills)} activeOpacity={0.7}>
+            <Card variant="elevated" className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center gap-3 flex-1">
+                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
+                  <Feather name="layers" size={16} color="#000000" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-black">AI Skills</Text>
+                  <Text className="text-xs text-ink-400 mt-0.5">
+                    {skills.filter((s) => s.enabled).length} of {skills.length} active
+                  </Text>
+                </View>
+              </View>
+              <Feather name={showSkills ? "chevron-up" : "chevron-down"} size={18} color="#bbbbbb" />
+            </Card>
+          </TouchableOpacity>
+
+          {showSkills && (
+            <Card className="mb-4 p-0 overflow-hidden">
+              {skills.map((skill) => {
+                const tier = categorizeModel(skill.id);
+                return (
+                  <View key={skill.id} className="flex-row items-center gap-3 py-3 px-4 border-b border-ink-100 last:border-b-0">
+                    <Switch
+                      value={skill.enabled}
+                      onValueChange={() => {
+                        const updated = toggleSkill(skill.id);
+                        setSkills(updated);
+                      }}
+                      trackColor={{ false: "#e5e5e5", true: "#000000" }}
+                      thumbColor={skill.enabled ? "#ffffff" : "#ffffff"}
+                      ios_backgroundColor="#e5e5e5"
+                    />
+                    <View className="flex-1">
+                      <Text className="text-sm font-medium text-black">{skill.name}</Text>
+                      <Text className="text-xs text-ink-400 mt-0.5">{skill.description}</Text>
+                    </View>
+                    {skill.builtIn ? (
+                      <View className="px-2 py-0.5 bg-ink-100 rounded">
+                        <Text className="text-[10px] text-ink-500 font-medium">built-in</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+              <View className="py-3 px-4">
+                <Text className="text-xs text-ink-400">
+                  Skills inject behavior instructions into the AI's system prompt. Toggle off unused skills to reduce token usage.
+                </Text>
+              </View>
             </Card>
           )}
 
