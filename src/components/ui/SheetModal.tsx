@@ -1,6 +1,6 @@
 import { useRef, useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 
 interface SheetOption {
@@ -31,14 +31,10 @@ export function SheetModal({ visible, onClose, title, message, options, confirmL
       index={visible ? 0 : -1}
       snapPoints={snapPoints}
       enablePanDownToClose
-      handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
       backgroundStyle={{ backgroundColor: "#ffffff" }}
-      backdropComponent={(props) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-      )}
       onChange={(index: number) => { if (index === -1) onClose(); }}
     >
-      <BottomSheetView className="px-4 pb-8 pt-2">
+      <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
         <View className="w-10 h-1 bg-ink-200 rounded-full self-center mb-5" />
         {title && (
           <Text className="text-base font-medium text-black mb-1">{title}</Text>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
@@ -230,10 +230,6 @@ export default function NoteEditorScreen() {
     setShowDeleteConfirm(true);
   }, []);
 
-  const renderBackdrop = useCallback((props: any) => (
-    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.3} />
-  ), []);
-
   const imageAtts = useMemo(() => attachments.filter((a) => a.type === "image"), [attachments]);
   const fileAtts = useMemo(() => attachments.filter((a) => a.type === "file"), [attachments]);
 
@@ -386,12 +382,10 @@ export default function NoteEditorScreen() {
         index={showYoutubeInput || youtubeBusy ? 0 : -1}
         snapPoints={youtubeSnapPoints}
         enablePanDownToClose
-        handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
         backgroundStyle={{ backgroundColor: "#ffffff" }}
-        backdropComponent={renderBackdrop}
         onChange={(index: number) => { if (index === -1 && !youtubeBusy) { setShowYoutubeInput(false); setYoutubeUrl(""); } }}
       >
-        <BottomSheetView className="px-5 pb-8 pt-2">
+        <BottomSheetView style={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 8 }}>
           <Text className="text-base font-semibold text-black mb-1">YouTube Video Summary</Text>
           <Text className="text-xs text-ink-400 mb-4">Paste a YouTube link to generate a timestamped transcript</Text>
           {youtubeBusy ? (

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Keyboard, Platform, Image, ActivityIndicator, KeyboardAvoidingView,
 } from "react-native";
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
 
 import { router } from "expo-router";
@@ -164,10 +164,6 @@ export default function AgentScreen() {
     setCopiedId(id);
     setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
   }, []);
-
-  const renderBackdrop = useCallback((props: any) => (
-    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-  ), []);
 
   const renderItem = useCallback(({ item }: { item: AgentMessage }) => {
     const isUser = item.role === "user";
@@ -404,25 +400,22 @@ export default function AgentScreen() {
           </ScrollView>
         )}
         {!isProcessing && messages.length === 0 && (
-          <ScrollView horizontal className="px-4 py-2 bg-white" showsHorizontalScrollIndicator={false}>
+          <View className="flex-row gap-2 px-4 py-1.5 bg-white">
             {[
-              { icon: "check-square" as const, label: "Add a todo", action: "Add a todo to buy groceries" },
-              { icon: "calendar" as const, label: "Schedule event", action: "Schedule a meeting tomorrow at 3pm" },
-              { icon: "file-text" as const, label: "Take a note", action: "Save a note about my project ideas" },
-              { icon: "list" as const, label: "What's today?", action: "What's on my calendar today?" },
+              { icon: "check-square" as const, label: "Todo", action: "Add a todo to buy groceries" },
+              { icon: "calendar" as const, label: "Event", action: "Schedule a meeting tomorrow at 3pm" },
+              { icon: "file-text" as const, label: "Note", action: "Save a note about my project ideas" },
+              { icon: "list" as const, label: "Today", action: "What's on my calendar today?" },
             ].map((suggestion) => (
               <TouchableOpacity
                 key={suggestion.label}
-                onPress={() => {
-                  setInput(suggestion.action);
-                }}
-                className="flex-row items-center gap-1.5 px-3 py-2 mr-2 bg-ink-50 rounded-full border border-ink-100"
+                onPress={() => setInput(suggestion.action)}
+                className="px-2.5 py-0.5 bg-ink-50 rounded-md border border-ink-100"
               >
-                <Feather name={suggestion.icon} size={11} color="#666666" />
-                <Text className="text-xs text-ink-600 font-medium">{suggestion.label}</Text>
+                <Text className="text-[11px] text-ink-600 font-medium">{suggestion.label}</Text>
               </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
         )}
         <View className="px-4 py-3 border-t border-ink-100 bg-white">
           <View className="flex-row gap-1 items-center">
@@ -470,12 +463,10 @@ export default function AgentScreen() {
           enableDynamicSizing
           enablePanDownToClose
           index={showPicker ? 0 : -1}
-          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
           backgroundStyle={{ backgroundColor: "#ffffff" }}
-          backdropComponent={renderBackdrop}
           onChange={(index: number) => { if (index === -1) setShowPicker(false); }}
         >
-          <BottomSheetView className="px-4 pb-8 pt-2">
+          <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
             <TouchableOpacity
               className="flex-row items-center gap-3 py-3.5"
               onPress={() => { setShowPicker(false); addPhoto(true); }}
@@ -511,12 +502,10 @@ export default function AgentScreen() {
           snapPoints={pickerSnapPoints}
           enablePanDownToClose
           index={showClearConfirm ? 0 : -1}
-          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
           backgroundStyle={{ backgroundColor: "#ffffff" }}
-          backdropComponent={renderBackdrop}
           onChange={(index: number) => { if (index === -1) setShowClearConfirm(false); }}
         >
-          <BottomSheetView className="px-4 pb-8 pt-2">
+          <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
             <Text className="text-base font-medium text-black mb-1">Clear conversation?</Text>
             <Text className="text-sm text-ink-400 mb-5">All messages will be deleted.</Text>
             <TouchableOpacity

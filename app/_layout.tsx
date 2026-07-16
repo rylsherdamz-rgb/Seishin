@@ -10,6 +10,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
+import { Host } from "@expo/ui";
 
 
 const ONBOARDING_PAGES = [
@@ -166,6 +167,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <Host style={{ flex: 1 }}>
         <SafeAreaProvider>
           <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
             <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
@@ -178,6 +180,7 @@ export default function RootLayout() {
             </Stack>
           </SafeAreaView>
         </SafeAreaProvider>
+        </Host>
       </GestureHandlerRootView>
     </ErrorBoundary>
   );

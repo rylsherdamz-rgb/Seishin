@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   View, Text, TouchableOpacity, FlatList, TextInput,
 } from "react-native";
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
@@ -286,10 +286,6 @@ export default function CalendarScreen() {
     setSelectedDate(day.dateString);
   }, [setSelectedDate]);
 
-  const renderBackdrop = useCallback((props: any) => (
-    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-  ), []);
-
   const renderItem = useCallback(
     ({ item }: { item: { kind: "date-header"; date: string; label: string } | CalendarItem }) => {
       if ("kind" in item) {
@@ -507,12 +503,10 @@ export default function CalendarScreen() {
           snapPoints={eventSnapPoints}
           enablePanDownToClose
           index={showModal ? 0 : -1}
-          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
           backgroundStyle={{ backgroundColor: "#ffffff" }}
-          backdropComponent={renderBackdrop}
           onChange={(index: number) => { if (index === -1) setShowModal(false); }}
         >
-          <BottomSheetView className="flex-1 px-5 pt-0 pb-10">
+          <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}>
             <View className="flex-row justify-between items-center mb-5">
               <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
               <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">

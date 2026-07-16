@@ -1,6 +1,6 @@
 import { useCallback, useRef, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import { router } from "expo-router";
 import { useNotesStore } from "@/stores/notes-store";
 import { useTodoStore } from "@/stores/todo-store";
@@ -54,22 +54,16 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
     setShowDeleteConfirm(true);
   }, []);
 
-  const renderBackdrop = useCallback((props: any) => (
-    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-  ), []);
-
   return (
     <BottomSheet
       ref={sheetRef}
       snapPoints={snapPoints}
       enablePanDownToClose
       index={0}
-      handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
       backgroundStyle={{ backgroundColor: "#ffffff" }}
-      backdropComponent={renderBackdrop}
       onChange={(index: number) => { if (index === -1) onClose?.(); }}
     >
-      <BottomSheetView className="flex-1 px-5 pb-6">
+      <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 24 }}>
         {event ? (
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center gap-3 mb-5">

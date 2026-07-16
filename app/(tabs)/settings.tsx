@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from "react-native";
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 
 import { router } from "expo-router";
 import { fetch as expoFetch } from "expo/fetch";
@@ -222,10 +222,6 @@ export default function SettingsScreen() {
   }, [models, nimEp, nimKey, apiKeys, setShowModelPicker, setLoadingModels, setModels, setModalConfig]);
 
   const filteredModels = useMemo(() => models.filter((m) => m.toLowerCase().includes(modelSearch.toLowerCase())), [models, modelSearch]);
-
-  const renderBackdrop = useCallback((props: any) => (
-    <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-  ), []);
 
   const renderModelItem = useCallback(({ item }: { item: string }) => (
     <TouchableOpacity
@@ -501,12 +497,10 @@ export default function SettingsScreen() {
           snapPoints={modelSnapPoints}
           enablePanDownToClose
           index={showModelPicker ? 0 : -1}
-          handleIndicatorStyle={{ backgroundColor: "#cccccc", width: 40 }}
           backgroundStyle={{ backgroundColor: "#ffffff" }}
-          backdropComponent={renderBackdrop}
           onChange={(index: number) => { if (index === -1) setShowModelPicker(false); }}
         >
-          <BottomSheetView className="flex-1 px-5 pt-0 pb-10">
+          <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}>
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold tracking-tightest text-black">Select Model</Text>
               <TouchableOpacity onPress={() => setShowModelPicker(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
