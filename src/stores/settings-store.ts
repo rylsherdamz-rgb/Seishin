@@ -25,7 +25,6 @@ interface SettingsState {
   modelPath: string | null;
   cleanupPolicies: CleanupPolicy;
   notificationFilter: string[];
-  darkMode: boolean;
 
   loadSettings: () => void;
   setEmailConfig: (config: SettingsState["emailConfig"]) => void;
@@ -37,7 +36,6 @@ interface SettingsState {
   setModelPath: (path: string | null) => void;
   setCleanupPolicies: (policies: Partial<CleanupPolicy>) => void;
   setNotificationFilter: (packages: string[]) => void;
-  setDarkMode: (v: boolean) => void;
 }
 
 const DEFAULT_CLEANUP: CleanupPolicy = {
@@ -57,7 +55,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   modelPath: null,
   cleanupPolicies: DEFAULT_CLEANUP,
   notificationFilter: [],
-  darkMode: true,
 
   loadSettings: () => {
     const emailRaw = settingsStorage.getString("emailConfig");
@@ -69,7 +66,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const modelPath = settingsStorage.getString("modelPath");
     const cleanupRaw = settingsStorage.getString("cleanupPolicies");
     const notifFilterRaw = settingsStorage.getString("notificationFilter");
-    const darkMode = settingsStorage.getBoolean("darkMode");
 
     if (emailRaw) set({ emailConfig: JSON.parse(emailRaw) });
     if (apiKeysRaw) set({ apiKeys: JSON.parse(apiKeysRaw) });
@@ -80,7 +76,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (modelPath) set({ modelPath });
     if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
     if (notifFilterRaw) set({ notificationFilter: JSON.parse(notifFilterRaw) });
-    if (darkMode !== null) set({ darkMode });
   },
 
   setEmailConfig: (config) => {
@@ -130,10 +125,5 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setNotificationFilter: (packages) => {
     settingsStorage.set("notificationFilter", JSON.stringify(packages));
     set({ notificationFilter: packages });
-  },
-
-  setDarkMode: (v) => {
-    settingsStorage.set("darkMode", v);
-    set({ darkMode: v });
   },
 }));

@@ -10,7 +10,6 @@ import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
-import { useSettingsStore } from "@/stores/settings-store";
 import { Host } from "@expo/ui";
 import { useNotifications } from "@/services/notification-service";
 
@@ -131,7 +130,6 @@ function SplashScreen() {
 export default function RootLayout() {
   const [phase, setPhase] = useState<"splash" | "loading" | "onboarding" | "app">("splash");
   const router = useRouter();
-  const darkMode = useSettingsStore((s) => s.darkMode);
   useNotifications();
 
   useEffect(() => {
@@ -174,8 +172,8 @@ export default function RootLayout() {
         <Host style={{ flex: 1 }}>
         <SafeAreaProvider>
           <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
-            <RNStatusBar backgroundColor="#1a1a1a" barStyle={darkMode ? "light-content" : "dark-content"} />
-            <StatusBar style={darkMode ? "light" : "dark"} />
+            <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
+            <StatusBar style="light" />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
