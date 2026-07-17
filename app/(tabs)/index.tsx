@@ -322,9 +322,8 @@ export default function CalendarScreen() {
             <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
               <TouchableOpacity
                 onPress={(e) => { e.stopPropagation(); if (item.todoId) toggleTodo(item.todoId); }}
-                className={`w-7 h-7 rounded-md border-2 items-center justify-center ${
-                  item.completed ? "bg-black border-black" : "border-ink-300"
-                }`}
+                className={`w-7 h-7 rounded-md border-2 items-center justify-center ${item.completed ? "bg-black border-black" : "border-ink-300"
+                  }`}
               >
                 {item.completed && <Feather name="check" size={14} color="#ffffff" />}
               </TouchableOpacity>
@@ -391,8 +390,8 @@ export default function CalendarScreen() {
             {showAll || !selectedDate
               ? "All items"
               : new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, {
-                  weekday: "long", month: "long", day: "numeric",
-                })
+                weekday: "long", month: "long", day: "numeric",
+              })
             }
           </Text>
           {!showAll && selectedDate === todayStr && (
@@ -479,135 +478,132 @@ export default function CalendarScreen() {
         />
       )}
 
-        <BottomSheet
-          ref={eventSheetRef}
-          snapPoints={eventSnapPoints}
-          enablePanDownToClose
-          index={showModal ? 0 : -1}
-          backgroundStyle={{ backgroundColor: "#ffffff" }}
-          onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); } }}
-        >
-          <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 }}>
-            {sheetMode === "menu" ? (
-              <>
-                <View className="flex-row justify-between items-center mb-4">
-                  <Text className="text-lg font-semibold tracking-tightest text-black">Add to Calendar</Text>
-                  <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="x" size={16} color="#666666" />
-                  </TouchableOpacity>
+      <BottomSheet
+        ref={eventSheetRef}
+        snapPoints={eventSnapPoints}
+        enablePanDownToClose
+        index={showModal ? 0 : -1}
+        backgroundStyle={{ backgroundColor: "#ffffff" }}
+        onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); } }}
+      >
+        <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 }}>
+          {sheetMode === "menu" ? (
+            <>
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-lg font-semibold tracking-tightest text-black">Add to Calendar</Text>
+              </View>
+
+              <TouchableOpacity
+                className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
+                onPress={() => { resetForm(); setSheetMode("form"); }}
+              >
+                <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
+                  <Feather name="calendar" size={16} color="#ffffff" />
                 </View>
+                <Text className="text-sm font-medium text-black">Add Event</Text>
+              </TouchableOpacity>
 
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
-                  onPress={() => { resetForm(); setSheetMode("form"); }}
-                >
-                  <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
-                    <Feather name="calendar" size={16} color="#ffffff" />
-                  </View>
-                  <Text className="text-sm font-medium text-black">Add Event</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
-                  onPress={() => { setShowModal(false); router.push("/todo"); }}
-                >
-                  <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="check-square" size={16} color="#000000" />
-                  </View>
-                  <Text className="text-sm font-medium text-black">Add Todo</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  className="flex-row items-center gap-3 py-3.5"
-                  onPress={() => { setShowModal(false); router.push("/note"); }}
-                >
-                  <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="file-text" size={16} color="#000000" />
-                  </View>
-                  <Text className="text-sm font-medium text-black">New Note</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <View className="flex-row justify-between items-center mb-5">
-                  <View className="flex-row items-center gap-2">
-                    <TouchableOpacity onPress={() => setSheetMode("menu")} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
-                      <Feather name="chevron-left" size={16} color="#666666" />
-                    </TouchableOpacity>
-                    <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="x" size={16} color="#666666" />
-                  </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
+                onPress={() => { setShowModal(false); router.push("/todo"); }}
+              >
+                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
+                  <Feather name="check-square" size={16} color="#000000" />
                 </View>
+                <Text className="text-sm font-medium text-black">Add Todo</Text>
+              </TouchableOpacity>
 
-                <Text className="text-xs font-medium text-ink-400 mb-1.5">Title</Text>
-                <TextInput
-                  className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
-                  placeholder="Event title"
-                  placeholderTextColor="#999999"
-                  value={eventTitle}
-                  onChangeText={setEventTitle}
+              <TouchableOpacity
+                className="flex-row items-center gap-3 py-3.5"
+                onPress={() => { setShowModal(false); router.push("/note"); }}
+              >
+                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
+                  <Feather name="file-text" size={16} color="#000000" />
+                </View>
+                <Text className="text-sm font-medium text-black">New Note</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <View className="flex-row justify-between items-center mb-5">
+                <View className="flex-row items-center gap-2">
+                  <TouchableOpacity onPress={() => setSheetMode("menu")} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                    <Feather name="chevron-left" size={16} color="#666666" />
+                  </TouchableOpacity>
+                  <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                  <Feather name="x" size={16} color="#666666" />
+                </TouchableOpacity>
+              </View>
+
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">Title</Text>
+              <TextInput
+                className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
+                placeholder="Event title"
+                placeholderTextColor="#999999"
+                value={eventTitle}
+                onChangeText={setEventTitle}
+              />
+
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
+              >
+                <Feather name="calendar" size={14} color="#666666" />
+                <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={eventDate}
+                  mode="date"
+                  onChange={onDateChange}
                 />
+              )}
 
-                <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
-                <TouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
-                  className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
-                >
-                  <Feather name="calendar" size={14} color="#666666" />
-                  <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
-                </TouchableOpacity>
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
+              <TouchableOpacity
+                onPress={() => setShowTimePicker(true)}
+                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
+              >
+                <Feather name="clock" size={14} color="#666666" />
+                <Text className="text-sm text-black ml-2">
+                  {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </Text>
+              </TouchableOpacity>
 
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={eventDate}
-                    mode="date"
-                    onChange={onDateChange}
-                  />
-                )}
-
-                <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
-                <TouchableOpacity
-                  onPress={() => setShowTimePicker(true)}
-                  className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
-                >
-                  <Feather name="clock" size={14} color="#666666" />
-                  <Text className="text-sm text-black ml-2">
-                    {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </Text>
-                </TouchableOpacity>
-
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={eventTime}
-                    mode="time"
-                    onChange={onTimeChange}
-                  />
-                )}
-
-                <Text className="text-xs font-medium text-ink-400 mb-1.5">Notes</Text>
-                <TextInput
-                  className="min-h-[72px] bg-ink-50 rounded-xl px-4 py-3 text-sm text-black mb-6"
-                  placeholder="Add notes for this event"
-                  placeholderTextColor="#999999"
-                  value={eventNotes}
-                  onChangeText={setEventNotes}
-                  multiline
-                  textAlignVertical="top"
+              {showTimePicker && (
+                <DateTimePicker
+                  value={eventTime}
+                  mode="time"
+                  onChange={onTimeChange}
                 />
+              )}
 
-                <TouchableOpacity
-                  onPress={saveEvent}
-                  activeOpacity={0.85}
-                  className="bg-black h-12 rounded-xl items-center justify-center shadow-raised"
-                >
-                  <Text className="text-white text-base font-semibold">Save Event</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </BottomSheetView>
-        </BottomSheet>
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">Notes</Text>
+              <TextInput
+                className="min-h-[72px] bg-ink-50 rounded-xl px-4 py-3 text-sm text-black mb-6"
+                placeholder="Add notes for this event"
+                placeholderTextColor="#999999"
+                value={eventNotes}
+                onChangeText={setEventNotes}
+                multiline
+                textAlignVertical="top"
+              />
+
+              <TouchableOpacity
+                onPress={saveEvent}
+                activeOpacity={0.85}
+                className="bg-black h-12 rounded-xl items-center justify-center shadow-raised"
+              >
+                <Text className="text-white text-base font-semibold">Save Event</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </BottomSheetView>
+      </BottomSheet>
       <SheetModal
         visible={showMissingTitle}
         onClose={() => setShowMissingTitle(false)}

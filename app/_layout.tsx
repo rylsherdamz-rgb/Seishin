@@ -174,7 +174,7 @@ export default function RootLayout() {
         <Host style={{ flex: 1 }}>
         <SafeAreaProvider>
           <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
-            <RNStatusBar backgroundColor={darkMode ? "#1a1a1a" : "#ffffff"} barStyle={darkMode ? "light-content" : "dark-content"} />
+            <RNStatusBar backgroundColor="#1a1a1a" barStyle={darkMode ? "light-content" : "dark-content"} />
             <StatusBar style={darkMode ? "light" : "dark"} />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
