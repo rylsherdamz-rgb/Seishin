@@ -59,7 +59,8 @@
         }
       ],
       "llama.rn",
-      "expo-image"
+      "expo-image",
+      "expo-splash-screen"
     ]
   }
 }

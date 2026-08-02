@@ -11,6 +11,7 @@ export interface InboxItem {
   read: boolean;
   deleted?: boolean;
   eventId?: string;
+  pendingEvent?: { title: string; startDate: string; endDate: string; description?: string };
 }
 
 type InboxFilter = "all" | "notifications" | "emails" | "chats";

@@ -4,7 +4,7 @@ import * as Notifications from "expo-notifications";
 import NotificationListener from "expo-android-notification-listener-service";
 import type { NotificationData } from "expo-android-notification-listener-service";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
-import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
+import { CalendarEvent } from "@/stores/calendar-store";
 
 export type { NotificationData };
 
@@ -20,12 +20,13 @@ Notifications.setNotificationHandler({
 
 export function useNotifications() {
   const { addItem } = useInboxStore();
-  const { addEvent } = useCalendarStore();
   const listenerRef = useRef<any>(null);
   const responseListenerRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
+    scheduleTodayReminders();
+
     if (Platform.OS !== "android") return;
 
     const granted = NotificationListener.isNotificationPermissionGranted();
@@ -59,6 +60,7 @@ export function useNotifications() {
   }, []);
 
   function handleNotificationData(data: NotificationData) {
+    const parsed = parseNotificationForEvent(data);
     const item: InboxItem = {
       id: `notif-${data.id}-${Date.now()}`,
       type: "notification",
@@ -67,13 +69,11 @@ export function useNotifications() {
       timestamp: new Date(data.postTime).toISOString(),
       source: data.appName || data.packageName,
       read: false,
+      pendingEvent: parsed
+        ? { title: parsed.title, startDate: parsed.startDate, endDate: parsed.endDate, description: parsed.description }
+        : undefined,
     };
     addItem(item);
-
-    const parsed = parseNotificationForEvent(data);
-    if (parsed) {
-      addEvent(parsed);
-    }
   }
 
   const isGranted = useCallback(async () => {
@@ -146,4 +146,33 @@ export async function scheduleTodoReminder(todo: { title: string; dueDate?: stri
       trigger: { date: triggerDate, type: Notifications.SchedulableTriggerInputTypes.DATE },
     });
   }
+}
+
+export async function scheduleTodayReminders() {
+  const { useCalendarStore } = await import("@/stores/calendar-store");
+  const { useTodoStore } = await import("@/stores/todo-store");
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const events = useCalendarStore.getState().events;
+  const todos = useTodoStore.getState().todos;
+
+  const todayEvents = events.filter((e) => e.startDate.startsWith(todayStr));
+  const todayTodos = todos.filter(
+    (t) => t.dueDate?.startsWith(todayStr) && !t.completed
+  );
+
+  let count = 0;
+  for (const event of todayEvents) {
+    try {
+      await scheduleEventReminder(event);
+      count++;
+    } catch {}
+  }
+  for (const todo of todayTodos) {
+    try {
+      await scheduleTodoReminder(todo);
+      count++;
+    } catch {}
+  }
+  return count;
 }

@@ -40,10 +40,15 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["35%", "50%"], []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const emptyArr = useRef([]).current;
+  const eventNotes = useMemo(() => {
+    if (!event) return [];
+    return useNotesStore.getState().getNotesForEvent(event.id);
+  }, [event?.id]);
 
-  const eventNotes = useNotesStore((s) => event ? s.getNotesForEvent(event.id) : emptyArr);
-  const eventTodos = useTodoStore((s) => event ? s.getTodosForEvent(event.id) : emptyArr);
+  const eventTodos = useMemo(() => {
+    if (!event) return [];
+    return useTodoStore.getState().getTodosForEvent(event.id);
+  }, [event?.id]);
 
   const handleClose = useCallback(() => {
     sheetRef.current?.close();

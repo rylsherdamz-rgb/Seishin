@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StatusBar as RNStatusBar } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, withDelay, Easing, FadeInDown, FadeIn } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, FadeInDown } from "react-native-reanimated";
+import * as ExpoSplashScreen from "expo-splash-screen";
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -13,6 +14,7 @@ import { settingsStorage } from "@/stores/mmkv";
 import { Host } from "@expo/ui";
 import { useNotifications } from "@/services/notification-service";
 
+ExpoSplashScreen.preventAutoHideAsync();
 
 const ONBOARDING_PAGES = [
   {
@@ -113,6 +115,7 @@ function SplashScreen() {
   }));
 
   useEffect(() => {
+    ExpoSplashScreen.hideAsync();
     logoOpacity.value = withTiming(1, { duration: 200 });
     logoScale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
     bgOpacity.value = withDelay(400, withTiming(0, { duration: 300 }));

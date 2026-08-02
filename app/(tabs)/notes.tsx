@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Alert } from 
 import { router, useFocusEffect } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
+import { useCalendarStore } from "@/stores/calendar-store";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SheetModal } from "@/components/ui/SheetModal";
@@ -38,6 +39,7 @@ export default function NotesScreen() {
   const setSelecting = useInboxStore((s) => s.setSelecting);
   const deleteSelected = useInboxStore((s) => s.deleteSelected);
   const markSelectedRead = useInboxStore((s) => s.markSelectedRead);
+  const addEvent = useCalendarStore((s) => s.addEvent);
   const addMessage = useAgentStore((s) => s.addMessage);
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [tab, setTab] = useState<"notes" | "inbox">("notes");
@@ -411,6 +413,22 @@ export default function NotesScreen() {
         title={sheetTitle}
         message={sheetBody}
         options={[
+          ...(sheetItem?.pendingEvent ? [{
+            icon: "calendar" as const, label: "Add to Calendar", onPress: () => {
+              if (!sheetItem?.pendingEvent) return;
+              addEvent({
+                id: uid("inbox-evt"),
+                title: sheetItem.pendingEvent.title,
+                startDate: sheetItem.pendingEvent.startDate,
+                endDate: sheetItem.pendingEvent.endDate,
+                description: sheetItem.pendingEvent.description,
+                source: "notification" as const,
+              });
+              markRead(sheetItem.id);
+              setShowItemSheet(false);
+              setSheetItem(null);
+            },
+          }] : []),
           { icon: "cpu", label: "Send to AI", onPress: () => {
             if (!sheetItem) return;
             addMessage({
