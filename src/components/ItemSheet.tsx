@@ -4,7 +4,9 @@ import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import { router } from "expo-router";
 import { useNotesStore } from "@/stores/notes-store";
 import { useTodoStore } from "@/stores/todo-store";
-import { SheetModal } from "@/components/ui/SheetModal";
+import { Recurrence } from "@/stores/calendar-store";
+import { recurrenceLabel } from "@/utils/recurrence";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import Feather from "@expo/vector-icons/Feather";
 
 interface EventData {
@@ -16,6 +18,8 @@ interface EventData {
   source?: string;
   notes?: string;
   eventId?: string;
+  recurrence?: Recurrence;
+  reminder?: number;
 }
 
 interface TodoData {
@@ -40,15 +44,18 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["35%", "50%"], []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Subscribe reactively so toggling a todo updates the checkbox in-sheet.
+  const notes = useNotesStore((s) => s.notes);
+  const todos = useTodoStore((s) => s.todos);
   const eventNotes = useMemo(() => {
     if (!event) return [];
-    return useNotesStore.getState().getNotesForEvent(event.id);
-  }, [event?.id]);
+    return notes.filter((n) => n.eventId === event.id);
+  }, [notes, event?.id]);
 
   const eventTodos = useMemo(() => {
     if (!event) return [];
-    return useTodoStore.getState().getTodosForEvent(event.id);
-  }, [event?.id]);
+    return todos.filter((t) => t.eventId === event.id);
+  }, [todos, event?.id]);
 
   const handleClose = useCallback(() => {
     sheetRef.current?.close();
@@ -96,6 +103,22 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
                 <View className="flex-row items-center gap-3">
                   <Feather name="clock" size={14} color="#666666" />
                   <Text className="text-sm text-black">{event.time}</Text>
+                </View>
+              )}
+              {event.recurrence && (
+                <View className="flex-row items-center gap-3 mt-2">
+                  <Feather name="repeat" size={14} color="#666666" />
+                  <Text className="text-sm text-black">
+                    Repeats · {recurrenceLabel(event.recurrence)}
+                  </Text>
+                </View>
+              )}
+              {event.reminder && (
+                <View className="flex-row items-center gap-3 mt-2">
+                  <Feather name="bell" size={14} color="#666666" />
+                  <Text className="text-sm text-black">
+                    Reminder · {event.reminder} min before
+                  </Text>
                 </View>
               )}
             </View>
@@ -248,7 +271,7 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
           </>
         ) : null}
       </BottomSheetView>
-      <SheetModal
+      <AlertDialog
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         title="Delete"

@@ -16,6 +16,7 @@ import { uid } from "@/utils/id";
 import { categorizeModel, getTierLabel } from "@/services/nim-models";
 import * as Clipboard from "expo-clipboard";
 import { Markdown } from "@/components/Markdown";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import Feather from "@expo/vector-icons/Feather";
 import {
   onModelStateChange, getModelState, loadModel, unloadModel, isModelLoaded,
@@ -247,9 +248,12 @@ export default function AgentScreen() {
   }, [copiedId, copyToClipboard, streamTick]);
 
   const hasKey = !!apiKeys.nim;
+  // Android resizes the window itself (adjustResize); only iOS needs the
+  // manual keyboard offset. Applying both shifts the input bar too high.
+  const keyboardPadding = Platform.OS === "ios" ? keyboardHeight : 0;
 
   return (
-    <View className="flex-1 bg-white" style={{ paddingBottom: keyboardHeight }}>
+    <View className="flex-1 bg-white" style={{ paddingBottom: keyboardPadding }}>
         <View className="px-4 pt-3 pb-2">
           <View className="flex-row items-center justify-between mb-3">
             <View>
@@ -516,30 +520,15 @@ export default function AgentScreen() {
             </TouchableOpacity>
           </BottomSheetView>
         </BottomSheet>
-        <BottomSheet
-          snapPoints={pickerSnapPoints}
-          enablePanDownToClose
-          index={showClearConfirm ? 0 : -1}
-          backgroundStyle={{ backgroundColor: "#ffffff" }}
-          onChange={(index: number) => { if (index === -1) setShowClearConfirm(false); }}
-        >
-          <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
-            <Text className="text-base font-medium text-black mb-1">Clear conversation?</Text>
-            <Text className="text-sm text-ink-400 mb-5">All messages will be deleted.</Text>
-            <TouchableOpacity
-              className="h-12 bg-danger rounded-xl items-center justify-center"
-              onPress={() => { setShowClearConfirm(false); clearConversation(); }}
-            >
-              <Text className="text-sm font-medium text-white">Clear All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="h-12 items-center justify-center mt-2"
-              onPress={() => setShowClearConfirm(false)}
-            >
-              <Text className="text-sm text-ink-500">Cancel</Text>
-            </TouchableOpacity>
-          </BottomSheetView>
-        </BottomSheet>
+        <AlertDialog
+          visible={showClearConfirm}
+          onClose={() => setShowClearConfirm(false)}
+          title="Clear conversation?"
+          message="All messages will be deleted."
+          confirmLabel="Clear All"
+          confirmDestructive
+          onConfirm={clearConversation}
+        />
     </View>
   );
 }

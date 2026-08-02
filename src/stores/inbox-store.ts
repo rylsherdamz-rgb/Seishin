@@ -49,7 +49,24 @@ export const useInboxStore = create<InboxState>((set, get) => ({
       const raw = notificationsStorage.getString(INBOX_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) set({ items: parsed });
+        if (Array.isArray(parsed)) {
+          const now = new Date().toISOString();
+          const sanitized = parsed
+            .filter((i) => i && typeof i === "object" && typeof i.id === "string")
+            .map((i) => ({
+              id: i.id,
+              type: i.type === "email" || i.type === "chat" ? i.type : "notification",
+              title: typeof i.title === "string" ? i.title : "",
+              body: typeof i.body === "string" ? i.body : "",
+              timestamp: typeof i.timestamp === "string" ? i.timestamp : now,
+              source: typeof i.source === "string" ? i.source : "",
+              read: !!i.read,
+              deleted: i.deleted,
+              eventId: i.eventId,
+              pendingEvent: i.pendingEvent,
+            }));
+          set({ items: sanitized });
+        }
       }
     } catch {
       notificationsStorage.set(INBOX_KEY, JSON.stringify([]));

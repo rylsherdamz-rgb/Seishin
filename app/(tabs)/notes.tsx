@@ -7,6 +7,7 @@ import { useCalendarStore } from "@/stores/calendar-store";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SheetModal } from "@/components/ui/SheetModal";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { IconButton } from "@/components/ui/IconButton";
@@ -445,7 +446,7 @@ export default function NotesScreen() {
           { icon: "trash-2", label: "Delete", destructive: true, onPress: () => { if (sheetItem) deleteItem(sheetItem.id); } },
         ]}
       />
-      <SheetModal
+      <AlertDialog
         visible={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
         title="Clear All"

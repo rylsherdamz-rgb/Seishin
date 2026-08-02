@@ -5,6 +5,7 @@ import NotificationListener from "expo-android-notification-listener-service";
 import type { NotificationData } from "expo-android-notification-listener-service";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { CalendarEvent } from "@/stores/calendar-store";
+import { settingsStorage } from "@/stores/mmkv";
 
 export type { NotificationData };
 
@@ -18,6 +19,25 @@ Notifications.setNotificationHandler({
   }),
 });
 
+export function ensureNotificationPermission(): Promise<boolean> {
+  return Notifications.getPermissionsAsync().then(async (settings) => {
+    if (settings.granted) return true;
+    const res = await Notifications.requestPermissionsAsync();
+    return res.granted;
+  });
+}
+
+export async function ensureAlarmChannel() {
+  if (Platform.OS !== "android") return;
+  try {
+    await Notifications.setNotificationChannelAsync("event-alarm", {
+      name: "Event alarm",
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250, 250, 250],
+    });
+  } catch {}
+}
+
 export function useNotifications() {
   const { addItem } = useInboxStore();
   const listenerRef = useRef<any>(null);
@@ -25,9 +45,37 @@ export function useNotifications() {
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
-    scheduleTodayReminders();
+        (async () => {
+      try {
+        const granted = await ensureNotificationPermission();
+        await ensureAlarmChannel();
+        if (granted) {
+          try { await scheduleTodayReminders(); } catch {}
+        }
+      } catch (e) {
+        console.error("[notifications] init failed:", e);
+      }
+    })();
 
-    if (Platform.OS !== "android") return;
+    // The app's own scheduled reminders (event/todo alarms) land in the Inbox
+    // history when they fire while the app is in the foreground.
+    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data as Record<string, unknown> | undefined;
+      if (data?.type !== "event-reminder" && data?.type !== "todo-reminder") return;
+      addItem({
+        id: `own-${notification.request.identifier || Date.now()}`,
+        type: "notification",
+        title: notification.request.content.title || "Reminder",
+        body: notification.request.content.body || "",
+        timestamp: new Date(notification.date).toISOString(),
+        source: "Seishin",
+        read: false,
+      });
+    });
+
+    if (Platform.OS !== "android") {
+      return () => { receivedSub.remove(); };
+    }
 
     const granted = NotificationListener.isNotificationPermissionGranted();
     if (!granted) return;
@@ -53,6 +101,7 @@ export function useNotifications() {
     });
 
     return () => {
+      receivedSub.remove();
       sub.remove();
       if (responseSub) responseSub.remove();
       subscription.remove();
@@ -115,19 +164,68 @@ export function parseNotificationForEvent(data: NotificationData): CalendarEvent
   return null;
 }
 
-export async function scheduleEventReminder(event: { title: string; startDate: string; id: string }) {
-  const triggerDate = new Date(event.startDate);
-  triggerDate.setMinutes(triggerDate.getMinutes() - 15);
+// One scheduled notification id per event, so re-running scheduleTodayReminders
+// (e.g. on every app open) cancels the previous alarm instead of stacking
+// duplicate alarms for the same event.
+const REMINDER_MAP_KEY = "eventReminderNotifs";
 
-  if (triggerDate.getTime() > Date.now()) {
-    await Notifications.scheduleNotificationAsync({
+function loadReminderMap(): Record<string, string> {
+  const raw = settingsStorage.getString(REMINDER_MAP_KEY);
+  return raw ? JSON.parse(raw) : {};
+}
+
+function saveReminderMap(map: Record<string, string>) {
+  settingsStorage.set(REMINDER_MAP_KEY, JSON.stringify(map));
+}
+
+export async function cancelEventReminder(eventId: string) {
+  const map = loadReminderMap();
+  const prevId = map[eventId];
+  if (prevId) {
+    try { await Notifications.cancelScheduledNotificationAsync(prevId); } catch {}
+    delete map[eventId];
+    saveReminderMap(map);
+  }
+}
+
+export async function scheduleEventReminder(event: { title: string; startDate: string; id: string; reminder?: number }) {
+  if (!event.reminder) return;
+
+  let fireDate = new Date(event.startDate);
+  fireDate.setMinutes(fireDate.getMinutes() - event.reminder);
+
+  // If the reminder moment is already here but the event hasn't happened yet
+  // (e.g. "1 hour before" with the event exactly an hour away), still fire it
+  // shortly rather than silently dropping it.
+  if (fireDate.getTime() <= Date.now() && new Date(event.startDate).getTime() > Date.now()) {
+    fireDate = new Date(Date.now() + 1000 * 10);
+  }
+
+  if (fireDate.getTime() > Date.now()) {
+    const granted = await ensureNotificationPermission();
+    if (!granted) return;
+    await ensureAlarmChannel();
+
+    const map = loadReminderMap();
+    const prevId = map[event.id];
+    if (prevId) {
+      try { await Notifications.cancelScheduledNotificationAsync(prevId); } catch {}
+    }
+    const notifId = await Notifications.scheduleNotificationAsync({
       content: {
         title: "Upcoming Event",
         body: event.title,
+        sound: Platform.OS === "ios" ? "default" : undefined,
         data: { type: "event-reminder", eventId: event.id },
       },
-      trigger: { date: triggerDate, type: Notifications.SchedulableTriggerInputTypes.DATE },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: fireDate,
+        channelId: Platform.OS === "android" ? "event-alarm" : undefined,
+      },
     });
+    map[event.id] = notifId;
+    saveReminderMap(map);
   }
 }
 
@@ -151,12 +249,13 @@ export async function scheduleTodoReminder(todo: { title: string; dueDate?: stri
 export async function scheduleTodayReminders() {
   const { useCalendarStore } = await import("@/stores/calendar-store");
   const { useTodoStore } = await import("@/stores/todo-store");
+  const { occursOnDate, todayKey } = await import("@/utils/recurrence");
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = todayKey();
   const events = useCalendarStore.getState().events;
   const todos = useTodoStore.getState().todos;
 
-  const todayEvents = events.filter((e) => e.startDate.startsWith(todayStr));
+  const todayEvents = events.filter((e) => occursOnDate(e, todayStr) && !!e.reminder);
   const todayTodos = todos.filter(
     (t) => t.dueDate?.startsWith(todayStr) && !t.completed
   );

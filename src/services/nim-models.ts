@@ -129,16 +129,65 @@ export async function fetchNimModels(
   endpoint: string,
   apiKey: string,
 ): Promise<AutoModelResult> {
-  const baseUrl = endpoint.trim().replace(/\/+$/, "");
-  const res = await expoFetch(`${baseUrl}/models`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as Record<string, unknown>;
-  const modelIds: string[] = ((data.data || data.models || []) as Array<{ id?: string; model?: string }>)
-    .map((m) => m.id || m.model)
-    .filter(Boolean) as string[];
+  const modelIds = await fetchAllNimModels(endpoint, apiKey);
   return autoPickModels(modelIds);
+}
+
+interface RawModelEntry {
+  id?: string;
+  model?: string;
+}
+
+/**
+ * Fetch the full model catalog from an OpenAI-compatible NIM endpoint.
+ *
+ * The /v1/models response is paginated (and can contain duplicate ids), so a
+ * plain single request can silently return only a subset of models. This
+ * requests a large page size, follows the pagination markers the server
+ * reports (page number or cursor), and dedupes by id.
+ */
+export async function fetchAllNimModels(
+  endpoint: string,
+  apiKey: string,
+): Promise<string[]> {
+  const baseUrl = endpoint.trim().replace(/\/+$/, "");
+  const headers: Record<string, string> = {};
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  let page: number | undefined;
+  let cursor: string | undefined;
+
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const query = new URLSearchParams({ limit: "500" });
+    if (cursor) query.set("after", cursor);
+    else if (page) query.set("page", String(page));
+
+    const res = await expoFetch(`${baseUrl}/models?${query.toString()}`, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json() as Record<string, unknown>;
+    const entries = (data.data || data.models || []) as RawModelEntry[];
+    for (const m of entries) {
+      const id = m.id || m.model;
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        ids.push(id);
+      }
+    }
+
+    const hasMore = data.has_more === true;
+    const nextPage = typeof data.next_page === "number" ? data.next_page : undefined;
+    const nextCursor = typeof data.next_cursor === "string" ? data.next_cursor
+      : typeof data.next === "string" ? data.next : undefined;
+
+    if (!hasMore || (!nextPage && !nextCursor)) break;
+    if (nextPage) page = nextPage;
+    else cursor = nextCursor;
+  }
+
+  return ids;
 }
 
 export function cachedNimModels(): string[] {

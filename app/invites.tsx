@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { SheetModal } from "@/components/ui/SheetModal";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import Feather from "@expo/vector-icons/Feather";
 
 type InviteTab = "cards" | "p2p" | "shared";
@@ -209,19 +209,19 @@ export default function InvitesScreen() {
           <EmptyState icon="send" title="No invites yet" subtitle="Create one above" />
         }
       />
-      <SheetModal
+      <AlertDialog
         visible={showCodeAlert}
         onClose={() => setShowCodeAlert(false)}
         title="Code Generated"
         message={`Share this code: ${codeAlertText}`}
       />
-      <SheetModal
+      <AlertDialog
         visible={showShareAlert}
         onClose={() => setShowShareAlert(false)}
         title="Share Code"
         message={`Share this code with a friend: ${shareAlertText}`}
       />
-      <SheetModal
+      <AlertDialog
         visible={showDeleteConfirm}
         onClose={() => { setShowDeleteConfirm(false); setDeleteTarget(null); }}
         title="Delete Invite"

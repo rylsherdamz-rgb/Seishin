@@ -7,9 +7,10 @@ import { uid } from "@/utils/id";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { SheetModal } from "@/components/ui/SheetModal";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import { ItemSheet } from "@/components/ItemSheet";
 import { Logo } from "@/components/Logo";
+import { loadTodoDraft, saveTodoDraft, clearTodoDraft } from "@/utils/drafts";
 import Feather from "@expo/vector-icons/Feather";
 
 type TodoFilter = "all" | "active" | "completed";
@@ -34,11 +35,22 @@ export default function TodoScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [sheetItem, setSheetItem] = useState<Todo | null>(null);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDueDate, setNewDueDate] = useState<Date | null>(null);
+  const [newTitle, setNewTitle] = useState(() => loadTodoDraft().title ?? "");
+  const [newDueDate, setNewDueDate] = useState<Date | null>(() => {
+    const iso = loadTodoDraft().dueDate;
+    return iso ? new Date(iso) : null;
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => { loadTodos(); }, [loadTodos]);
+
+  // Autosave the in-progress todo, so it survives leaving this screen.
+  useEffect(() => {
+    saveTodoDraft({
+      title: newTitle,
+      dueDate: newDueDate ? newDueDate.toISOString() : undefined,
+    });
+  }, [newTitle, newDueDate]);
 
   const filtered = useMemo(() => {
     if (filter === "active") return todos.filter((t) => !t.completed);
@@ -66,6 +78,7 @@ export default function TodoScreen() {
     });
     setNewTitle("");
     setNewDueDate(null);
+    clearTodoDraft();
     setShowAdd(false);
   }, [newTitle, newDueDate, eventId, addTodo]);
 
@@ -237,7 +250,7 @@ export default function TodoScreen() {
         }
       />
 
-      <SheetModal
+      <AlertDialog
         visible={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
         title="Clear Completed"

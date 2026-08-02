@@ -1,16 +1,17 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  View, Text, TouchableOpacity, FlatList, TextInput,
+  View, Text, TouchableOpacity, FlatList, TextInput, ScrollView, Platform, useWindowDimensions,
 } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { router } from "expo-router";
 import { uid } from "@/utils/id";
 import { SheetModal } from "@/components/ui/SheetModal";
+import { AlertDialog } from "@/components/ui/AlertDialog";
+import { PickerModal } from "@/components/ui/PickerModal";
 import { Calendar, LocaleConfig } from "react-native-calendars";
+import type { Theme } from "react-native-calendars/src/types";
 
 LocaleConfig.locales["en"] = {
   monthNames: [
@@ -23,11 +24,15 @@ LocaleConfig.locales["en"] = {
   today: "Today",
 };
 LocaleConfig.defaultLocale = "en";
-import { useCalendarStore, CalendarEvent } from "@/stores/calendar-store";
+import { useCalendarStore, CalendarEvent, Recurrence } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
+import { occursOnDate, expandOccurrences, dateKey, keyToDate } from "@/utils/recurrence";
 import { Card } from "@/components/ui/Card";
+import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ItemSheet } from "@/components/ItemSheet";
+import { cancelEventReminder } from "@/services/notification-service";
+import { loadEventDraft, saveEventDraft, clearEventDraft } from "@/utils/drafts";
 import Feather from "@expo/vector-icons/Feather";
 
 interface CalendarItem {
@@ -43,6 +48,8 @@ interface CalendarItem {
   todoId?: string;
   notes?: string;
   eventId?: string;
+  recurrence?: Recurrence;
+  reminder?: number;
 }
 
 const sourceIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
@@ -83,6 +90,88 @@ function whenOf(date: string): WhenKind {
   return "future";
 }
 
+const rangeFrom = new Date();
+rangeFrom.setDate(rangeFrom.getDate() - 90);
+const rangeTo = new Date();
+rangeTo.setDate(rangeTo.getDate() + 366);
+const VISIBLE_RANGE = { from: dateKey(rangeFrom), to: dateKey(rangeTo) };
+
+function eventToItem(e: CalendarEvent, date: string): CalendarItem {
+  return {
+    id: e.id,
+    type: "event",
+    title: e.title,
+    description: e.description,
+    date,
+    time: new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    source: e.source,
+    notes: e.notes,
+    eventId: e.id,
+    recurrence: e.recurrence,
+    reminder: e.reminder,
+  };
+}
+
+type RepeatMode = "none" | "daily" | "weekdays" | "everyday" | "weekly" | "monthly" | "custom";
+
+const REPEAT_OPTIONS: { key: RepeatMode; label: string }[] = [
+  { key: "none", label: "None" },
+  { key: "daily", label: "Daily" },
+  { key: "weekdays", label: "Mon–Fri" },
+  { key: "everyday", label: "Mon–Sun" },
+  { key: "weekly", label: "Weekly" },
+  { key: "monthly", label: "Monthly" },
+  { key: "custom", label: "Custom" },
+];
+
+function buildRecurrence(mode: RepeatMode, weekdays: number[]): Recurrence | undefined {
+  switch (mode) {
+    case "daily":
+      return { frequency: "daily", interval: 1 };
+    case "weekdays":
+      return { frequency: "weekly", interval: 1, weekdays: [1, 2, 3, 4, 5] };
+    case "everyday":
+      return { frequency: "weekly", interval: 1, weekdays: [0, 1, 2, 3, 4, 5, 6] };
+    case "weekly":
+      return { frequency: "weekly", interval: 1 };
+    case "monthly":
+      return { frequency: "monthly", interval: 1 };
+    case "custom":
+      return weekdays.length > 0 ? { frequency: "weekly", interval: 1, weekdays: [...weekdays].sort() } : undefined;
+    default:
+      return undefined;
+  }
+}
+
+const CALENDAR_BASE_THEME = {
+  todayTextColor: "#000000",
+  selectedDayBackgroundColor: "#000000",
+  selectedDayTextColor: "#ffffff",
+  arrowColor: "#000000",
+  monthTextColor: "#000000",
+  textMonthFontWeight: "600",
+  textMonthFontSize: 15,
+  textDayFontSize: 12,
+  textDayHeaderFontSize: 11,
+  weekVerticalMargin: 1,
+  "stylesheet.calendar.main": {
+    week: { marginVertical: 1, flexDirection: "row", justifyContent: "space-around" },
+  },
+  "stylesheet.day.basic": {
+    base: { width: 30, height: 22, alignItems: "center" },
+    selected: { backgroundColor: "#000000", borderRadius: 11, width: 22, height: 22 },
+    today: { backgroundColor: "#eeeeee", borderRadius: 11, width: 22, height: 22 },
+    text: { fontSize: 12, fontWeight: "400", color: "#000000", marginTop: 2 },
+  },
+} as unknown as Theme;
+
+function shiftMonthKey(key: string, delta: number): string {
+  const d = new Date(key + "T12:00:00");
+  d.setDate(1);
+  d.setMonth(d.getMonth() + delta);
+  return dateKey(d);
+}
+
 export default function CalendarScreen() {
   const events = useCalendarStore((s) => s.events);
   const selectedDate = useCalendarStore((s) => s.selectedDate);
@@ -93,47 +182,64 @@ export default function CalendarScreen() {
   const todos = useTodoStore((s) => s.todos);
   const loadTodos = useTodoStore((s) => s.loadTodos);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
+  const deleteTodo = useTodoStore((s) => s.deleteTodo);
 
   const [showAll, setShowAll] = useState(false);
+  const { height: windowHeight } = useWindowDimensions();
+  const [calendarExpanded, setCalendarExpanded] = useState(true);
+  const [viewMonth, setViewMonth] = useState(selectedDate || todayStr);
+  const calendarHeight = Math.max(168, Math.round(windowHeight * 0.25));
 
   useEffect(() => {
     loadEvents();
     loadTodos();
   }, []);
 
-  const allItems = useMemo<CalendarItem[]>(
-    () => [
-      ...events.map((e) => ({
-        id: e.id,
-        type: "event" as const,
-        title: e.title,
-        description: e.description,
-        date: e.startDate.split("T")[0],
-        time: new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        source: e.source,
-        notes: e.notes,
-        eventId: e.id,
-      })),
-      ...todos
-        .filter((t) => t.dueDate)
-        .map((t) => ({
+  const allItems = useMemo<CalendarItem[]>(() => {
+    const items: CalendarItem[] = [];
+    for (const e of events) {
+      for (const d of expandOccurrences(e, VISIBLE_RANGE.from, VISIBLE_RANGE.to)) {
+        items.push({ ...eventToItem(e, d), id: `${e.id}:${d}` });
+      }
+    }
+    for (const t of todos) {
+      if (!t.dueDate) continue;
+      items.push({
+        id: `todo-${t.id}`,
+        type: "todo",
+        title: t.title,
+        date: t.dueDate.split("T")[0],
+        priority: t.priority,
+        completed: t.completed,
+        todoId: t.id,
+      });
+    }
+    return items;
+  }, [events, todos]);
+
+  const showAllItems = useMemo(() => sortItems(allItems), [allItems]);
+
+  const dayItems = useMemo(() => {
+    const items: CalendarItem[] = [];
+    for (const e of events) {
+      if (occursOnDate(e, selectedDate)) items.push(eventToItem(e, selectedDate));
+    }
+    for (const t of todos) {
+      if (t.dueDate && t.dueDate.split("T")[0] === selectedDate) {
+        items.push({
           id: `todo-${t.id}`,
-          type: "todo" as const,
+          type: "todo",
           title: t.title,
-          date: t.dueDate!.split("T")[0],
+          date: selectedDate,
           priority: t.priority,
           completed: t.completed,
           todoId: t.id,
-        })),
-    ],
-    [events, todos],
-  );
+        });
+      }
+    }
+    return sortItems(items);
+  }, [events, todos, selectedDate]);
 
-  const showAllItems = useMemo(() => sortItems(allItems), [allItems]);
-  const dayItems = useMemo(
-    () => sortItems(allItems.filter((item) => item.date === selectedDate)),
-    [allItems, selectedDate],
-  );
   const displayItems = useMemo(
     () => (showAll || !selectedDate ? buildSections(showAllItems) : dayItems),
     [showAll, selectedDate, showAllItems, dayItems],
@@ -166,72 +272,76 @@ export default function CalendarScreen() {
     return m;
   }, [allItems, selectedDate]);
 
-  const dayEvents = useMemo(
-    () =>
-      allItems
-        .filter((item) => item.date === selectedDate && item.type === "event")
-        .sort((a, b) => {
-          if (a.time && b.time) return a.time.localeCompare(b.time);
-          if (a.time) return -1;
-          if (b.time) return 1;
-          return 0;
-        }),
-    [allItems, selectedDate],
+  const todoDatesCount = useMemo(
+    () => todos.reduce((n, t) => n + (t.dueDate ? 1 : 0), 0),
+    [todos],
   );
-
-  const dayTodos = useMemo(
-    () =>
-      allItems
-        .filter((item) => item.date === selectedDate && item.type === "todo")
-        .sort((a, b) => {
-          if (a.priority === "high" && b.priority !== "high") return -1;
-          if (b.priority === "high" && a.priority !== "high") return 1;
-          return a.title.localeCompare(b.title);
-        }),
-    [allItems, selectedDate],
-  );
-
-  const sections = useMemo(() => {
-    const s: ({ kind: "header"; title: string; icon: React.ComponentProps<typeof Feather>["name"]; count: number } | CalendarItem)[] = [];
-    if (dayEvents.length > 0) {
-      s.push({ kind: "header", title: "Events", icon: "calendar", count: dayEvents.length });
-      s.push(...dayEvents);
-    }
-    if (dayTodos.length > 0) {
-      s.push({ kind: "header", title: "Todos", icon: "check-square", count: dayTodos.length });
-      s.push(...dayTodos);
-    }
-    return s;
-  }, [dayEvents, dayTodos]);
 
   const [sheetItem, setSheetItem] = useState<CalendarItem | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [sheetMode, setSheetMode] = useState<"menu" | "form">("menu");
-  const eventSheetRef = useRef<BottomSheet>(null);
-  const eventSnapPoints = useMemo(() => sheetMode === "menu" ? ["32%"] : ["50%"], [sheetMode]);
   const [eventTitle, setEventTitle] = useState("");
   const [eventNotes, setEventNotes] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
   const [eventTime, setEventTime] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"date" | "time" | null>(null);
   const [showMissingTitle, setShowMissingTitle] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>("none");
+  const [customWeekdays, setCustomWeekdays] = useState<number[]>([]);
+  const [reminderMinutes, setReminderMinutes] = useState<0 | 15 | 30 | 60>(0);
 
   const resetForm = useCallback(() => {
     setEventTitle("");
     setEventNotes("");
     setEventDate(new Date());
     setEventTime(new Date());
+    setRepeatMode("none");
+    setCustomWeekdays([]);
+    setReminderMinutes(0);
   }, []);
 
-  const onDateChange = useCallback((_: DateTimePickerEvent, d?: Date) => {
-    setShowDatePicker(false);
-    if (d) setEventDate(d);
+  // Restore the last in-progress event draft into the form.
+  const hydrateDraft = useCallback(() => {
+    const draft = loadEventDraft();
+    setEventTitle(draft.title ?? "");
+    setEventNotes(draft.notes ?? "");
+    if (draft.startDate) {
+      const d = new Date(draft.startDate);
+      if (!isNaN(d.getTime())) {
+        setEventDate(d);
+        setEventTime(d);
+      }
+    }
+    setRepeatMode((draft.repeatMode as RepeatMode) ?? "none");
+    setCustomWeekdays(draft.customWeekdays ?? []);
+    const validReminders: (0 | 15 | 30 | 60)[] = [0, 15, 30, 60];
+    setReminderMinutes(
+      validReminders.includes(draft.reminderMinutes as 0 | 15 | 30 | 60)
+        ? (draft.reminderMinutes as 0 | 15 | 30 | 60)
+        : 0
+    );
   }, []);
 
-  const onTimeChange = useCallback((_: DateTimePickerEvent, d?: Date) => {
-    setShowTimePicker(false);
-    if (d) setEventTime(d);
+  // Autosave the event draft while the form is open, so closing the sheet
+  // keeps everything typed.
+  useEffect(() => {
+    if (sheetMode !== "form") return;
+    const start = new Date(eventDate);
+    start.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
+    saveEventDraft({
+      title: eventTitle,
+      notes: eventNotes,
+      startDate: start.toISOString(),
+      repeatMode: repeatMode === "none" ? undefined : repeatMode,
+      customWeekdays: customWeekdays.length ? customWeekdays : undefined,
+      reminderMinutes: reminderMinutes || undefined,
+    });
+  }, [eventTitle, eventNotes, eventDate, eventTime, repeatMode, customWeekdays, reminderMinutes, sheetMode]);
+
+  const toggleWeekday = useCallback((d: number) => {
+    setCustomWeekdays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
+    );
   }, []);
 
   const saveEvent = useCallback(() => {
@@ -249,10 +359,14 @@ export default function CalendarScreen() {
       endDate: end.toISOString(),
       source: "manual",
       notes: eventNotes.trim() || undefined,
+      recurrence: buildRecurrence(repeatMode, customWeekdays),
+      reminder: reminderMinutes > 0 ? reminderMinutes : undefined,
     });
     setShowModal(false);
+    setSheetMode("menu");
+    clearEventDraft();
     resetForm();
-  }, [eventTitle, eventDate, eventTime, eventNotes, addEvent, resetForm]);
+  }, [eventTitle, eventDate, eventTime, eventNotes, repeatMode, customWeekdays, reminderMinutes, addEvent, resetForm]);
 
   const onDayPress = useCallback((day: { dateString: string }) => {
     setSelectedDate(day.dateString);
@@ -314,6 +428,19 @@ export default function CalendarScreen() {
                   <Text className="text-xs text-ink-400">{item.time}</Text>
                   <Text className="text-xs text-ink-200">·</Text>
                   <Text className="text-xs text-ink-400 capitalize">{item.source}</Text>
+                  {item.recurrence && (
+                    <>
+                      <Text className="text-xs text-ink-200">·</Text>
+                      <Feather name="repeat" size={10} color="#999999" />
+                    </>
+                  )}
+                  {item.reminder && (
+                    <>
+                      <Text className="text-xs text-ink-200">·</Text>
+                      <Feather name="bell" size={10} color="#999999" />
+                      <Text className="text-xs text-ink-400">{item.reminder}min</Text>
+                    </>
+                  )}
                 </View>
               </View>
               <Feather name="chevron-up" size={14} color="#cccccc" />
@@ -352,7 +479,7 @@ export default function CalendarScreen() {
         <View>
           <Text className="text-2xl font-semibold tracking-tightest text-black">Calendar</Text>
           <Text className="text-sm text-ink-500 mt-1">
-            {events.length} events · {todos.filter((t) => t.dueDate).length} todo dates
+            {events.length} events · {todoDatesCount} todo dates
           </Text>
         </View>
         <TouchableOpacity
@@ -364,25 +491,58 @@ export default function CalendarScreen() {
         </TouchableOpacity>
       </View>
 
-      <Calendar
-        current={selectedDate}
-        onDayPress={onDayPress}
-        onDayLongPress={onDayLongPress}
-        markedDates={markedDates}
-        markingType="multi-dot"
-        theme={{
-          todayTextColor: "#000000",
-          selectedDayBackgroundColor: "#000000",
-          selectedDayTextColor: "#ffffff",
-          arrowColor: "#000000",
-          monthTextColor: "#000000",
-          textMonthFontWeight: "600",
-          textMonthFontSize: 15,
-          textDayFontSize: 14,
-          textDayHeaderFontSize: 12,
-        }}
-        style={{ borderBottomWidth: 1, borderBottomColor: "#e5e5e5", paddingBottom: 8 }}
-      />
+      <View className="px-4 flex-row items-center justify-between">
+        <TouchableOpacity
+          onPress={() => setCalendarExpanded((v) => !v)}
+          className="flex-row items-center gap-1.5 py-1"
+          activeOpacity={0.7}
+        >
+          <Text className="text-base font-semibold tracking-tight text-black">
+            {new Date(viewMonth + "T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+          </Text>
+          <Feather name={calendarExpanded ? "chevron-up" : "chevron-down"} size={16} color="#999999" />
+        </TouchableOpacity>
+        <View className="flex-row items-center gap-1.5">
+          {viewMonth !== todayStr && (
+            <TouchableOpacity
+              onPress={() => { setViewMonth(todayStr); setSelectedDate(todayStr); }}
+              className="px-2.5 py-1 rounded-full bg-ink-100"
+              activeOpacity={0.7}
+            >
+              <Text className="text-[11px] font-semibold text-ink-600">Today</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => setViewMonth((m) => shiftMonthKey(m, -1))}
+            className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center"
+            activeOpacity={0.7}
+          >
+            <Feather name="chevron-left" size={14} color="#000000" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setViewMonth((m) => shiftMonthKey(m, 1))}
+            className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center"
+            activeOpacity={0.7}
+          >
+            <Feather name="chevron-right" size={14} color="#000000" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {calendarExpanded && (
+        <View style={{ height: calendarHeight, overflow: "hidden" }}>
+          <Calendar
+            current={viewMonth}
+            onDayPress={onDayPress}
+            onDayLongPress={onDayLongPress}
+            onMonthChange={(d) => setViewMonth(d.dateString)}
+            markedDates={markedDates}
+            markingType="multi-dot"
+            theme={CALENDAR_BASE_THEME}
+            style={{ paddingBottom: 0 }}
+          />
+        </View>
+      )}
 
       <View className="pt-4 px-4 flex-row items-center justify-between">
         <View className="flex-row items-center gap-2 flex-1">
@@ -452,35 +612,35 @@ export default function CalendarScreen() {
         <ItemSheet
           {...(sheetItem.type === "event" ? {
             event: {
-              id: sheetItem.id,
+              id: sheetItem.eventId || sheetItem.id,
               title: sheetItem.title,
               date: sheetItem.date,
               time: sheetItem.time,
               description: sheetItem.description,
               source: sheetItem.source,
               notes: sheetItem.notes,
-              eventId: sheetItem.eventId,
+              eventId: sheetItem.eventId || sheetItem.id,
+              recurrence: sheetItem.recurrence,
+              reminder: sheetItem.reminder,
             },
-            onEventDelete: (id) => { deleteEvent(id); setSheetItem(null); },
+            onEventDelete: (id) => { deleteEvent(id); cancelEventReminder(id); setSheetItem(null); },
           } : {
             todo: {
-              id: sheetItem.id,
+              id: sheetItem.todoId || sheetItem.id,
               title: sheetItem.title,
               date: sheetItem.date,
               priority: sheetItem.priority,
               completed: sheetItem.completed,
-              todoId: sheetItem.todoId,
+              todoId: sheetItem.todoId || sheetItem.id,
             },
-            onTodoToggle: (id) => { toggleTodo(id); setSheetItem(null); },
-            onTodoDelete: (id) => { setSheetItem(null); },
+            onTodoToggle: (id) => { toggleTodo(id); },
+            onTodoDelete: (id) => { deleteTodo(id); setSheetItem(null); },
           })}
           onClose={() => setSheetItem(null)}
         />
       )}
 
       <BottomSheet
-        ref={eventSheetRef}
-        snapPoints={eventSnapPoints}
         enablePanDownToClose
         index={showModal ? 0 : -1}
         backgroundStyle={{ backgroundColor: "#ffffff" }}
@@ -495,7 +655,7 @@ export default function CalendarScreen() {
 
               <TouchableOpacity
                 className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
-                onPress={() => { resetForm(); setSheetMode("form"); }}
+                onPress={() => { resetForm(); hydrateDraft(); setSheetMode("form"); }}
               >
                 <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
                   <Feather name="calendar" size={16} color="#ffffff" />
@@ -524,7 +684,11 @@ export default function CalendarScreen() {
               </TouchableOpacity>
             </>
           ) : (
-            <>
+            <ScrollView
+              contentContainerStyle={{ paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
               <View className="flex-row justify-between items-center mb-5">
                 <View className="flex-row items-center gap-2">
                   <TouchableOpacity onPress={() => setSheetMode("menu")} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
@@ -548,24 +712,16 @@ export default function CalendarScreen() {
 
               <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
               <TouchableOpacity
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => setPickerMode("date")}
                 className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
               >
                 <Feather name="calendar" size={14} color="#666666" />
                 <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
               </TouchableOpacity>
 
-              {showDatePicker && (
-                <DateTimePicker
-                  value={eventDate}
-                  mode="date"
-                  onChange={onDateChange}
-                />
-              )}
-
               <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
               <TouchableOpacity
-                onPress={() => setShowTimePicker(true)}
+                onPress={() => setPickerMode("time")}
                 className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
               >
                 <Feather name="clock" size={14} color="#666666" />
@@ -574,13 +730,53 @@ export default function CalendarScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {showTimePicker && (
-                <DateTimePicker
-                  value={eventTime}
-                  mode="time"
-                  onChange={onTimeChange}
-                />
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">Repeat</Text>
+              <View className="flex-row flex-wrap gap-2 mb-2.5">
+                {REPEAT_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.key}
+                    label={o.label}
+                    active={repeatMode === o.key}
+                    onPress={() => setRepeatMode(o.key)}
+                  />
+                ))}
+              </View>
+
+              {repeatMode === "custom" && (
+                <View className="flex-row justify-between mb-6 px-1">
+                  {["S", "M", "T", "W", "T", "F", "S"].map((label, d) => (
+                    <TouchableOpacity
+                      key={d}
+                      onPress={() => toggleWeekday(d)}
+                      className={`w-9 h-9 rounded-full items-center justify-center ${
+                        customWeekdays.includes(d) ? "bg-black" : "bg-ink-100"
+                      }`}
+                      activeOpacity={0.7}
+                    >
+                      <Text className={`text-xs font-semibold ${customWeekdays.includes(d) ? "text-white" : "text-ink-500"}`}>
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
+
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">Reminder</Text>
+              <View className="flex-row flex-wrap gap-2 mb-6">
+                {([
+                  { value: 0, label: "None" },
+                  { value: 15, label: "15 min before" },
+                  { value: 30, label: "30 min before" },
+                  { value: 60, label: "1 hr before" },
+                ] as const).map((o) => (
+                  <Chip
+                    key={o.value}
+                    label={o.label}
+                    active={reminderMinutes === o.value}
+                    onPress={() => setReminderMinutes(o.value)}
+                  />
+                ))}
+              </View>
 
               <Text className="text-xs font-medium text-ink-400 mb-1.5">Notes</Text>
               <TextInput
@@ -600,11 +796,39 @@ export default function CalendarScreen() {
               >
                 <Text className="text-white text-base font-semibold">Save Event</Text>
               </TouchableOpacity>
-            </>
+            </ScrollView>
           )}
         </BottomSheetView>
       </BottomSheet>
-      <SheetModal
+
+      {Platform.OS === "android" && pickerMode === "date" && (
+        <DateTimePicker
+          value={eventDate}
+          mode="date"
+          onChange={(_, d) => { setPickerMode(null); if (d) setEventDate(d); }}
+        />
+      )}
+      {Platform.OS === "android" && pickerMode === "time" && (
+        <DateTimePicker
+          value={eventTime}
+          mode="time"
+          onChange={(_, d) => { setPickerMode(null); if (d) setEventTime(d); }}
+        />
+      )}
+
+      <PickerModal
+        visible={Platform.OS !== "android" && pickerMode !== null}
+        title={pickerMode === "date" ? "Select Date" : "Select Time"}
+        mode={pickerMode === "date" ? "date" : "time"}
+        value={pickerMode === "date" ? eventDate : eventTime}
+        onConfirm={(d) => {
+          if (pickerMode === "date") setEventDate(d);
+          else setEventTime(d);
+        }}
+        onClose={() => setPickerMode(null)}
+      />
+
+      <AlertDialog
         visible={showMissingTitle}
         onClose={() => setShowMissingTitle(false)}
         title="Missing title"

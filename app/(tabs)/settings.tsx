@@ -3,7 +3,6 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, Activity
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 
 import { router } from "expo-router";
-import { fetch as expoFetch } from "expo/fetch";
 import * as DocumentPicker from "expo-document-picker";
 import { useSettingsStore } from "@/stores/settings-store";
 import {
@@ -16,10 +15,10 @@ import { useNotifications } from "@/services/notification-service";
 import * as FileSystem from "expo-file-system/legacy";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { SheetModal } from "@/components/ui/SheetModal";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
-import { fetchNimModels, cacheNimModels, categorizeModel, getTierLabel } from "@/services/nim-models";
+import { fetchNimModels, fetchAllNimModels, cacheNimModels, categorizeModel, getTierLabel } from "@/services/nim-models";
 
 const storageCategories = [
   { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
@@ -220,14 +219,7 @@ export default function SettingsScreen() {
     try {
       const baseUrl = (nimEp || "https://integrate.api.nvidia.com/v1").trim().replace(/\/+$/, "");
       const key = nimKey || apiKeys.nim;
-      const res = await expoFetch(`${baseUrl}/models`, {
-        headers: key ? { Authorization: `Bearer ${key}` } : {},
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json() as Record<string, unknown>;
-      const modelIds: string[] = ((data.data || data.models || []) as Array<{ id?: string; model?: string }>)
-        .map((m) => m.id || m.model)
-        .filter(Boolean) as string[];
+      const modelIds = await fetchAllNimModels(baseUrl, key);
       setModels(modelIds.sort());
     } catch (e) {
       setModalConfig({ title: "Could not load models", message: `Check your API key and endpoint, then try again.` });
@@ -581,13 +573,13 @@ export default function SettingsScreen() {
             )}
           </BottomSheetView>
         </BottomSheet>
-      <SheetModal
+      <AlertDialog
         visible={modalConfig !== null}
         onClose={() => setModalConfig(null)}
         title={modalConfig?.title}
         message={modalConfig?.message}
       />
-      <SheetModal
+      <AlertDialog
         visible={confirmConfig !== null}
         onClose={() => setConfirmConfig(null)}
         title={confirmConfig?.title}

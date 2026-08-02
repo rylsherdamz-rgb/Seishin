@@ -7,7 +7,7 @@ import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 import { getDocumentAsync } from "expo-document-picker";
 import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
 import { recognizeText } from "@/services/ocr";
-import { SheetModal } from "@/components/ui/SheetModal";
+import { AlertDialog } from "@/components/ui/AlertDialog";
 import { uid } from "@/utils/id";
 import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
@@ -39,6 +39,8 @@ export default function NoteEditorScreen() {
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeBusy, setYoutubeBusy] = useState(false);
+  const [savedAt, setSavedAt] = useState(0);
+  const [savedVisible, setSavedVisible] = useState(false);
   const youtubeSnapPoints = useMemo(() => ["40%"], []);
   const noteIdRef = useRef<string | undefined>(existing?.id);
   // Ensures a launch "action" (from the Notes "+" menu) fires its picker only once.
@@ -93,7 +95,31 @@ export default function NoteEditorScreen() {
         updatedAt: now,
       });
     }
+    setSavedAt(Date.now());
   }, [title, body, tags, pinned, attachments, eventId]);
+
+  // Autosave on every edit (skip the initial mount so opening an existing
+  // note doesn't bump its updatedAt). Saves instantly per keystroke.
+  const mountedOnceRef = useRef(false);
+  useEffect(() => {
+    if (!mountedOnceRef.current) { mountedOnceRef.current = true; return; }
+    persist();
+  }, [title, body, tags, pinned, attachments, persist]);
+
+  // Flash the "Saved" indicator after each write.
+  useEffect(() => {
+    if (!savedAt) return;
+    setSavedVisible(true);
+    const timer = setTimeout(() => setSavedVisible(false), 2000);
+    return () => clearTimeout(timer);
+  }, [savedAt]);
+
+  // Flush pending edits on unmount — gesture/system back bypass handleBack.
+  const lastPersistRef = useRef<() => void>(() => {});
+  lastPersistRef.current = persist;
+  useEffect(() => {
+    return () => { lastPersistRef.current(); };
+  }, []);
 
   const handleBack = useCallback(() => {
     persist();
@@ -241,6 +267,12 @@ export default function NoteEditorScreen() {
           <Feather name="arrow-left" size={16} color="#000000" />
         </TouchableOpacity>
         <View className="flex-row items-center gap-2">
+          {savedVisible && (
+            <View className="flex-row items-center gap-1 px-2.5 py-1 bg-ink-50 border border-ink-100 rounded-full">
+              <Feather name="check" size={10} color="#2fbf71" />
+              <Text className="text-[11px] font-medium text-ink-500">Saved</Text>
+            </View>
+          )}
           <TouchableOpacity
             onPress={togglePin}
             className={`w-9 h-9 rounded-full items-center justify-center ${pinned ? "bg-black" : "bg-ink-100"}`}
@@ -267,7 +299,6 @@ export default function NoteEditorScreen() {
             placeholderTextColor="#cccccc"
             value={title}
             onChangeText={setTitle}
-            onBlur={() => persist()}
             multiline
           />
           <TextInput
@@ -276,7 +307,6 @@ export default function NoteEditorScreen() {
             placeholderTextColor="#cccccc"
             value={body}
             onChangeText={setBody}
-            onBlur={() => persist()}
             multiline
             textAlignVertical="top"
           />
@@ -425,7 +455,7 @@ export default function NoteEditorScreen() {
           )}
         </BottomSheetView>
       </BottomSheet>
-      <SheetModal
+      <AlertDialog
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         title="Delete note"
@@ -434,7 +464,7 @@ export default function NoteEditorScreen() {
         confirmDestructive
         onConfirm={() => { if (noteIdRef.current) deleteNote(noteIdRef.current); router.back(); }}
       />
-      <SheetModal
+      <AlertDialog
         visible={showFileError}
         onClose={() => setShowFileError(false)}
         title="Could not open file"
