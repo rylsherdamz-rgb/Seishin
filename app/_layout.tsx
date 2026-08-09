@@ -176,8 +176,8 @@ export default function RootLayout() {
         <Host style={{ flex: 1 }}>
         <SafeAreaProvider>
           <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
-            <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
-            <StatusBar style="light" />
+            <RNStatusBar backgroundColor="#ffffff" barStyle="dark-content" />
+            <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false, animation: "fade_from_bottom" }}>
               <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
               <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
