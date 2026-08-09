@@ -1,22 +1,46 @@
 import { useEffect, useRef, useCallback } from "react";
-import { Platform, AppState, AppStateStatus } from "react-native";
+import { Platform, AppState, AppStateStatus, NativeModules } from "react-native";
 import * as Notifications from "expo-notifications";
 import NotificationListener from "expo-android-notification-listener-service";
 import type { NotificationData } from "expo-android-notification-listener-service";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
+import { useAlarmStore } from "@/stores/alarm-store";
 import { CalendarEvent } from "@/stores/calendar-store";
 import { settingsStorage } from "@/stores/mmkv";
+import { expandOccurrences, todayKey } from "@/utils/recurrence";
+
+/** Native full-screen alarm module (background/locked-screen rings). */
+const NativeAlarm = NativeModules.AlarmFullScreen as
+  | {
+      scheduleAlarm: (id: string, title: string, body: string, startTimeMs: number, fireAtMs: number, expoNotifId: string | null) => void;
+      cancelAlarms: (prefix: string) => void;
+    }
+  | undefined;
 
 export type { NotificationData };
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data as Record<string, unknown> | undefined;
+    // Event alarms take over the screen via the in-app AlarmOverlay, so
+    // suppress the banner; the sound comes from the alarm channel.
+    if (data?.type === "event-alarm") {
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+      };
+    }
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 export function ensureNotificationPermission(): Promise<boolean> {
@@ -61,6 +85,18 @@ export function useNotifications() {
     // history when they fire while the app is in the foreground.
     const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
       const data = notification.request.content.data as Record<string, unknown> | undefined;
+      if (data?.type === "event-alarm") {
+        // Foreground: take over the screen with the stock-alarm overlay.
+        const payload = {
+          title: notification.request.content.title || "Alarm",
+          body: notification.request.content.body ?? undefined,
+          eventId: typeof data.eventId === "string" ? data.eventId : undefined,
+          startTime: typeof data.startTime === "string" ? data.startTime : undefined,
+        };
+        lastAlarmPayload.current = payload;
+        useAlarmStore.getState().trigger({ ...payload, snoozed: false });
+        return;
+      }
       if (data?.type !== "event-reminder" && data?.type !== "todo-reminder") return;
       addItem({
         id: `own-${notification.request.identifier || Date.now()}`,
@@ -164,9 +200,9 @@ export function parseNotificationForEvent(data: NotificationData): CalendarEvent
   return null;
 }
 
-// One scheduled notification id per event, so re-running scheduleTodayReminders
-// (e.g. on every app open) cancels the previous alarm instead of stacking
-// duplicate alarms for the same event.
+// One scheduled notification id per event occurrence, so re-running
+// scheduleTodayReminders (e.g. on every app open) cancels the previous
+// alarm instead of stacking duplicate alarms for the same event.
 const REMINDER_MAP_KEY = "eventReminderNotifs";
 
 function loadReminderMap(): Record<string, string> {
@@ -178,45 +214,163 @@ function saveReminderMap(map: Record<string, string>) {
   settingsStorage.set(REMINDER_MAP_KEY, JSON.stringify(map));
 }
 
+/** The most recently fired alarm, used to re-fire a snoozed alarm. */
+const lastAlarmPayload = {
+  current: undefined as
+    | { title: string; body?: string; eventId?: string; startTime?: string }
+    | undefined,
+};
+
+const ALARM_WINDOW_DAYS = 30;
+
+function dateKeyInDays(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 export async function cancelEventReminder(eventId: string) {
   const map = loadReminderMap();
-  const prevId = map[eventId];
+  const keyPrefix = `${eventId}:`;
+  let changed = false;
+  for (const key of Object.keys(map)) {
+    if (key === eventId || key.startsWith(keyPrefix)) {
+      try { await Notifications.cancelScheduledNotificationAsync(map[key]); } catch {}
+      delete map[key];
+      changed = true;
+    }
+  }
+  if (changed) saveReminderMap(map);
+  try { NativeAlarm?.cancelAlarms(eventId); } catch {}
+}
+
+function fireDateFor(occurrenceStart: Date, minutesBefore: number): Date {
+  const fireDate = new Date(occurrenceStart);
+  fireDate.setMinutes(fireDate.getMinutes() - minutesBefore);
+  // If the alarm moment is already here but the schedule hasn't started yet,
+  // still fire it shortly rather than silently dropping it.
+  if (fireDate.getTime() <= Date.now() && occurrenceStart.getTime() > Date.now()) {
+    return new Date(Date.now() + 10 * 1000);
+  }
+  return fireDate;
+}
+
+async function scheduleOccurrenceAlarm({
+  eventId,
+  title,
+  occurrence,
+  minutesBefore,
+}: {
+  eventId: string;
+  title: string;
+  occurrence: Date;
+  minutesBefore: number;
+}): Promise<void> {
+  const fireDate = fireDateFor(occurrence, minutesBefore);
+  if (fireDate.getTime() <= Date.now()) return;
+  const granted = await ensureNotificationPermission();
+  if (!granted) return;
+  await ensureAlarmChannel();
+
+  const map = loadReminderMap();
+  const key = `${eventId}:${occurrence.toISOString()}`;
+  const prevId = map[key];
   if (prevId) {
     try { await Notifications.cancelScheduledNotificationAsync(prevId); } catch {}
-    delete map[eventId];
-    saveReminderMap(map);
+  }
+  const notifId = await Notifications.scheduleNotificationAsync({
+    content: {
+      title,
+      body: `${occurrence.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${occurrence.toLocaleDateString([], { month: "short", day: "numeric" })}`,
+      sound: Platform.OS === "ios" ? "default" : undefined,
+      data: {
+        type: "event-alarm",
+        eventId,
+        startTime: occurrence.toISOString(),
+      },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: fireDate,
+      channelId: Platform.OS === "android" ? "event-alarm" : undefined,
+    },
+  });
+  map[key] = notifId;
+  saveReminderMap(map);
+
+  // Native full-screen ring for when the app is backgrounded / screen locked.
+  try {
+    NativeAlarm?.scheduleAlarm(
+      key,
+      title,
+      `${occurrence.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${occurrence.toLocaleDateString([], { month: "long", day: "numeric" })}`,
+      occurrence.getTime(),
+      fireDate.getTime(),
+      notifId,
+    );
+  } catch {}
+}
+
+/**
+ * Schedule alarms for an event. Recurring events get one alarm per
+ * occurrence over the next ALARM_WINDOW_DAYS days, so a repeating event
+ * rings for every instance (the batch behavior).
+ */
+export async function scheduleEventReminder(event: CalendarEvent) {
+  if (!event.reminder) return;
+
+  const prev = loadReminderMap();
+  const keyPrefix = `${event.id}:`;
+  let changed = false;
+  for (const key of Object.keys(prev)) {
+    if (key.startsWith(keyPrefix)) {
+      try { await Notifications.cancelScheduledNotificationAsync(prev[key]); } catch {}
+      delete prev[key];
+      changed = true;
+    }
+  }
+  if (changed) saveReminderMap(prev);
+
+  try { NativeAlarm?.cancelAlarms(event.id); } catch {}
+
+  const start = new Date(event.startDate);
+  const from = todayKey();
+  const to = dateKeyInDays(ALARM_WINDOW_DAYS);
+  const days = expandOccurrences(event, from, to, ALARM_WINDOW_DAYS * 2);
+
+  for (const day of days) {
+    const occurrence = new Date(`${day}T00:00:00`);
+    occurrence.setHours(start.getHours(), start.getMinutes(), 0, 0);
+    if (occurrence.getTime() <= Date.now()) continue;
+    try {
+      await scheduleOccurrenceAlarm({
+        eventId: event.id,
+        title: event.title,
+        occurrence,
+        minutesBefore: event.reminder,
+      });
+    } catch {}
   }
 }
 
-export async function scheduleEventReminder(event: { title: string; startDate: string; id: string; reminder?: number }) {
-  if (!event.reminder) return;
-
-  let fireDate = new Date(event.startDate);
-  fireDate.setMinutes(fireDate.getMinutes() - event.reminder);
-
-  // If the reminder moment is already here but the event hasn't happened yet
-  // (e.g. "1 hour before" with the event exactly an hour away), still fire it
-  // shortly rather than silently dropping it.
-  if (fireDate.getTime() <= Date.now() && new Date(event.startDate).getTime() > Date.now()) {
-    fireDate = new Date(Date.now() + 1000 * 10);
-  }
-
-  if (fireDate.getTime() > Date.now()) {
-    const granted = await ensureNotificationPermission();
-    if (!granted) return;
-    await ensureAlarmChannel();
-
-    const map = loadReminderMap();
-    const prevId = map[event.id];
-    if (prevId) {
-      try { await Notifications.cancelScheduledNotificationAsync(prevId); } catch {}
-    }
-    const notifId = await Notifications.scheduleNotificationAsync({
+/** Re-fire the last alarm after a snooze. */
+export async function snoozeAlarm(minutes = 1): Promise<void> {
+  const payload = lastAlarmPayload.current;
+  if (!payload) return;
+  const granted = await ensureNotificationPermission();
+  if (!granted) return;
+  await ensureAlarmChannel();
+  const fireDate = new Date(Date.now() + minutes * 60 * 1000);
+  try {
+    await Notifications.scheduleNotificationAsync({
       content: {
-        title: "Upcoming Event",
-        body: event.title,
+        title: payload.title,
+        body: payload.body,
         sound: Platform.OS === "ios" ? "default" : undefined,
-        data: { type: "event-reminder", eventId: event.id },
+        data: {
+          type: "event-alarm",
+          eventId: payload.eventId,
+          startTime: payload.startTime,
+          snoozed: true,
+        },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -224,9 +378,7 @@ export async function scheduleEventReminder(event: { title: string; startDate: s
         channelId: Platform.OS === "android" ? "event-alarm" : undefined,
       },
     });
-    map[event.id] = notifId;
-    saveReminderMap(map);
-  }
+  } catch {}
 }
 
 export async function scheduleTodoReminder(todo: { title: string; dueDate?: string; id: string }) {
