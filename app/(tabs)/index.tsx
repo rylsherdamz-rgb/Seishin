@@ -284,7 +284,8 @@ export default function CalendarScreen() {
   const [eventNotes, setEventNotes] = useState("");
   const [eventDate, setEventDate] = useState(new Date());
   const [eventTime, setEventTime] = useState(new Date());
-  const [pickerMode, setPickerMode] = useState<"date" | "time" | null>(null);
+  const [eventEndTime, setEventEndTime] = useState(new Date(Date.now() + 3600000));
+  const [pickerMode, setPickerMode] = useState<"date" | "time" | "endTime" | null>(null);
   const [showMissingTitle, setShowMissingTitle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("none");
   const [customWeekdays, setCustomWeekdays] = useState<number[]>([]);
@@ -295,6 +296,7 @@ export default function CalendarScreen() {
     setEventNotes("");
     setEventDate(new Date());
     setEventTime(new Date());
+    setEventEndTime(new Date(Date.now() + 3600000));
     setRepeatMode("none");
     setCustomWeekdays([]);
     setReminderMinutes(0);
@@ -312,6 +314,13 @@ export default function CalendarScreen() {
         setEventTime(d);
       }
     }
+    if (draft.endDate) {
+      const d = new Date(draft.endDate);
+      if (!isNaN(d.getTime())) setEventEndTime(d);
+      else setEventEndTime(new Date(new Date(draft.startDate ?? Date.now()).getTime() + 3600000));
+    } else if (draft.startDate && !isNaN(new Date(draft.startDate).getTime())) {
+      setEventEndTime(new Date(new Date(draft.startDate).getTime() + 3600000));
+    }
     setRepeatMode((draft.repeatMode as RepeatMode) ?? "none");
     setCustomWeekdays(draft.customWeekdays ?? []);
     const validReminders: (0 | 15 | 30 | 60)[] = [0, 15, 30, 60];
@@ -328,15 +337,19 @@ export default function CalendarScreen() {
     if (sheetMode !== "form") return;
     const start = new Date(eventDate);
     start.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
+    const end = new Date(eventDate);
+    end.setHours(eventEndTime.getHours(), eventEndTime.getMinutes(), 0, 0);
+    if (end <= start) end.setTime(start.getTime() + 3600000);
     saveEventDraft({
       title: eventTitle,
       notes: eventNotes,
       startDate: start.toISOString(),
+      endDate: end.toISOString(),
       repeatMode: repeatMode === "none" ? undefined : repeatMode,
       customWeekdays: customWeekdays.length ? customWeekdays : undefined,
       reminderMinutes: reminderMinutes || undefined,
     });
-  }, [eventTitle, eventNotes, eventDate, eventTime, repeatMode, customWeekdays, reminderMinutes, sheetMode]);
+  }, [eventTitle, eventNotes, eventDate, eventTime, eventEndTime, repeatMode, customWeekdays, reminderMinutes, sheetMode]);
 
   const toggleWeekday = useCallback((d: number) => {
     setCustomWeekdays((prev) =>
@@ -351,7 +364,9 @@ export default function CalendarScreen() {
     }
     const start = new Date(eventDate);
     start.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
-    const end = new Date(start.getTime() + 3600000);
+    const end = new Date(eventDate);
+    end.setHours(eventEndTime.getHours(), eventEndTime.getMinutes(), 0, 0);
+    if (end <= start) end.setTime(start.getTime() + 3600000);
     addEvent({
       id: uid("manual-evt"),
       title: eventTitle.trim(),
@@ -366,7 +381,7 @@ export default function CalendarScreen() {
     setSheetMode("menu");
     clearEventDraft();
     resetForm();
-  }, [eventTitle, eventDate, eventTime, eventNotes, repeatMode, customWeekdays, reminderMinutes, addEvent, resetForm]);
+  }, [eventTitle, eventDate, eventTime, eventEndTime, eventNotes, repeatMode, customWeekdays, reminderMinutes, addEvent, resetForm]);
 
   const onDayPress = useCallback((day: { dateString: string }) => {
     setSelectedDate(day.dateString);
@@ -722,11 +737,22 @@ export default function CalendarScreen() {
               <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
               <TouchableOpacity
                 onPress={() => setPickerMode("time")}
-                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
+                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-3"
               >
                 <Feather name="clock" size={14} color="#666666" />
                 <Text className="text-sm text-black ml-2">
                   {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </Text>
+              </TouchableOpacity>
+
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">End time</Text>
+              <TouchableOpacity
+                onPress={() => setPickerMode("endTime")}
+                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
+              >
+                <Feather name="stop-circle" size={14} color="#666666" />
+                <Text className="text-sm text-black ml-2">
+                  {eventEndTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </Text>
               </TouchableOpacity>
 
@@ -815,14 +841,22 @@ export default function CalendarScreen() {
           onChange={(_, d) => { setPickerMode(null); if (d) setEventTime(d); }}
         />
       )}
+      {Platform.OS === "android" && pickerMode === "endTime" && (
+        <DateTimePicker
+          value={eventEndTime}
+          mode="time"
+          onChange={(_, d) => { setPickerMode(null); if (d) setEventEndTime(d); }}
+        />
+      )}
 
       <PickerModal
         visible={Platform.OS !== "android" && pickerMode !== null}
-        title={pickerMode === "date" ? "Select Date" : "Select Time"}
+        title={pickerMode === "date" ? "Select Date" : pickerMode === "endTime" ? "Select End Time" : "Select Time"}
         mode={pickerMode === "date" ? "date" : "time"}
-        value={pickerMode === "date" ? eventDate : eventTime}
+        value={pickerMode === "date" ? eventDate : pickerMode === "endTime" ? eventEndTime : eventTime}
         onConfirm={(d) => {
           if (pickerMode === "date") setEventDate(d);
+          else if (pickerMode === "endTime") setEventEndTime(d);
           else setEventTime(d);
         }}
         onClose={() => setPickerMode(null)}

@@ -11,6 +11,7 @@ import {
   notificationsStorage, agentStorage, ocrStorage, todosStorage, invitesStorage,
 } from "@/stores/mmkv";
 import { clearOcrHistory } from "@/services/ocr";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { useNotifications } from "@/services/notification-service";
 import * as FileSystem from "expo-file-system/legacy";
 import { Card } from "@/components/ui/Card";
@@ -95,6 +96,7 @@ export default function SettingsScreen() {
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
+  const keyboardPadding = useKeyboardPadding();
   const modelSheetRef = useRef<BottomSheet>(null);
   const modelSnapPoints = useMemo(() => ["40%", "50%"], []);
 
@@ -261,7 +263,7 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: keyboardPadding }}>
         <View className="px-4 pb-12">
           <View className="flex-row items-center gap-3 mb-6 pt-3">
             <Logo size={32} />

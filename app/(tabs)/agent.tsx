@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Keyboard, Platform, Image, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Image, ActivityIndicator,
 } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
@@ -11,6 +11,7 @@ import { getDocumentAsync } from "expo-document-picker";
 import { useAgentStore, AgentMessage, AgentAttachment } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { recognizeText } from "@/services/ocr";
 import { uid } from "@/utils/id";
 import { categorizeModel, getTierLabel } from "@/services/nim-models";
@@ -68,16 +69,10 @@ export default function AgentScreen() {
   const [pendingAttachments, setPendingAttachments] = useState<AgentAttachment[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardPadding = useKeyboardPadding();
   const pickerSnapPoints = useMemo(() => ["35%"], []);
   const flatListRef = useRef<FlatList>(null);
   const loadingRef = useRef(false);
-
-  useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardDidShow", (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => setKeyboardHeight(0));
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, []);
 
   useEffect(() => {
     load();
@@ -248,9 +243,6 @@ export default function AgentScreen() {
   }, [copiedId, copyToClipboard, streamTick]);
 
   const hasKey = !!apiKeys.nim;
-  // Android resizes the window itself (adjustResize); only iOS needs the
-  // manual keyboard offset. Applying both shifts the input bar too high.
-  const keyboardPadding = Platform.OS === "ios" ? keyboardHeight : 0;
 
   return (
     <View className="flex-1 bg-white" style={{ paddingBottom: keyboardPadding }}>

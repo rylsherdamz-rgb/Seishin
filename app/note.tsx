@@ -6,6 +6,7 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 import { getDocumentAsync } from "expo-document-picker";
 import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { recognizeText } from "@/services/ocr";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { uid } from "@/utils/id";
@@ -41,6 +42,7 @@ export default function NoteEditorScreen() {
   const [youtubeBusy, setYoutubeBusy] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [savedVisible, setSavedVisible] = useState(false);
+  const keyboardPadding = useKeyboardPadding();
   const youtubeSnapPoints = useMemo(() => ["40%"], []);
   const noteIdRef = useRef<string | undefined>(existing?.id);
   // Ensures a launch "action" (from the Notes "+" menu) fires its picker only once.
@@ -286,7 +288,7 @@ export default function NoteEditorScreen() {
       </View>
 
       <View className="flex-1">
-        <ScrollView className="flex-1 px-4" keyboardShouldPersistTaps="handled">
+        <ScrollView className="flex-1 px-4" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: keyboardPadding }}>
           {eventId && (
             <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
               <Feather name="calendar" size={11} color="#ffffff" />

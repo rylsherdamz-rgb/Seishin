@@ -62,8 +62,20 @@ export const useNotesStore = create<NoteState>((set, get) => ({
     const raw = notesStorage.getString(NOTES_KEY);
     if (raw) {
       const parsed: Note[] = JSON.parse(raw);
-      // Backfill attachments for notes saved before the field existed.
-      const normalized = parsed.map((n) => ({ ...n, attachments: n.attachments ?? [] }));
+      const now = new Date().toISOString();
+      // Backfill fields for notes saved by older versions of the app.
+      const normalized = parsed.map((n) => ({
+        ...n,
+        title: typeof n.title === "string" ? n.title : "",
+        body: typeof n.body === "string" ? n.body : "",
+        tags: Array.isArray(n.tags) ? n.tags : [],
+        pinned: n.pinned === true,
+        attachments: Array.isArray(n.attachments) ? n.attachments : [],
+        eventId: typeof n.eventId === "string" ? n.eventId : undefined,
+        color: typeof n.color === "string" ? n.color : undefined,
+        createdAt: typeof n.createdAt === "string" ? n.createdAt : now,
+        updatedAt: typeof n.updatedAt === "string" ? n.updatedAt : now,
+      }));
       set({ notes: sortNotes(normalized) });
     }
   },

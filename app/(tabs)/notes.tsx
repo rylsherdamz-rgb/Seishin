@@ -54,7 +54,7 @@ export default function NotesScreen() {
 
   const filteredNotes = useMemo(() => {
     return getFilteredNotes().filter((n) => !activeTag || n.tags.includes(activeTag));
-  }, [getFilteredNotes, activeTag]);
+  }, [notes, activeTag, getFilteredNotes]);
 
   const pinned = useMemo(() => filteredNotes.filter((n) => n.pinned), [filteredNotes]);
   const others = useMemo(() => filteredNotes.filter((n) => !n.pinned), [filteredNotes]);
@@ -77,8 +77,10 @@ export default function NotesScreen() {
   const onAddPress = useCallback(() => setShowNewNoteSheet(true), []);
 
   const renderCard = useCallback((item: Note) => {
-    const firstImage = item.attachments.find((a) => a.type === "image");
-    const fileCount = item.attachments.filter((a) => a.type === "file").length;
+    const attachments = item.attachments ?? [];
+    const tags = item.tags ?? [];
+    const firstImage = attachments.find((a) => a.type === "image");
+    const fileCount = attachments.filter((a) => a.type === "file").length;
     return (
       <TouchableOpacity
         key={item.id}
@@ -103,7 +105,7 @@ export default function NotesScreen() {
               {item.body}
             </Text>
           ) : null}
-          {(item.tags.length > 0 || item.eventId || fileCount > 0) && (
+          {(tags.length > 0 || item.eventId || fileCount > 0) && (
             <View className="flex-row flex-wrap items-center gap-1 mt-2.5">
               {item.eventId && (
                 <View className="flex-row items-center gap-1 px-2 py-0.5 bg-black rounded-full">
@@ -117,7 +119,7 @@ export default function NotesScreen() {
                   <Text className="text-[9px] font-semibold text-ink-600">{fileCount}</Text>
                 </View>
               )}
-              {item.tags.map((t) => (
+              {tags.map((t) => (
                 <View key={t} className="px-2 py-0.5 bg-ink-100 rounded-full">
                   <Text className="text-[9px] font-semibold text-ink-600">#{t}</Text>
                 </View>

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, FlatList } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
 import { uid } from "@/utils/id";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -41,6 +42,7 @@ export default function TodoScreen() {
     return iso ? new Date(iso) : null;
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const keyboardPadding = useKeyboardPadding();
 
   useEffect(() => { loadTodos(); }, [loadTodos]);
 
@@ -138,7 +140,7 @@ export default function TodoScreen() {
   const handleSheetClose = useCallback(() => setSheetItem(null), []);
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-white" style={{ paddingBottom: keyboardPadding }}>
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">

@@ -10,6 +10,8 @@ export interface EventDraft {
   notes?: string;
   /** ISO datetime — carries both the chosen date and time. */
   startDate?: string;
+  /** ISO datetime — carries the chosen end time (same day as start). */
+  endDate?: string;
   repeatMode?: string;
   customWeekdays?: number[];
   reminderMinutes?: number;
