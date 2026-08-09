@@ -11,9 +11,7 @@ import { Keyboard, Platform } from "react-native";
 export function useKeyboardPadding(): number {
   const [height, setHeight] = useState(0);
   useEffect(() => {
-    const ios = Platform.OS === "ios";
-    const showSub = Keyboard.addListener(
-      ios ? "keyboardWillShow" : "keyboardDidShow",
+    const ios = Platform.OS === "ios"; const showSub = Keyboard.addListener(ios ? "keyboardWillShow" : "keyboardDidShow",
       (e) => setHeight(e.endCoordinates.height),
     );
     const hideSub = Keyboard.addListener(

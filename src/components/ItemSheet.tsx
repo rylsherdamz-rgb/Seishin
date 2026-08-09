@@ -67,6 +67,7 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
   }, []);
 
   return (
+    <>
     <BottomSheet
       ref={sheetRef}
       snapPoints={snapPoints}
@@ -271,6 +272,7 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
           </>
         ) : null}
       </BottomSheetView>
+      </BottomSheet>
       <AlertDialog
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -284,6 +286,6 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
           handleClose();
         }}
       />
-    </BottomSheet>
+    </>
   );
 }

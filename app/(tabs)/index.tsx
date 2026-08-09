@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  View, Text, TouchableOpacity, FlatList, TextInput, ScrollView, Platform, useWindowDimensions,
+  View, Text, TouchableOpacity, FlatList, TextInput, ScrollView, Platform,
 } from "react-native";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, FadeInDown } from "react-native-reanimated";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
@@ -185,10 +186,19 @@ export default function CalendarScreen() {
   const deleteTodo = useTodoStore((s) => s.deleteTodo);
 
   const [showAll, setShowAll] = useState(false);
-  const { height: windowHeight } = useWindowDimensions();
   const [calendarExpanded, setCalendarExpanded] = useState(true);
   const [viewMonth, setViewMonth] = useState(selectedDate || todayStr);
-  const calendarHeight = Math.max(168, Math.round(windowHeight * 0.25));
+  const [calendarHeight, setCalendarHeight] = useState(0);
+  const calendarOpen = useSharedValue(1);
+
+  useEffect(() => {
+    calendarOpen.value = calendarExpanded ? 1 : 0;
+  }, [calendarExpanded, calendarOpen]);
+
+  const calendarAnimatedStyle = useAnimatedStyle(() => ({
+    maxHeight: withTiming(calendarHeight * calendarOpen.value, { duration: 260 }),
+    opacity: withTiming(calendarOpen.value, { duration: 220 }),
+  }));
 
   useEffect(() => {
     loadEvents();
@@ -396,93 +406,97 @@ export default function CalendarScreen() {
   }, [setSelectedDate]);
 
   const renderItem = useCallback(
-    ({ item }: { item: { kind: "date-header"; date: string; label: string } | CalendarItem }) => {
+    ({ item, index }: { item: { kind: "date-header"; date: string; label: string } | CalendarItem; index: number }) => {
       if ("kind" in item) {
         const when = whenOf(item.date);
         return (
-          <View className="flex-row items-center gap-2 pt-4 pb-2">
-            <View className={`w-1 h-4 rounded-full ${when === "past" ? "bg-ink-200" : "bg-black"}`} />
-            <Text className={`text-sm font-semibold flex-1 ${when === "past" ? "text-ink-400" : "text-black"}`}>
-              {item.label}
-            </Text>
-            {when === "today" && (
-              <View className="px-2 py-0.5 bg-black rounded-full">
-                <Text className="text-[10px] font-bold text-white tracking-wide">TODAY</Text>
-              </View>
-            )}
-            {when === "past" && (
-              <View className="px-2 py-0.5 bg-ink-100 rounded-full">
-                <Text className="text-[10px] font-semibold text-ink-400 tracking-wide">PAST</Text>
-              </View>
-            )}
-            <TouchableOpacity onPress={() => setSelectedDate(item.date)}>
-              <Text className="text-xs text-ink-400">Show day</Text>
-            </TouchableOpacity>
-          </View>
+          <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
+            <View className="flex-row items-center gap-2 pt-4 pb-2">
+              <View className={`w-1 h-4 rounded-full ${when === "past" ? "bg-ink-200" : "bg-black"}`} />
+              <Text className={`text-sm font-semibold flex-1 ${when === "past" ? "text-ink-400" : "text-black"}`}>
+                {item.label}
+              </Text>
+              {when === "today" && (
+                <View className="px-2 py-0.5 bg-black rounded-full">
+                  <Text className="text-[10px] font-bold text-white tracking-wide">TODAY</Text>
+                </View>
+              )}
+              {when === "past" && (
+                <View className="px-2 py-0.5 bg-ink-100 rounded-full">
+                  <Text className="text-[10px] font-semibold text-ink-400 tracking-wide">PAST</Text>
+                </View>
+              )}
+              <TouchableOpacity onPress={() => setSelectedDate(item.date)}>
+                <Text className="text-xs text-ink-400">Show day</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         );
       }
       const past = whenOf(item.date) === "past";
       return (
-        <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
-          {item.type === "event" ? (
-            <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past ? "opacity-55" : ""}`}>
-              <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
-                <Feather
-                  name={sourceIcons[item.source || ""] || "calendar"}
-                  size={16} color="#ffffff"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">EVENT</Text>
-                <Text className="text-sm font-medium text-black">{item.title}</Text>
-                {item.description && (
-                  <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={1}>{item.description}</Text>
-                )}
-                <View className="flex-row items-center gap-2 mt-1">
-                  <Feather name="clock" size={10} color="#999999" />
-                  <Text className="text-xs text-ink-400">{item.time}</Text>
-                  <Text className="text-xs text-ink-200">·</Text>
-                  <Text className="text-xs text-ink-400 capitalize">{item.source}</Text>
-                  {item.recurrence && (
-                    <>
-                      <Text className="text-xs text-ink-200">·</Text>
-                      <Feather name="repeat" size={10} color="#999999" />
-                    </>
-                  )}
-                  {item.reminder && (
-                    <>
-                      <Text className="text-xs text-ink-200">·</Text>
-                      <Feather name="bell" size={10} color="#999999" />
-                      <Text className="text-xs text-ink-400">{item.reminder}min</Text>
-                    </>
-                  )}
+        <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
+          <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
+            {item.type === "event" ? (
+              <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past ? "opacity-55" : ""}`}>
+                <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
+                  <Feather
+                    name={sourceIcons[item.source || ""] || "calendar"}
+                    size={16} color="#ffffff"
+                  />
                 </View>
-              </View>
-              <Feather name="chevron-up" size={14} color="#cccccc" />
-            </Card>
-          ) : (
-            <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
-              <TouchableOpacity
-                onPress={(e) => { e.stopPropagation(); if (item.todoId) toggleTodo(item.todoId); }}
-                className={`w-7 h-7 rounded-md border-2 items-center justify-center ${item.completed ? "bg-black border-black" : "border-ink-300"
-                  }`}
-              >
-                {item.completed && <Feather name="check" size={14} color="#ffffff" />}
-              </TouchableOpacity>
-              <View className="flex-1">
-                <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">TODO</Text>
-                <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
-                  {item.title}
-                </Text>
-                <Text className="text-xs text-ink-300 mt-0.5">
-                  {item.date ? new Date(item.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : ""}
-                  {item.priority ? ` · ${item.priority}` : ""}
-                </Text>
-              </View>
-              <Feather name="chevron-up" size={14} color="#cccccc" />
-            </Card>
-          )}
-        </TouchableOpacity>
+                <View className="flex-1">
+                  <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">EVENT</Text>
+                  <Text className="text-sm font-medium text-black">{item.title}</Text>
+                  {item.description && (
+                    <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={1}>{item.description}</Text>
+                  )}
+                  <View className="flex-row items-center gap-2 mt-1">
+                    <Feather name="clock" size={10} color="#999999" />
+                    <Text className="text-xs text-ink-400">{item.time}</Text>
+                    <Text className="text-xs text-ink-200">·</Text>
+                    <Text className="text-xs text-ink-400 capitalize">{item.source}</Text>
+                    {item.recurrence && (
+                      <>
+                        <Text className="text-xs text-ink-200">·</Text>
+                        <Feather name="repeat" size={10} color="#999999" />
+                      </>
+                    )}
+                    {item.reminder && (
+                      <>
+                        <Text className="text-xs text-ink-200">·</Text>
+                        <Feather name="bell" size={10} color="#999999" />
+                        <Text className="text-xs text-ink-400">{item.reminder}min</Text>
+                      </>
+                    )}
+                  </View>
+                </View>
+                <Feather name="chevron-up" size={14} color="#cccccc" />
+              </Card>
+            ) : (
+              <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation(); if (item.todoId) toggleTodo(item.todoId); }}
+                  className={`w-7 h-7 rounded-md border-2 items-center justify-center ${item.completed ? "bg-black border-black" : "border-ink-300"
+                    }`}
+                >
+                  {item.completed && <Feather name="check" size={14} color="#ffffff" />}
+                </TouchableOpacity>
+                <View className="flex-1">
+                  <Text className="text-[10px] font-bold text-ink-400 tracking-widest mb-0.5">TODO</Text>
+                  <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
+                    {item.title}
+                  </Text>
+                  <Text className="text-xs text-ink-300 mt-0.5">
+                    {item.date ? new Date(item.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : ""}
+                    {item.priority ? ` · ${item.priority}` : ""}
+                  </Text>
+                </View>
+                <Feather name="chevron-up" size={14} color="#cccccc" />
+              </Card>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
       );
     },
     [setSelectedDate, setSheetItem, toggleTodo],
@@ -544,9 +558,12 @@ export default function CalendarScreen() {
         </View>
       </View>
 
-      {calendarExpanded && (
-        <View style={{ height: calendarHeight, overflow: "hidden" }}>
+      <Animated.View
+        style={calendarHeight > 0 ? [calendarAnimatedStyle, { overflow: "hidden" }] : undefined}
+      >
+        <View onLayout={(e) => setCalendarHeight(e.nativeEvent.layout.height)}>
           <Calendar
+            key={viewMonth}
             current={viewMonth}
             onDayPress={onDayPress}
             onDayLongPress={onDayLongPress}
@@ -557,9 +574,9 @@ export default function CalendarScreen() {
             style={{ paddingBottom: 0 }}
           />
         </View>
-      )}
+      </Animated.View>
 
-      <View className="pt-4 px-4 flex-row items-center justify-between">
+      <View className="pt-7 px-4 mb-3 flex-row items-center justify-between">
         <View className="flex-row items-center gap-2 flex-1">
           <Text className="text-sm font-medium text-ink-700">
             {showAll || !selectedDate
@@ -774,9 +791,8 @@ export default function CalendarScreen() {
                     <TouchableOpacity
                       key={d}
                       onPress={() => toggleWeekday(d)}
-                      className={`w-9 h-9 rounded-full items-center justify-center ${
-                        customWeekdays.includes(d) ? "bg-black" : "bg-ink-100"
-                      }`}
+                      className={`w-9 h-9 rounded-full items-center justify-center ${customWeekdays.includes(d) ? "bg-black" : "bg-ink-100"
+                        }`}
                       activeOpacity={0.7}
                     >
                       <Text className={`text-xs font-semibold ${customWeekdays.includes(d) ? "text-white" : "text-ink-500"}`}>
@@ -787,7 +803,7 @@ export default function CalendarScreen() {
                 </View>
               )}
 
-              <Text className="text-xs font-medium text-ink-400 mb-1.5">Reminder</Text>
+              <Text className="text-xs font-medium text-ink-400 mb-1.5">Alarm</Text>
               <View className="flex-row flex-wrap gap-2 mb-6">
                 {([
                   { value: 0, label: "None" },

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Alert } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { router, useFocusEffect } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
@@ -166,19 +167,23 @@ export default function NotesScreen() {
     );
   }, [activeTag]);
 
-  const renderNoteItem = useCallback(({ item }: { item: { _header: string } | Note[] }) => {
+  const renderNoteItem = useCallback(({ item, index }: { item: { _header: string } | Note[]; index: number }) => {
     if ("_header" in item) {
       return (
+        <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
         <Text className="text-[11px] font-bold text-ink-400 tracking-widest px-2 pt-3 pb-1">
           {item._header.toUpperCase()}
         </Text>
+        </Animated.View>
       );
     }
     return (
+      <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
       <View className="flex-row items-start">
         {item.map(renderCard)}
         {item.length === 1 && <View className="flex-1 m-1.5" />}
       </View>
+      </Animated.View>
     );
   }, [renderCard]);
 

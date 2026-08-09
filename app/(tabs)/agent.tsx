@@ -87,10 +87,10 @@ export default function AgentScreen() {
   useEffect(() => {
     if (currentProvider === "local" && modelPath && !isModelLoaded() && !loadingRef.current) {
       loadingRef.current = true;
-      loadModel(modelPath).catch(() => {}).finally(() => { loadingRef.current = false; });
+      loadModel(modelPath).catch(() => { }).finally(() => { loadingRef.current = false; });
     }
     if (currentProvider === "nim" && isModelLoaded()) {
-      unloadModel().catch(() => {});
+      unloadModel().catch(() => { });
     }
   }, [currentProvider, modelPath]);
 
@@ -182,13 +182,12 @@ export default function AgentScreen() {
             <Feather name="cpu" size={12} color="#000000" />
           </View>
         )}
-        <View className={`max-w-[80%] px-4 py-3 ${
-          isUser
-            ? "bg-black rounded-2xl rounded-br-md"
-            : item.role === "tool"
+        <View className={`max-w-[80%] px-4 py-3 ${isUser
+          ? "bg-black rounded-2xl rounded-br-md"
+          : item.role === "tool"
             ? "bg-ink-25 rounded-2xl rounded-bl-md border border-ink-150"
             : "bg-white rounded-2xl rounded-bl-md border border-ink-100"
-        }`}>
+          }`}>
           {item.toolName && (
             <View className="flex-row items-center gap-1 mb-1.5 pb-1.5 border-b border-ink-100">
               <View className="w-5 h-5 bg-ink-100 rounded items-center justify-center">
@@ -245,282 +244,277 @@ export default function AgentScreen() {
   const hasKey = !!apiKeys.nim;
 
   return (
-    <View className="flex-1 bg-white" style={{ paddingBottom: keyboardPadding }}>
-        <View className="px-4 pt-3 pb-2">
-          <View className="flex-row items-center justify-between mb-3">
-            <View>
-              <Text className="text-2xl font-semibold tracking-tightest text-black">AI Agent</Text>
-              <Text className="text-sm text-ink-500 mt-0.5">
-                {currentProvider === "nim"
-                  ? `NVIDIA NIM${nimLargeModel ? ` · auto-routes ${getTierLabel(categorizeModel(nimModel).tier)}→${getTierLabel(categorizeModel(nimLargeModel).tier)}` : ""}`
-                  : modelState === "loading"
-                    ? "Loading model..."
-                    : modelState === "ready"
-                      ? "Local (offline) · Ready"
-                      : modelState === "error"
-                        ? "Local · Error"
-                        : "Local (offline)"}
-                {isProcessing && " · Thinking..."}
-              </Text>
-            </View>
-            <View className="flex-row gap-2">
-              <TouchableOpacity
-                onPress={() => router.push("/settings")}
-                className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
-              >
-                <Feather name="settings" size={14} color="#666666" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowClearConfirm(true)}
-                className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
-              >
-                <Feather name="trash-2" size={14} color="#666666" />
-              </TouchableOpacity>
-            </View>
+    <View className="flex-1 bg-white" style={{ paddingBottom: keyboardPadding - 75 }}>
+      <View className="px-4 pt-3 pb-2">
+        <View className="flex-row items-center justify-between mb-3">
+          <View>
+            <Text className="text-2xl font-semibold tracking-tightest text-black">AI Agent</Text>
+            <Text className="text-sm text-ink-500 mt-0.5">
+              {currentProvider === "nim"
+                ? `NVIDIA NIM${nimLargeModel ? ` · auto-routes ${getTierLabel(categorizeModel(nimModel).tier)}→${getTierLabel(categorizeModel(nimLargeModel).tier)}` : ""}`
+                : modelState === "loading"
+                  ? "Loading model..."
+                  : modelState === "ready"
+                    ? "Local (offline) · Ready"
+                    : modelState === "error"
+                      ? "Local · Error"
+                      : "Local (offline)"}
+              {isProcessing && " · Thinking..."}
+            </Text>
           </View>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={() => router.push("/settings")}
+              className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
+            >
+              <Feather name="settings" size={14} color="#666666" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowClearConfirm(true)}
+              className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
+            >
+              <Feather name="trash-2" size={14} color="#666666" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-          <View className="flex-row gap-2 items-center">
-            {(["local", "nim"] as const).map((p) => (
-              <TouchableOpacity
-                key={p}
-                onPress={() => setProvider(p)}
-                disabled={p === "nim" && !hasKey}
-                className={`px-3 py-1.5 rounded-full ${
-                  currentProvider === p ? "bg-black" : "bg-ink-100"
+        <View className="flex-row gap-2 items-center">
+          {(["local", "nim"] as const).map((p) => (
+            <TouchableOpacity
+              key={p}
+              onPress={() => setProvider(p)}
+              disabled={p === "nim" && !hasKey}
+              className={`px-3 py-1.5 rounded-full ${currentProvider === p ? "bg-black" : "bg-ink-100"
                 } ${p === "nim" && !hasKey ? "opacity-40" : ""}`}
-              >
-                <Text className={`text-xs font-medium ${
-                  currentProvider === p ? "text-white" : "text-ink-500"
+            >
+              <Text className={`text-xs font-medium ${currentProvider === p ? "text-white" : "text-ink-500"
                 }`}>
-                  {p === "nim" ? "NVIDIA NIM" : "Local GGUF"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            {currentProvider === "nim" && (
-              <TouchableOpacity
-                key="nim-model-pill"
-                onPress={() => router.push("/settings")}
-                className="px-2.5 py-1 rounded-full bg-ink-100 flex-row items-center gap-1.5"
-              >
-                <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
-                  {nimModel.split("/").pop() || "model"}
-                </Text>
-                <View className={`px-1.5 py-0.5 rounded-full bg-${
-                  categorizeModel(nimModel).tier === "fast" ? "green-100" :
-                  categorizeModel(nimModel).tier === "balanced" ? "yellow-100" :
+                {p === "nim" ? "NVIDIA NIM" : "Local GGUF"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          {currentProvider === "nim" && (
+            <TouchableOpacity
+              key="nim-model-pill"
+              onPress={() => router.push("/settings")}
+              className="px-2.5 py-1 rounded-full bg-ink-100 flex-row items-center gap-1.5"
+            >
+              <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
+                {nimModel.split("/").pop() || "model"}
+              </Text>
+              <View className={`px-1.5 py-0.5 rounded-full bg-${categorizeModel(nimModel).tier === "fast" ? "green-100" :
+                categorizeModel(nimModel).tier === "balanced" ? "yellow-100" :
                   categorizeModel(nimModel).tier === "smart" ? "red-100" : "ink-200"
                 }`}>
-                  <Text className={`text-[9px] font-semibold ${
-                    categorizeModel(nimModel).tier === "fast" ? "text-green-700" :
-                    categorizeModel(nimModel).tier === "balanced" ? "text-yellow-700" :
+                <Text className={`text-[9px] font-semibold ${categorizeModel(nimModel).tier === "fast" ? "text-green-700" :
+                  categorizeModel(nimModel).tier === "balanced" ? "text-yellow-700" :
                     categorizeModel(nimModel).tier === "smart" ? "text-red-700" : "text-ink-500"
                   }`}>
-                    {getTierLabel(categorizeModel(nimModel).tier)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+                  {getTierLabel(categorizeModel(nimModel).tier)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
+        </View>
+      </View>
+
+      {!hasKey && currentProvider === "nim" && (
+        <View key="agent-nim-nokey-banner" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
+          <Feather name="alert-circle" size={14} color="#ff3b30" />
+          <Text className="text-xs text-danger flex-1">No NIM API key set. Go to Settings to add one.</Text>
+        </View>
+      )}
+      {currentProvider === "local" && modelState === "loading" && (
+        <View key="agent-local-loading" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3">
+          <View className="flex-row items-center gap-2 mb-2">
+            <ActivityIndicator size="small" color="#666666" />
+            <Text className="text-xs text-ink-600 flex-1">Loading local model... {modelProgress}%</Text>
+          </View>
+          <View className="h-1.5 bg-ink-200 rounded-full overflow-hidden">
+            <View className="h-full bg-black rounded-full" style={{ width: `${modelProgress}%` }} />
           </View>
         </View>
-
-        {!hasKey && currentProvider === "nim" && (
-          <View key="agent-nim-nokey-banner" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
+      )}
+      {currentProvider === "local" && modelState === "ready" && (
+        <View key="agent-local-ready" className="mx-4 mb-3 bg-green-50 rounded-xl p-3 flex-row items-center gap-2">
+          <Feather name="check-circle" size={14} color="#22c55e" />
+          <Text className="text-xs text-green-700 flex-1">Local model ready</Text>
+        </View>
+      )}
+      {currentProvider === "local" && modelState === "error" && (
+        <View key="agent-local-error" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3">
+          <View className="flex-row items-center gap-2 mb-1">
             <Feather name="alert-circle" size={14} color="#ff3b30" />
-            <Text className="text-xs text-danger flex-1">No NIM API key set. Go to Settings to add one.</Text>
-          </View>
-        )}
-        {currentProvider === "local" && modelState === "loading" && (
-          <View key="agent-local-loading" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3">
-            <View className="flex-row items-center gap-2 mb-2">
-              <ActivityIndicator size="small" color="#666666" />
-              <Text className="text-xs text-ink-600 flex-1">Loading local model... {modelProgress}%</Text>
-            </View>
-            <View className="h-1.5 bg-ink-200 rounded-full overflow-hidden">
-              <View className="h-full bg-black rounded-full" style={{ width: `${modelProgress}%` }} />
-            </View>
-          </View>
-        )}
-        {currentProvider === "local" && modelState === "ready" && (
-          <View key="agent-local-ready" className="mx-4 mb-3 bg-green-50 rounded-xl p-3 flex-row items-center gap-2">
-            <Feather name="check-circle" size={14} color="#22c55e" />
-            <Text className="text-xs text-green-700 flex-1">Local model ready</Text>
-          </View>
-        )}
-        {currentProvider === "local" && modelState === "error" && (
-          <View key="agent-local-error" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3">
-            <View className="flex-row items-center gap-2 mb-1">
-              <Feather name="alert-circle" size={14} color="#ff3b30" />
-              <Text className="text-xs text-danger flex-1">Failed to load model</Text>
-              <TouchableOpacity onPress={() => { if (modelPath) loadModel(modelPath).catch(() => {}); }}>
-                <Text className="text-xs text-danger font-medium">Retry</Text>
-              </TouchableOpacity>
-            </View>
-            {modelError && <Text className="text-xs text-danger/70 ml-6">{modelError}</Text>}
-          </View>
-        )}
-        {currentProvider === "local" && modelState === "unloaded" && !modelPath && (
-          <View key="agent-local-nopath" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
-            <Feather name="info" size={14} color="#666666" />
-            <Text className="text-xs text-ink-600 flex-1">No GGUF model selected. Go to Settings to pick one.</Text>
-          </View>
-        )}
-
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          extraData={streamTick}
-          keyExtractor={(item) => item.id}
-          contentContainerClassName="px-4 pb-2"
-          removeClippedSubviews
-          maxToRenderPerBatch={15}
-          windowSize={10}
-          ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
-          renderItem={renderItem}
-          ListEmptyComponent={
-            <View className="items-center justify-center py-24 px-8">
-              <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
-                <Feather name="cpu" size={24} color="#cccccc" />
-              </View>
-              <Text className="text-base font-medium text-ink-400 text-center">Ask me anything</Text>
-              <Text className="text-sm text-ink-200 mt-1 text-center max-w-[260px]">
-                {hasKey
-                  ? "I can manage your schedule, todos, and more"
-                  : "Add an API key in Settings to use the AI agent"}
-              </Text>
-            </View>
-          }
-        />
-
-        {pendingAttachments.length > 0 && (
-          <ScrollView horizontal className="px-4 py-2 border-t border-ink-100 bg-white" showsHorizontalScrollIndicator={false}>
-            {pendingAttachments.map((att, i) => (
-              <View key={i} className="mr-2 relative">
-                {att.type === "image" ? (
-                  <Image source={{ uri: att.uri }} className="w-16 h-16 rounded-lg" />
-                ) : (
-                  <View className="w-16 h-16 rounded-lg bg-ink-100 items-center justify-center">
-                    <Feather name="file" size={20} color="#666" />
-                  </View>
-                )}
-                <TouchableOpacity
-                  onPress={() => removePendingAttachment(i)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger rounded-full items-center justify-center"
-                >
-                  <Feather name="x" size={10} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        )}
-        {!isProcessing && messages.length === 0 && (
-          <View className="flex-row gap-2 px-4 py-1.5 bg-white">
-            {[
-              { icon: "check-square" as const, label: "Todo", action: "Add a todo to buy groceries" },
-              { icon: "calendar" as const, label: "Event", action: "Schedule a meeting tomorrow at 3pm" },
-              { icon: "file-text" as const, label: "Note", action: "Save a note about my project ideas" },
-              { icon: "list" as const, label: "Today", action: "What's on my calendar today?" },
-            ].map((suggestion) => (
-              <TouchableOpacity
-                key={suggestion.label}
-                onPress={() => setInput(suggestion.action)}
-                className="px-2.5 py-0.5 bg-ink-50 rounded-md border border-ink-100"
-              >
-                <Text className="text-[11px] text-ink-600 font-medium">{suggestion.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        <View className="px-4 py-3 border-t border-ink-100 bg-white">
-          <View className="flex-row gap-1 items-center">
-            <TouchableOpacity
-              onPress={showAttachmentPicker}
-              disabled={isProcessing}
-              activeOpacity={0.7}
-              className="w-10 h-12 items-center justify-center"
-            >
-              <Feather name="paperclip" size={18} color={isProcessing ? "#ccc" : "#666"} />
+            <Text className="text-xs text-danger flex-1">Failed to load model</Text>
+            <TouchableOpacity onPress={() => { if (modelPath) loadModel(modelPath).catch(() => { }); }}>
+              <Text className="text-xs text-danger font-medium">Retry</Text>
             </TouchableOpacity>
-            <TextInput
-              className="flex-1 h-12 bg-ink-50 rounded-xl px-4 text-base text-black"
-              placeholder={isProcessing ? "AI is thinking..." : "Type a message..."}
-              placeholderTextColor="#999999"
-              value={input}
-              onChangeText={setInput}
-              onSubmitEditing={handleSend}
-              editable={!isProcessing}
-            />
-            {isProcessing ? (
-              <TouchableOpacity
-                onPress={stopAgentLoop}
-                activeOpacity={0.7}
-                className="h-12 w-12 items-center justify-center rounded-xl bg-danger"
-              >
-                <View className="w-4 h-4 bg-white rounded-sm" />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={handleSend}
-                disabled={!input.trim()}
-                activeOpacity={0.7}
-                className={`h-12 w-12 items-center justify-center rounded-xl ${
-                  input.trim() ? "bg-black" : "bg-ink-300"
-                }`}
-              >
-                <Feather name="arrow-up" size={18} color="#ffffff" />
-              </TouchableOpacity>
-            )}
           </View>
+          {modelError && <Text className="text-xs text-danger/70 ml-6">{modelError}</Text>}
         </View>
-        <BottomSheet
-          snapPoints={pickerSnapPoints}
-          enableDynamicSizing
-          enablePanDownToClose
-          index={showPicker ? 0 : -1}
-          backgroundStyle={{ backgroundColor: "#ffffff" }}
-          onChange={(index: number) => { if (index === -1) setShowPicker(false); }}
-        >
-          <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
+      )}
+      {currentProvider === "local" && modelState === "unloaded" && !modelPath && (
+        <View key="agent-local-nopath" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
+          <Feather name="info" size={14} color="#666666" />
+          <Text className="text-xs text-ink-600 flex-1">No GGUF model selected. Go to Settings to pick one.</Text>
+        </View>
+      )}
+
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        extraData={streamTick}
+        keyExtractor={(item) => item.id}
+        contentContainerClassName="px-4 pb-2"
+        removeClippedSubviews
+        maxToRenderPerBatch={15}
+        windowSize={10}
+        ListFooterComponent={isProcessing ? <ThinkingIndicator /> : null}
+        renderItem={renderItem}
+        ListEmptyComponent={
+          <View className="items-center justify-center py-24 px-8">
+            <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
+              <Feather name="cpu" size={24} color="#cccccc" />
+            </View>
+            <Text className="text-base font-medium text-ink-400 text-center">Ask me anything</Text>
+            <Text className="text-sm text-ink-200 mt-1 text-center max-w-[260px]">
+              {hasKey
+                ? "I can manage your schedule, todos, and more"
+                : "Add an API key in Settings to use the AI agent"}
+            </Text>
+          </View>
+        }
+      />
+
+      {pendingAttachments.length > 0 && (
+        <ScrollView horizontal className="px-4 py-2 border-t border-ink-100 bg-white" showsHorizontalScrollIndicator={false}>
+          {pendingAttachments.map((att, i) => (
+            <View key={i} className="mr-2 relative">
+              {att.type === "image" ? (
+                <Image source={{ uri: att.uri }} className="w-16 h-16 rounded-lg" />
+              ) : (
+                <View className="w-16 h-16 rounded-lg bg-ink-100 items-center justify-center">
+                  <Feather name="file" size={20} color="#666" />
+                </View>
+              )}
+              <TouchableOpacity
+                onPress={() => removePendingAttachment(i)}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger rounded-full items-center justify-center"
+              >
+                <Feather name="x" size={10} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+      {!isProcessing && messages.length === 0 && (
+        <View className="flex-row gap-2 px-4 py-1.5 bg-white">
+          {[
+            { icon: "check-square" as const, label: "Todo", action: "Add a todo to buy groceries" },
+            { icon: "calendar" as const, label: "Event", action: "Schedule a meeting tomorrow at 3pm" },
+            { icon: "file-text" as const, label: "Note", action: "Save a note about my project ideas" },
+            { icon: "list" as const, label: "Today", action: "What's on my calendar today?" },
+          ].map((suggestion) => (
             <TouchableOpacity
-              className="flex-row items-center gap-3 py-3.5"
-              onPress={() => { setShowPicker(false); addPhoto(true); }}
+              key={suggestion.label}
+              onPress={() => setInput(suggestion.action)}
+              className="px-2.5 py-0.5 bg-ink-50 rounded-md border border-ink-100"
             >
-              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                <Feather name="camera" size={16} color="#000" />
-              </View>
-              <Text className="text-base text-black">Take Photo</Text>
+              <Text className="text-[11px] text-ink-600 font-medium">{suggestion.label}</Text>
             </TouchableOpacity>
-            <View className="h-px bg-ink-100" />
+          ))}
+        </View>
+      )}
+      <View className="px-4 py-3 border-t border-ink-100 bg-white">
+        <View className="flex-row gap-1 items-center">
+          <TouchableOpacity
+            onPress={showAttachmentPicker}
+            disabled={isProcessing}
+            activeOpacity={0.7}
+            className="w-10 h-12 items-center justify-center"
+          >
+            <Feather name="paperclip" size={18} color={isProcessing ? "#ccc" : "#666"} />
+          </TouchableOpacity>
+          <TextInput
+            className="flex-1 h-12 bg-ink-50 rounded-xl px-4 text-base text-black"
+            placeholder={isProcessing ? "AI is thinking..." : "Type a message..."}
+            placeholderTextColor="#999999"
+            value={input}
+            onChangeText={setInput}
+            onSubmitEditing={handleSend}
+            editable={!isProcessing}
+          />
+          {isProcessing ? (
             <TouchableOpacity
-              className="flex-row items-center gap-3 py-3.5"
-              onPress={() => { setShowPicker(false); addPhoto(false); }}
+              onPress={stopAgentLoop}
+              activeOpacity={0.7}
+              className="h-12 w-12 items-center justify-center rounded-xl bg-danger"
             >
-              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                <Feather name="image" size={16} color="#000" />
-              </View>
-              <Text className="text-base text-black">Choose from Library</Text>
+              <View className="w-4 h-4 bg-white rounded-sm" />
             </TouchableOpacity>
-            <View className="h-px bg-ink-100" />
+          ) : (
             <TouchableOpacity
-              className="flex-row items-center gap-3 py-3.5"
-              onPress={() => { setShowPicker(false); addFile(); }}
+              onPress={handleSend}
+              disabled={!input.trim()}
+              activeOpacity={0.7}
+              className={`h-12 w-12 items-center justify-center rounded-xl ${input.trim() ? "bg-black" : "bg-ink-300"
+                }`}
             >
-              <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                <Feather name="file" size={14} color="#000" />
-              </View>
-              <Text className="text-base text-black">Pick File</Text>
+              <Feather name="arrow-up" size={18} color="#ffffff" />
             </TouchableOpacity>
-          </BottomSheetView>
-        </BottomSheet>
-        <AlertDialog
-          visible={showClearConfirm}
-          onClose={() => setShowClearConfirm(false)}
-          title="Clear conversation?"
-          message="All messages will be deleted."
-          confirmLabel="Clear All"
-          confirmDestructive
-          onConfirm={clearConversation}
-        />
+          )}
+        </View>
+      </View>
+      <BottomSheet
+        snapPoints={pickerSnapPoints}
+        enableDynamicSizing
+        enablePanDownToClose
+        index={showPicker ? 0 : -1}
+        backgroundStyle={{ backgroundColor: "#ffffff" }}
+        onChange={(index: number) => { if (index === -1) setShowPicker(false); }}
+      >
+        <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
+          <TouchableOpacity
+            className="flex-row items-center gap-3 py-3.5"
+            onPress={() => { setShowPicker(false); addPhoto(true); }}
+          >
+            <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+              <Feather name="camera" size={16} color="#000" />
+            </View>
+            <Text className="text-base text-black">Take Photo</Text>
+          </TouchableOpacity>
+          <View className="h-px bg-ink-100" />
+          <TouchableOpacity
+            className="flex-row items-center gap-3 py-3.5"
+            onPress={() => { setShowPicker(false); addPhoto(false); }}
+          >
+            <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+              <Feather name="image" size={16} color="#000" />
+            </View>
+            <Text className="text-base text-black">Choose from Library</Text>
+          </TouchableOpacity>
+          <View className="h-px bg-ink-100" />
+          <TouchableOpacity
+            className="flex-row items-center gap-3 py-3.5"
+            onPress={() => { setShowPicker(false); addFile(); }}
+          >
+            <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+              <Feather name="file" size={14} color="#000" />
+            </View>
+            <Text className="text-base text-black">Pick File</Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </BottomSheet>
+      <AlertDialog
+        visible={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        title="Clear conversation?"
+        message="All messages will be deleted."
+        confirmLabel="Clear All"
+        confirmDestructive
+        onConfirm={clearConversation}
+      />
     </View>
   );
 }
