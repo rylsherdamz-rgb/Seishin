@@ -352,27 +352,31 @@ export default function NoteEditorScreen() {
           )}
 
           {/* Attachment toolbar */}
-          <View className="flex-row gap-2 mt-1 mb-4">
-            <TouchableOpacity onPress={() => addPhoto(true)} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
-              <Feather name="camera" size={15} color="#000000" />
-              <Text className="text-xs font-semibold text-black">Camera</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => addPhoto(false)} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
-              <Feather name="image" size={15} color="#000000" />
-              <Text className="text-xs font-semibold text-black">Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={scanOnly} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
-              <Feather name="maximize" size={15} color="#000000" />
-              <Text className="text-xs font-semibold text-black">OCR</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={addFile} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
-              <Feather name="paperclip" size={15} color="#000000" />
-              <Text className="text-xs font-semibold text-black">File</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowYoutubeInput(true)} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
-              <Feather name="youtube" size={15} color="#000000" />
-              <Text className="text-xs font-semibold text-black">YouTube</Text>
-            </TouchableOpacity>
+          <View className="gap-2.5 mt-1 mb-5">
+            <View className="flex-row gap-2.5">
+              <TouchableOpacity onPress={() => addPhoto(true)} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                <Feather name="camera" size={16} color="#000000" />
+                <Text className="text-[13px] font-semibold text-black">Camera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => addPhoto(false)} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                <Feather name="image" size={16} color="#000000" />
+                <Text className="text-[13px] font-semibold text-black">Photo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={scanOnly} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                <Feather name="maximize" size={16} color="#000000" />
+                <Text className="text-[13px] font-semibold text-black">OCR</Text>
+              </TouchableOpacity>
+            </View>
+            <View className="flex-row gap-2.5">
+              <TouchableOpacity onPress={addFile} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                <Feather name="paperclip" size={16} color="#000000" />
+                <Text className="text-[13px] font-semibold text-black">File</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowYoutubeInput(true)} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                <Feather name="youtube" size={16} color="#000000" />
+                <Text className="text-[13px] font-semibold text-black">YouTube</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Tags */}
