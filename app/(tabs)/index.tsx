@@ -547,10 +547,11 @@ export default function CalendarScreen() {
     });
   }, []);
 
-  // Autosave the event draft while the form is open, so closing the sheet
-  // keeps everything typed.
+  // Autosave the new-event draft while the form is open, so closing the sheet
+  // keeps everything typed. Skipped while editing so an edit session never
+  // clobbers the user's unrelated in-progress draft.
   useEffect(() => {
-    if (sheetMode !== "form") return;
+    if (sheetMode !== "form" || editingEventId) return;
     const start = new Date(eventDate);
     start.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
     const end = new Date(eventDate);
@@ -565,7 +566,7 @@ export default function CalendarScreen() {
       customWeekdays: customWeekdays.length ? customWeekdays : undefined,
       reminderMinutes: reminderMinutes || undefined,
     });
-  }, [eventTitle, eventNotes, eventDate, eventTime, eventEndTime, repeatMode, customWeekdays, reminderMinutes, sheetMode]);
+  }, [eventTitle, eventNotes, eventDate, eventTime, eventEndTime, repeatMode, customWeekdays, reminderMinutes, sheetMode, editingEventId]);
 
   const toggleWeekday = useCallback((d: number) => {
     setCustomWeekdays((prev) =>
@@ -603,8 +604,8 @@ export default function CalendarScreen() {
     }
     setShowModal(false);
     setSheetMode("menu");
-    setEditingEventId(null);
-    clearEventDraft();
+    // Only the create-flow owns the draft; saving an edit must not clear it.
+    if (!editingEventId) clearEventDraft();
     resetForm();
   }, [eventTitle, eventDate, eventTime, eventEndTime, eventNotes, repeatMode, customWeekdays, reminderMinutes, editingEventId, eventAttachments, addEvent, updateEvent, resetForm]);
 
@@ -614,11 +615,12 @@ export default function CalendarScreen() {
 
   const onDayLongPress = useCallback((day: { dateString: string }) => {
     const d = new Date(day.dateString + "T00:00:00");
+    resetForm();
     setEventDate(d);
     setSelectedDate(day.dateString);
     setSheetMode("form");
     setShowModal(true);
-  }, [setSelectedDate]);
+  }, [setSelectedDate, resetForm]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: { kind: "date-header"; date: string; label: string } | CalendarItem; index: number }) => {
@@ -904,7 +906,7 @@ export default function CalendarScreen() {
         ref={modalSheetRef}
         snapPoints={sheetSnapPoints}
         backgroundStyle={{ backgroundColor: "#ffffff" }}
-        onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); } }}
+        onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); resetForm(); } }}
       >
         <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 }}>
           {sheetMode === "menu" ? (
