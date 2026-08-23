@@ -556,10 +556,10 @@ export default function CalendarScreen() {
   }, []);
 
   // Autosave the new-event draft while the form is open, so closing the sheet
-  // keeps everything typed. Skipped while editing so an edit session never
-  // clobbers the user's unrelated in-progress draft.
-  useEffect(() => {
-    if (sheetMode !== "form" || editingEventId) return;
+  // keeps everything typed. Debounced to avoid an MMKV write per keystroke,
+  // with an explicit flush when the sheet closes. Skipped while editing so an
+  // edit session never clobbers the user's unrelated in-progress draft.
+  const flushEventDraft = useCallback(() => {
     const start = new Date(eventDate);
     start.setHours(eventTime.getHours(), eventTime.getMinutes(), 0, 0);
     const end = new Date(eventDate);
@@ -574,7 +574,13 @@ export default function CalendarScreen() {
       customWeekdays: customWeekdays.length ? customWeekdays : undefined,
       reminderMinutes: reminderMinutes || undefined,
     });
-  }, [eventTitle, eventNotes, eventDate, eventTime, eventEndTime, repeatMode, customWeekdays, reminderMinutes, sheetMode, editingEventId]);
+  }, [eventTitle, eventNotes, eventDate, eventTime, eventEndTime, repeatMode, customWeekdays, reminderMinutes]);
+
+  useEffect(() => {
+    if (!showModal || sheetMode !== "form" || editingEventId) return;
+    const t = setTimeout(flushEventDraft, 300);
+    return () => clearTimeout(t);
+  }, [showModal, sheetMode, editingEventId, flushEventDraft]);
 
   const toggleWeekday = useCallback((d: number) => {
     setCustomWeekdays((prev) =>
@@ -914,7 +920,14 @@ export default function CalendarScreen() {
         ref={modalSheetRef}
         snapPoints={sheetSnapPoints}
         backgroundStyle={{ backgroundColor: "#ffffff" }}
-        onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); resetForm(); } }}
+        onChange={(index: number) => {
+          if (index === -1) {
+            if (sheetMode === "form" && !editingEventId) flushEventDraft();
+            setShowModal(false);
+            setSheetMode("menu");
+            resetForm();
+          }
+        }}
       >
         <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 }}>
           {sheetMode === "menu" ? (
