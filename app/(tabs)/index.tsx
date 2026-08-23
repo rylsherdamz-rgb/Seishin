@@ -983,33 +983,43 @@ export default function CalendarScreen() {
               <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
               <TouchableOpacity
                 onPress={() => setPickerMode("date")}
-                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
+                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-3"
+                activeOpacity={0.7}
               >
                 <Feather name="calendar" size={14} color="#666666" />
-                <Text className="text-sm text-black ml-2">{eventDate.toLocaleDateString()}</Text>
-              </TouchableOpacity>
-
-              <Text className="text-xs font-medium text-ink-400 mb-1.5">Time</Text>
-              <TouchableOpacity
-                onPress={() => setPickerMode("time")}
-                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-3"
-              >
-                <Feather name="clock" size={14} color="#666666" />
                 <Text className="text-sm text-black ml-2">
-                  {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {eventDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                 </Text>
               </TouchableOpacity>
 
-              <Text className="text-xs font-medium text-ink-400 mb-1.5">End time</Text>
-              <TouchableOpacity
-                onPress={() => setPickerMode("endTime")}
-                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
-              >
-                <Feather name="stop-circle" size={14} color="#666666" />
-                <Text className="text-sm text-black ml-2">
-                  {eventEndTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </Text>
-              </TouchableOpacity>
+              <View className="flex-row gap-3 mb-4">
+                <View className="flex-1">
+                  <Text className="text-xs font-medium text-ink-400 mb-1.5">Starts</Text>
+                  <TouchableOpacity
+                    onPress={() => setPickerMode("time")}
+                    className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row"
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="clock" size={14} color="#666666" />
+                    <Text className="text-sm text-black ml-2">
+                      {eventTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-1">
+                  <Text className="text-xs font-medium text-ink-400 mb-1.5">Ends</Text>
+                  <TouchableOpacity
+                    onPress={() => setPickerMode("endTime")}
+                    className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row"
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="stop-circle" size={14} color="#666666" />
+                    <Text className="text-sm text-black ml-2">
+                      {eventEndTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
 
               <FormSection
                 title="Repeat"
