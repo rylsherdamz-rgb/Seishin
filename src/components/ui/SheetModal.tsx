@@ -1,10 +1,10 @@
-import { useRef, useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
+import type { ComponentProps } from "react";
 
 interface SheetOption {
-  icon?: React.ComponentProps<typeof Feather>["name"];
+  icon?: ComponentProps<typeof Feather>["name"];
   label: string;
   onPress: () => void;
   destructive?: boolean;
@@ -22,14 +22,11 @@ interface SheetModalProps {
 }
 
 export function SheetModal({ visible, onClose, title, message, options, confirmLabel, confirmDestructive, onConfirm }: SheetModalProps) {
-  const sheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["30%"], []);
-
+  // No snapPoints: the sheet sizes itself to its content (fitToContents).
+  // Fixed snap points bypass content measurement and can present blank.
   return (
     <BottomSheet
-      ref={sheetRef}
       index={visible ? 0 : -1}
-      snapPoints={snapPoints}
       enablePanDownToClose
       backgroundStyle={{ backgroundColor: "#ffffff" }}
       onChange={(index: number) => { if (index === -1) onClose(); }}
