@@ -70,6 +70,12 @@ const sourceIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> 
 function sortItems(items: CalendarItem[]): CalendarItem[] {
   return [...items].sort((a, b) => {
     if (a.date !== b.date) return a.date.localeCompare(b.date);
+    // Prefer real datetimes — locale time strings ("10:00 AM" < "9:00 AM") sort wrong.
+    const at = a.startDate ? Date.parse(a.startDate) : NaN;
+    const bt = b.startDate ? Date.parse(b.startDate) : NaN;
+    if (!isNaN(at) && !isNaN(bt) && at !== bt) return at - bt;
+    if (!isNaN(at)) return -1;
+    if (!isNaN(bt)) return 1;
     if (a.time && b.time) return a.time.localeCompare(b.time);
     if (a.time) return -1;
     if (b.time) return 1;
@@ -107,14 +113,16 @@ rangeTo.setDate(rangeTo.getDate() + 366);
 const VISIBLE_RANGE = { from: dateKey(rangeFrom), to: dateKey(rangeTo) };
 
 function eventToItem(e: CalendarEvent, date: string): CalendarItem {
+  const start = new Date(e.startDate);
+  const end = new Date(e.endDate);
   return {
     id: e.id,
     type: "event",
     title: e.title,
     description: e.description,
     date,
-    time: new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    endTime: new Date(e.endDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    time: isNaN(start.getTime()) ? undefined : start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    endTime: isNaN(end.getTime()) ? undefined : end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     startDate: e.startDate,
     endDate: e.endDate,
     source: e.source,
