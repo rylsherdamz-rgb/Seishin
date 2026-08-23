@@ -1,9 +1,10 @@
 import { useCallback, useRef, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import { router } from "expo-router";
 import { useNotesStore } from "@/stores/notes-store";
 import { useTodoStore } from "@/stores/todo-store";
+import { NoteAttachment } from "@/stores/notes-store";
 import { Recurrence } from "@/stores/calendar-store";
 import { recurrenceLabel } from "@/utils/recurrence";
 import { AlertDialog } from "@/components/ui/AlertDialog";
@@ -14,12 +15,17 @@ interface EventData {
   title: string;
   date: string;
   time?: string;
+  endTime?: string;
+  /** Full ISO datetimes — used to prefill the edit form. */
+  startDate?: string;
+  endDate?: string;
   description?: string;
   source?: string;
   notes?: string;
   eventId?: string;
   recurrence?: Recurrence;
   reminder?: number;
+  attachments?: NoteAttachment[];
 }
 
 interface TodoData {
@@ -35,12 +41,13 @@ interface ItemSheetProps {
   event?: EventData | null;
   todo?: TodoData | null;
   onEventDelete?: (id: string) => void;
+  onEventEdit?: (event: EventData) => void;
   onTodoToggle?: (id: string) => void;
   onTodoDelete?: (id: string) => void;
   onClose?: () => void;
 }
 
-export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDelete, onClose }: ItemSheetProps) {
+export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggle, onTodoDelete, onClose }: ItemSheetProps) {
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["35%", "50%"], []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -103,7 +110,10 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
               {event.time && (
                 <View className="flex-row items-center gap-3">
                   <Feather name="clock" size={14} color="#666666" />
-                  <Text className="text-sm text-black">{event.time}</Text>
+                  <Text className="text-sm text-black">
+                    {event.time}
+                    {event.endTime && event.endTime !== event.time ? ` – ${event.endTime}` : ""}
+                  </Text>
                 </View>
               )}
               {event.recurrence && (
@@ -128,6 +138,22 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
               <View className="mb-4">
                 <Text className="text-xs font-medium text-ink-400 mb-1">Description</Text>
                 <Text className="text-sm text-black leading-5">{event.description}</Text>
+              </View>
+            )}
+
+            {event.attachments && event.attachments.length > 0 && (
+              <View className="mb-4">
+                <Text className="text-xs font-medium text-ink-400 mb-2">Images</Text>
+                <View className="flex-row flex-wrap gap-2">
+                  {event.attachments.map((a) => (
+                    <Image
+                      key={a.id}
+                      source={{ uri: a.uri }}
+                      className="w-20 h-20 rounded-card bg-ink-100"
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
               </View>
             )}
 
@@ -191,6 +217,16 @@ export function ItemSheet({ event, todo, onEventDelete, onTodoToggle, onTodoDele
             )}
 
             <View className="flex-row flex-wrap gap-2 mb-4">
+              {onEventEdit && (
+                <TouchableOpacity
+                  onPress={() => onEventEdit(event)}
+                  className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"
+                  activeOpacity={0.7}
+                >
+                  <Feather name="edit-2" size={14} color="#000" />
+                  <Text className="text-sm font-medium text-black">Edit Event</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 onPress={() => router.push(`/note?eventId=${event.id}`)}
                 className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"

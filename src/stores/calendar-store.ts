@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { eventsStorage } from "./mmkv";
 import { occursOnDate, dateKey } from "@/utils/recurrence";
 import { scheduleEventReminder, cancelEventReminder } from "@/services/notification-service";
+import { NoteAttachment } from "@/stores/notes-store";
 
 export interface Recurrence {
   frequency: "daily" | "weekly" | "monthly";
@@ -19,6 +20,8 @@ export interface CalendarEvent {
   description?: string;
   /** Freeform note attached to this event. */
   notes?: string;
+  /** Photos/files attached to the event's notes. */
+  attachments?: NoteAttachment[];
   startDate: string;
   endDate: string;
   allDay?: boolean;

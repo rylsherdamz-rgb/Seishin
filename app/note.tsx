@@ -1,16 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
-
-import { Stack, router, useLocalSearchParams } from "expo-router";
-import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
-import { getDocumentAsync } from "expo-document-picker";
-import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
-import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
-import { recognizeText } from "@/services/ocr";
-import { AlertDialog } from "@/components/ui/AlertDialog";
-import { uid } from "@/utils/id";
-import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from "react-native"; import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet"; import { Stack, router, useLocalSearchParams } from "expo-router"; import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker"; import { getDocumentAsync } from "expo-document-picker"; import { useNotesStore, NoteAttachment } from "@/stores/notes-store"; import { useKeyboardPadding } from "@/hooks/useKeyboardPadding"; import { recognizeText } from "@/services/ocr"; import { AlertDialog } from "@/components/ui/AlertDialog"; import { uid } from "@/utils/id"; import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
 
 function fmtSize(bytes?: number) {
@@ -67,6 +56,7 @@ export default function NoteEditorScreen() {
     if (action === "camera") addPhoto(true);
     else if (action === "photo") addPhoto(false);
     else if (action === "file") addFile();
+    else if (action === "ocr") scanOnly();
     else if (action === "youtube") setShowYoutubeInput(true);
   }, [action]);
 
@@ -117,7 +107,7 @@ export default function NoteEditorScreen() {
   }, [savedAt]);
 
   // Flush pending edits on unmount — gesture/system back bypass handleBack.
-  const lastPersistRef = useRef<() => void>(() => {});
+  const lastPersistRef = useRef<() => void>(() => { });
   lastPersistRef.current = persist;
   useEffect(() => {
     return () => { lastPersistRef.current(); };
@@ -174,6 +164,12 @@ export default function NoteEditorScreen() {
     }
   }, [body, persist]);
 
+  const scanOnly = useCallback(async () => {
+    const result = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+    runOcrIntoBody(result.assets[0].uri);
+  }, [runOcrIntoBody]);
+
   const fetchYoutubeTranscript = useCallback(async () => {
     const vid = extractVideoId(youtubeUrl.trim());
     if (!vid) {
@@ -227,9 +223,7 @@ export default function NoteEditorScreen() {
     const next = [...attachments, att];
     setAttachments(next);
     persist({ attachments: next });
-    // Best-effort: pull any text out of the photo into the note body.
-    runOcrIntoBody(asset.uri);
-  }, [attachments, persist, runOcrIntoBody]);
+  }, [attachments, persist]);
 
   const addFile = useCallback(async () => {
     try {
@@ -248,11 +242,10 @@ export default function NoteEditorScreen() {
       const next = [...attachments, att];
       setAttachments(next);
       persist({ attachments: next });
-      if (isImage) runOcrIntoBody(file.uri);
     } catch {
       setShowFileError(true);
     }
-  }, [attachments, persist, runOcrIntoBody]);
+  }, [attachments, persist]);
 
   const handleDelete = useCallback(() => {
     setShowDeleteConfirm(true);
@@ -288,7 +281,7 @@ export default function NoteEditorScreen() {
       </View>
 
       <View className="flex-1">
-        <ScrollView className="flex-1 px-4" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: keyboardPadding }}>
+        <ScrollView className="flex-1 h-100vh px-4" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: keyboardPadding + 32 }}>
           {eventId && (
             <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
               <Feather name="calendar" size={11} color="#ffffff" />
@@ -304,12 +297,13 @@ export default function NoteEditorScreen() {
             multiline
           />
           <TextInput
-            className="text-base text-ink-800 leading-6 py-2 min-h-[160px]"
+            className="text-base text-ink-800 leading-6 py-2 min-h-[320px] max-h-[560px]"
             placeholder="Start writing, or attach a photo/file below…"
             placeholderTextColor="#cccccc"
             value={body}
             onChangeText={setBody}
             multiline
+            scrollEnabled
             textAlignVertical="top"
           />
 
@@ -366,6 +360,10 @@ export default function NoteEditorScreen() {
             <TouchableOpacity onPress={() => addPhoto(false)} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
               <Feather name="image" size={15} color="#000000" />
               <Text className="text-xs font-semibold text-black">Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={scanOnly} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
+              <Feather name="maximize" size={15} color="#000000" />
+              <Text className="text-xs font-semibold text-black">OCR</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={addFile} className="flex-1 h-11 bg-ink-50 rounded-xl items-center justify-center flex-row gap-1.5">
               <Feather name="paperclip" size={15} color="#000000" />

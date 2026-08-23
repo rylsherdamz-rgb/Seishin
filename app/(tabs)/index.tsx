@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View, Text, TouchableOpacity, FlatList, TextInput, ScrollView, Platform,
+  Image, ActivityIndicator,
 } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, FadeInDown } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, FadeInDown, FadeOutUp } from "react-native-reanimated";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 
 import { router } from "expo-router";
 import { uid } from "@/utils/id";
@@ -27,6 +29,8 @@ LocaleConfig.locales["en"] = {
 LocaleConfig.defaultLocale = "en";
 import { useCalendarStore, CalendarEvent, Recurrence } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
+import { NoteAttachment } from "@/stores/notes-store";
+import { recognizeText } from "@/services/ocr";
 import { occursOnDate, expandOccurrences, dateKey, keyToDate } from "@/utils/recurrence";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
@@ -43,6 +47,9 @@ interface CalendarItem {
   description?: string;
   date: string;
   time?: string;
+  endTime?: string;
+  startDate?: string;
+  endDate?: string;
   source?: string;
   priority?: string;
   completed?: boolean;
@@ -51,6 +58,7 @@ interface CalendarItem {
   eventId?: string;
   recurrence?: Recurrence;
   reminder?: number;
+  attachments?: NoteAttachment[];
 }
 
 const sourceIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
@@ -105,11 +113,15 @@ function eventToItem(e: CalendarEvent, date: string): CalendarItem {
     description: e.description,
     date,
     time: new Date(e.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    endTime: new Date(e.endDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    startDate: e.startDate,
+    endDate: e.endDate,
     source: e.source,
     notes: e.notes,
     eventId: e.id,
     recurrence: e.recurrence,
     reminder: e.reminder,
+    attachments: e.attachments,
   };
 }
 
@@ -142,6 +154,56 @@ function buildRecurrence(mode: RepeatMode, weekdays: number[]): Recurrence | und
     default:
       return undefined;
   }
+}
+
+function recurrenceToState(r?: Recurrence): { mode: RepeatMode; weekdays: number[] } {
+  if (!r) return { mode: "none", weekdays: [] };
+  if (r.frequency === "daily") return { mode: "daily", weekdays: [] };
+  if (r.frequency === "monthly") return { mode: "monthly", weekdays: [] };
+  if (r.frequency === "weekly") {
+    if (r.weekdays && r.weekdays.length === 7) return { mode: "everyday", weekdays: [] };
+    if (r.weekdays && r.weekdays.length === 5 && r.weekdays.join(",") === [1, 2, 3, 4, 5].join(",")) {
+      return { mode: "weekdays", weekdays: [] };
+    }
+    if (r.weekdays && r.weekdays.length > 0) return { mode: "custom", weekdays: [...r.weekdays].sort() };
+    return { mode: "weekly", weekdays: [] };
+  }
+  return { mode: "none", weekdays: [] };
+}
+
+function FormSection({
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <View className="mb-4">
+      <TouchableOpacity
+        onPress={onToggle}
+        className="flex-row items-center justify-between py-2"
+        activeOpacity={0.7}
+      >
+        <View className="flex-row items-center gap-2">
+          <Text className="text-xs font-medium text-ink-400">{title}</Text>
+          {summary ? <Text className="text-xs text-ink-400">{summary}</Text> : null}
+        </View>
+        <Feather name={open ? "chevron-up" : "chevron-down"} size={14} color="#999999" />
+      </TouchableOpacity>
+      {open && (
+        <Animated.View entering={FadeInDown.duration(200)} exiting={FadeOutUp.duration(150)}>
+          {children}
+        </Animated.View>
+      )}
+    </View>
+  );
 }
 
 const CALENDAR_BASE_THEME = {
@@ -178,6 +240,7 @@ export default function CalendarScreen() {
   const selectedDate = useCalendarStore((s) => s.selectedDate);
   const loadEvents = useCalendarStore((s) => s.loadEvents);
   const addEvent = useCalendarStore((s) => s.addEvent);
+  const updateEvent = useCalendarStore((s) => s.updateEvent);
   const deleteEvent = useCalendarStore((s) => s.deleteEvent);
   const setSelectedDate = useCalendarStore((s) => s.setSelectedDate);
   const todos = useTodoStore((s) => s.todos);
@@ -300,6 +363,137 @@ export default function CalendarScreen() {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>("none");
   const [customWeekdays, setCustomWeekdays] = useState<number[]>([]);
   const [reminderMinutes, setReminderMinutes] = useState<0 | 15 | 30 | 60>(0);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [sectionOpen, setSectionOpen] = useState({ repeat: false, alarm: false, notes: false });
+  const [eventAttachments, setEventAttachments] = useState<NoteAttachment[]>([]);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const modalSheetRef = useRef<BottomSheet>(null);
+  // The sheet grows automatically when the form carries content-heavy state
+  // (notes text, attached images, expanded sections) so nothing feels cramped.
+  const formRich = useMemo(
+    () =>
+      sheetMode === "form" &&
+      (eventNotes.length > 60 ||
+        eventAttachments.length > 0 ||
+        sectionOpen.notes ||
+        sectionOpen.repeat ||
+        sectionOpen.alarm),
+    [sheetMode, eventNotes, eventAttachments, sectionOpen],
+  );
+  const sheetSnapPoints = useMemo(
+    () => (sheetMode === "menu" ? ["35%", "60%"] : formRich ? ["72%", "92%"] : ["55%", "92%"]),
+    [sheetMode, formRich],
+  );
+  useEffect(() => {
+    if (!showModal) return;
+    modalSheetRef.current?.snapToIndex(formRich ? 1 : 0);
+  }, [formRich, sheetMode, showModal]);
+
+  const scanImage = useCallback(async (uri: string) => {
+    setOcrBusy(true);
+    try {
+      const text = (await recognizeText(uri)).trim();
+      if (text) {
+        setEventNotes((prev) =>
+          prev ? `${prev}\n\n— Scanned text —\n${text}` : `— Scanned text —\n${text}`,
+        );
+      }
+    } catch {
+      // OCR is best-effort; the image is still attached even if it fails.
+    } finally {
+      setOcrBusy(false);
+    }
+  }, []);
+
+  const scanPhoto = useCallback(async () => {
+    const result = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+    scanImage(result.assets[0].uri);
+  }, [scanImage]);
+
+  const attachPhoto = useCallback(async (fromCamera: boolean) => {
+    const picker = fromCamera ? launchCameraAsync : launchImageLibraryAsync;
+    const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setEventAttachments((prev) => [
+      ...prev,
+      {
+        id: uid("att"),
+        type: "image",
+        uri: asset.uri,
+        name: asset.fileName ?? undefined,
+        mimeType: asset.mimeType ?? "image/*",
+        size: asset.fileSize,
+      },
+    ]);
+  }, []);
+
+  const hydrateFormFields = useCallback((opts: {
+    title?: string;
+    notes?: string;
+    startDate?: string;
+    endDate?: string;
+    recurrence?: Recurrence;
+    reminder?: number;
+    attachments?: NoteAttachment[];
+  }) => {
+    setEventTitle(opts.title ?? "");
+    setEventNotes(opts.notes ?? "");
+    setEventAttachments(opts.attachments ?? []);
+    if (opts.startDate) {
+      const d = new Date(opts.startDate);
+      if (!isNaN(d.getTime())) {
+        setEventDate(d);
+        setEventTime(d);
+      }
+    }
+    if (opts.endDate) {
+      const d = new Date(opts.endDate);
+      if (!isNaN(d.getTime())) setEventEndTime(d);
+      else setEventEndTime(new Date(new Date(opts.startDate ?? Date.now()).getTime() + 3600000));
+    } else if (opts.startDate && !isNaN(new Date(opts.startDate).getTime())) {
+      setEventEndTime(new Date(new Date(opts.startDate).getTime() + 3600000));
+    }
+    const { mode, weekdays } = recurrenceToState(opts.recurrence);
+    setRepeatMode(mode);
+    setCustomWeekdays(weekdays);
+    const validReminders: (0 | 15 | 30 | 60)[] = [0, 15, 30, 60];
+    const reminder = validReminders.includes(opts.reminder as 0 | 15 | 30 | 60)
+      ? (opts.reminder as 0 | 15 | 30 | 60)
+      : 0;
+    setReminderMinutes(reminder);
+    setSectionOpen({
+      repeat: mode !== "none",
+      alarm: reminder > 0,
+      notes: Boolean(opts.notes),
+    });
+  }, []);
+
+  const openEditForm = useCallback((ev: {
+    id: string;
+    title?: string;
+    description?: string;
+    notes?: string;
+    startDate?: string;
+    endDate?: string;
+    recurrence?: Recurrence;
+    reminder?: number;
+    attachments?: NoteAttachment[];
+  }) => {
+    setEditingEventId(ev.id);
+    hydrateFormFields({
+      title: ev.title,
+      notes: ev.notes ?? ev.description,
+      startDate: ev.startDate,
+      endDate: ev.endDate,
+      recurrence: ev.recurrence,
+      reminder: ev.reminder,
+      attachments: ev.attachments,
+    });
+    setSheetMode("form");
+    setShowModal(true);
+  }, [hydrateFormFields]);
 
   const resetForm = useCallback(() => {
     setEventTitle("");
@@ -310,6 +504,9 @@ export default function CalendarScreen() {
     setRepeatMode("none");
     setCustomWeekdays([]);
     setReminderMinutes(0);
+    setEditingEventId(null);
+    setSectionOpen({ repeat: false, alarm: false, notes: false });
+    setEventAttachments([]);
   }, []);
 
   // Restore the last in-progress event draft into the form.
@@ -334,11 +531,15 @@ export default function CalendarScreen() {
     setRepeatMode((draft.repeatMode as RepeatMode) ?? "none");
     setCustomWeekdays(draft.customWeekdays ?? []);
     const validReminders: (0 | 15 | 30 | 60)[] = [0, 15, 30, 60];
-    setReminderMinutes(
-      validReminders.includes(draft.reminderMinutes as 0 | 15 | 30 | 60)
-        ? (draft.reminderMinutes as 0 | 15 | 30 | 60)
-        : 0
-    );
+    const reminder = validReminders.includes(draft.reminderMinutes as 0 | 15 | 30 | 60)
+      ? (draft.reminderMinutes as 0 | 15 | 30 | 60)
+      : 0;
+    setReminderMinutes(reminder);
+    setSectionOpen({
+      repeat: draft.repeatMode !== undefined && draft.repeatMode !== "none",
+      alarm: reminder > 0,
+      notes: Boolean(draft.notes),
+    });
   }, []);
 
   // Autosave the event draft while the form is open, so closing the sheet
@@ -377,21 +578,30 @@ export default function CalendarScreen() {
     const end = new Date(eventDate);
     end.setHours(eventEndTime.getHours(), eventEndTime.getMinutes(), 0, 0);
     if (end <= start) end.setTime(start.getTime() + 3600000);
-    addEvent({
-      id: uid("manual-evt"),
+    const changes = {
       title: eventTitle.trim(),
       startDate: start.toISOString(),
       endDate: end.toISOString(),
-      source: "manual",
       notes: eventNotes.trim() || undefined,
+      attachments: eventAttachments.length > 0 ? eventAttachments : undefined,
       recurrence: buildRecurrence(repeatMode, customWeekdays),
       reminder: reminderMinutes > 0 ? reminderMinutes : undefined,
-    });
+    };
+    if (editingEventId) {
+      updateEvent(editingEventId, changes);
+    } else {
+      addEvent({
+        id: uid("manual-evt"),
+        ...changes,
+        source: "manual",
+      });
+    }
     setShowModal(false);
     setSheetMode("menu");
+    setEditingEventId(null);
     clearEventDraft();
     resetForm();
-  }, [eventTitle, eventDate, eventTime, eventEndTime, eventNotes, repeatMode, customWeekdays, reminderMinutes, addEvent, resetForm]);
+  }, [eventTitle, eventDate, eventTime, eventEndTime, eventNotes, repeatMode, customWeekdays, reminderMinutes, editingEventId, eventAttachments, addEvent, updateEvent, resetForm]);
 
   const onDayPress = useCallback((day: { dateString: string }) => {
     setSelectedDate(day.dateString);
@@ -454,6 +664,12 @@ export default function CalendarScreen() {
                   <View className="flex-row items-center gap-2 mt-1">
                     <Feather name="clock" size={10} color="#999999" />
                     <Text className="text-xs text-ink-400">{item.time}</Text>
+                    {item.endTime && item.endTime !== item.time ? (
+                      <>
+                        <Text className="text-xs text-ink-200">–</Text>
+                        <Text className="text-xs text-ink-400">{item.endTime}</Text>
+                      </>
+                    ) : null}
                     <Text className="text-xs text-ink-200">·</Text>
                     <Text className="text-xs text-ink-400 capitalize">{item.source}</Text>
                     {item.recurrence && (
@@ -648,14 +864,19 @@ export default function CalendarScreen() {
               title: sheetItem.title,
               date: sheetItem.date,
               time: sheetItem.time,
+              endTime: sheetItem.endTime,
+              startDate: sheetItem.startDate,
+              endDate: sheetItem.endDate,
               description: sheetItem.description,
               source: sheetItem.source,
               notes: sheetItem.notes,
               eventId: sheetItem.eventId || sheetItem.id,
               recurrence: sheetItem.recurrence,
               reminder: sheetItem.reminder,
+              attachments: sheetItem.attachments,
             },
             onEventDelete: (id) => { deleteEvent(id); cancelEventReminder(id); setSheetItem(null); },
+            onEventEdit: (ev) => { setSheetItem(null); openEditForm(ev); },
           } : {
             todo: {
               id: sheetItem.todoId || sheetItem.id,
@@ -675,6 +896,8 @@ export default function CalendarScreen() {
       <BottomSheet
         enablePanDownToClose
         index={showModal ? 0 : -1}
+        ref={modalSheetRef}
+        snapPoints={sheetSnapPoints}
         backgroundStyle={{ backgroundColor: "#ffffff" }}
         onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); } }}
       >
@@ -717,7 +940,7 @@ export default function CalendarScreen() {
             </>
           ) : (
             <ScrollView
-              contentContainerStyle={{ paddingBottom: 24 }}
+              contentContainerStyle={{ paddingBottom: 56 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -726,7 +949,7 @@ export default function CalendarScreen() {
                   <TouchableOpacity onPress={() => setSheetMode("menu")} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
                     <Feather name="chevron-left" size={16} color="#666666" />
                   </TouchableOpacity>
-                  <Text className="text-lg font-semibold tracking-tightest text-black">New Event</Text>
+                  <Text className="text-lg font-semibold tracking-tightest text-black">{editingEventId ? "Edit Event" : "New Event"}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
                   <Feather name="x" size={16} color="#666666" />
@@ -765,7 +988,7 @@ export default function CalendarScreen() {
               <Text className="text-xs font-medium text-ink-400 mb-1.5">End time</Text>
               <TouchableOpacity
                 onPress={() => setPickerMode("endTime")}
-                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-6"
+                className="h-12 bg-ink-50 rounded-xl px-4 items-center flex-row mb-4"
               >
                 <Feather name="stop-circle" size={14} color="#666666" />
                 <Text className="text-sm text-black ml-2">
@@ -773,70 +996,147 @@ export default function CalendarScreen() {
                 </Text>
               </TouchableOpacity>
 
-              <Text className="text-xs font-medium text-ink-400 mb-1.5">Repeat</Text>
-              <View className="flex-row flex-wrap gap-2 mb-2.5">
-                {REPEAT_OPTIONS.map((o) => (
-                  <Chip
-                    key={o.key}
-                    label={o.label}
-                    active={repeatMode === o.key}
-                    onPress={() => setRepeatMode(o.key)}
-                  />
-                ))}
-              </View>
-
-              {repeatMode === "custom" && (
-                <View className="flex-row justify-between mb-6 px-1">
-                  {["S", "M", "T", "W", "T", "F", "S"].map((label, d) => (
-                    <TouchableOpacity
-                      key={d}
-                      onPress={() => toggleWeekday(d)}
-                      className={`w-9 h-9 rounded-full items-center justify-center ${customWeekdays.includes(d) ? "bg-black" : "bg-ink-100"
-                        }`}
-                      activeOpacity={0.7}
-                    >
-                      <Text className={`text-xs font-semibold ${customWeekdays.includes(d) ? "text-white" : "text-ink-500"}`}>
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
+              <FormSection
+                title="Repeat"
+                summary={repeatMode !== "none" ? `· ${REPEAT_OPTIONS.find((o) => o.key === repeatMode)?.label}` : undefined}
+                open={sectionOpen.repeat}
+                onToggle={() => setSectionOpen((s) => ({ ...s, repeat: !s.repeat }))}
+              >
+                <View className="flex-row flex-wrap gap-2 mb-2.5">
+                  {REPEAT_OPTIONS.map((o) => (
+                    <Chip
+                      key={o.key}
+                      label={o.label}
+                      active={repeatMode === o.key}
+                      onPress={() => setRepeatMode(o.key)}
+                    />
                   ))}
                 </View>
-              )}
 
-              <Text className="text-xs font-medium text-ink-400 mb-1.5">Alarm</Text>
-              <View className="flex-row flex-wrap gap-2 mb-6">
-                {([
-                  { value: 0, label: "None" },
-                  { value: 15, label: "15 min before" },
-                  { value: 30, label: "30 min before" },
-                  { value: 60, label: "1 hr before" },
-                ] as const).map((o) => (
-                  <Chip
-                    key={o.value}
-                    label={o.label}
-                    active={reminderMinutes === o.value}
-                    onPress={() => setReminderMinutes(o.value)}
+                {repeatMode === "custom" && (
+                  <View className="flex-row justify-between mb-2.5 px-1">
+                    {["S", "M", "T", "W", "T", "F", "S"].map((label, d) => (
+                      <TouchableOpacity
+                        key={d}
+                        onPress={() => toggleWeekday(d)}
+                        className={`w-9 h-9 rounded-full items-center justify-center ${customWeekdays.includes(d) ? "bg-black" : "bg-ink-100"
+                          }`}
+                        activeOpacity={0.7}
+                      >
+                        <Text className={`text-xs font-semibold ${customWeekdays.includes(d) ? "text-white" : "text-ink-500"}`}>
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </FormSection>
+
+              <FormSection
+                title="Alarm"
+                summary={reminderMinutes > 0 ? `· ${reminderMinutes} min before` : undefined}
+                open={sectionOpen.alarm}
+                onToggle={() => setSectionOpen((s) => ({ ...s, alarm: !s.alarm }))}
+              >
+                <View className="flex-row flex-wrap gap-2 mb-1">
+                  {([
+                    { value: 0, label: "None" },
+                    { value: 15, label: "15 min before" },
+                    { value: 30, label: "30 min before" },
+                    { value: 60, label: "1 hr before" },
+                  ] as const).map((o) => (
+                    <Chip
+                      key={o.value}
+                      label={o.label}
+                      active={reminderMinutes === o.value}
+                      onPress={() => setReminderMinutes(o.value)}
+                    />
+                  ))}
+                </View>
+              </FormSection>
+
+              <FormSection
+                title="Notes"
+                open={sectionOpen.notes}
+                onToggle={() => setSectionOpen((s) => ({ ...s, notes: !s.notes }))}
+              >
+                <View className="bg-ink-50 rounded-xl px-4 pt-3.5 pb-1">
+                  <TextInput
+                    className="min-h-[80px] max-h-[180px] text-sm leading-5 text-black"
+                    placeholder="Add notes for this event…"
+                    placeholderTextColor="#999999"
+                    value={eventNotes}
+                    onChangeText={setEventNotes}
+                    multiline
+                    scrollEnabled
+                    textAlignVertical="top"
+                    style={{ paddingVertical: 0 }}
                   />
-                ))}
-              </View>
 
-              <Text className="text-xs font-medium text-ink-400 mb-1.5">Notes</Text>
-              <TextInput
-                className="min-h-[72px] bg-ink-50 rounded-xl px-4 py-3 text-sm text-black mb-6"
-                placeholder="Add notes for this event"
-                placeholderTextColor="#999999"
-                value={eventNotes}
-                onChangeText={setEventNotes}
-                multiline
-                textAlignVertical="top"
-              />
+                  {ocrBusy && (
+                    <View className="flex-row items-center gap-2 pt-2">
+                      <ActivityIndicator size="small" color="#000000" />
+                      <Text className="text-xs text-ink-500">Reading text from image…</Text>
+                    </View>
+                  )}
+
+                  {eventAttachments.length > 0 && (
+                    <View className="flex-row flex-wrap gap-2 pt-3">
+                      {eventAttachments.map((a) => (
+                        <View key={a.id} className="relative">
+                          <Image
+                            source={{ uri: a.uri }}
+                            className="w-20 h-20 rounded-card bg-ink-100"
+                            resizeMode="cover"
+                          />
+                          <TouchableOpacity
+                            onPress={() => setEventAttachments((prev) => prev.filter((x) => x.id !== a.id))}
+                            className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
+                          >
+                            <Feather name="x" size={11} color="#ffffff" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <View className="border-t border-ink-200/60 mt-2" />
+
+                  <View className="flex-row items-center py-1">
+                    <TouchableOpacity
+                      onPress={() => attachPhoto(true)}
+                      className="flex-row items-center gap-1.5 px-2.5 py-2"
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="camera" size={15} color="#666666" />
+                      <Text className="text-xs font-medium text-ink-600">Camera</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => attachPhoto(false)}
+                      className="flex-row items-center gap-1.5 px-2.5 py-2"
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="image" size={15} color="#666666" />
+                      <Text className="text-xs font-medium text-ink-600">Image</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={scanPhoto}
+                      className="flex-row items-center gap-1.5 px-2.5 py-2"
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="maximize" size={15} color="#666666" />
+                      <Text className="text-xs font-medium text-ink-600">OCR</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </FormSection>
 
               <TouchableOpacity
                 onPress={saveEvent}
                 activeOpacity={0.85}
                 className="bg-black h-12 rounded-xl items-center justify-center shadow-raised"
               >
-                <Text className="text-white text-base font-semibold">Save Event</Text>
+                <Text className="text-white text-base font-semibold">{editingEventId ? "Save Changes" : "Save Event"}</Text>
               </TouchableOpacity>
             </ScrollView>
           )}
