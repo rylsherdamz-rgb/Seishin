@@ -906,7 +906,7 @@ export default function CalendarScreen() {
         backgroundStyle={{ backgroundColor: "#ffffff" }}
         onChange={(index: number) => { if (index === -1) { setShowModal(false); setSheetMode("menu"); } }}
       >
-        <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 }}>
+        <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 }}>
           {sheetMode === "menu" ? (
             <>
               <View className="flex-row justify-between items-center mb-4 pt-1">
@@ -983,6 +983,7 @@ export default function CalendarScreen() {
                 placeholderTextColor="#999999"
                 value={eventTitle}
                 onChangeText={setEventTitle}
+                returnKeyType="done"
               />
 
               <Text className="text-xs font-medium text-ink-400 mb-1.5">Date</Text>
