@@ -158,7 +158,7 @@ export default function NoteEditorScreen() {
         persist({ body: nextBody });
       }
     } catch {
-      // OCR is best-effort; the image is still attached even if it fails.
+      // OCR is best-effort; nothing is attached when scanning text only.
     } finally {
       setOcrBusy(false);
     }
