@@ -904,38 +904,53 @@ export default function CalendarScreen() {
         <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 }}>
           {sheetMode === "menu" ? (
             <>
-              <View className="flex-row justify-between items-center mb-4">
+              <View className="flex-row justify-between items-center mb-4 pt-1">
                 <Text className="text-lg font-semibold tracking-tightest text-black">Add to Calendar</Text>
               </View>
 
               <TouchableOpacity
                 className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
                 onPress={() => { resetForm(); hydrateDraft(); setSheetMode("form"); }}
+                activeOpacity={0.7}
               >
                 <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
                   <Feather name="calendar" size={16} color="#ffffff" />
                 </View>
-                <Text className="text-sm font-medium text-black">Add Event</Text>
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-black">Add Event</Text>
+                  <Text className="text-xs text-ink-400 mt-0.5">Scheduled with date and time</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color="#cccccc" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 className="flex-row items-center gap-3 py-3.5 border-b border-ink-100"
                 onPress={() => { setShowModal(false); router.push("/todo"); }}
+                activeOpacity={0.7}
               >
                 <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
                   <Feather name="check-square" size={16} color="#000000" />
                 </View>
-                <Text className="text-sm font-medium text-black">Add Todo</Text>
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-black">Add Todo</Text>
+                  <Text className="text-xs text-ink-400 mt-0.5">Task with an optional due date</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color="#cccccc" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 className="flex-row items-center gap-3 py-3.5"
                 onPress={() => { setShowModal(false); router.push("/note"); }}
+                activeOpacity={0.7}
               >
                 <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
                   <Feather name="file-text" size={16} color="#000000" />
                 </View>
-                <Text className="text-sm font-medium text-black">New Note</Text>
+                <View className="flex-1">
+                  <Text className="text-sm font-medium text-black">New Note</Text>
+                  <Text className="text-xs text-ink-400 mt-0.5">Freeform notes with photos and files</Text>
+                </View>
+                <Feather name="chevron-right" size={16} color="#cccccc" />
               </TouchableOpacity>
             </>
           ) : (
