@@ -38,6 +38,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ItemSheet } from "@/components/ItemSheet";
 import { cancelEventReminder } from "@/services/notification-service";
 import { loadEventDraft, saveEventDraft, clearEventDraft } from "@/utils/drafts";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import Feather from "@expo/vector-icons/Feather";
 
 interface CalendarItem {
@@ -367,6 +368,10 @@ export default function CalendarScreen() {
   const [sectionOpen, setSectionOpen] = useState({ repeat: false, alarm: false, notes: false });
   const [eventAttachments, setEventAttachments] = useState<NoteAttachment[]>([]);
   const [ocrBusy, setOcrBusy] = useState(false);
+  const keyboardPadding = useKeyboardPadding();
+  // Android runs edge-to-edge: the keyboard overlays the sheet, so the form
+  // needs matching scroll padding. iOS sheets resize natively (padding stays 0).
+  const androidKeyboardPad = Platform.OS === "android" ? keyboardPadding : 0;
   const modalSheetRef = useRef<BottomSheet>(null);
   // The sheet grows automatically when the form carries content-heavy state
   // (notes text, attached images, expanded sections) so nothing feels cramped.
@@ -955,7 +960,7 @@ export default function CalendarScreen() {
             </>
           ) : (
             <ScrollView
-              contentContainerStyle={{ paddingBottom: 56 }}
+              contentContainerStyle={{ paddingBottom: 56 + androidKeyboardPad }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -1159,7 +1164,8 @@ export default function CalendarScreen() {
               <TouchableOpacity
                 onPress={saveEvent}
                 activeOpacity={0.85}
-                className="bg-black h-12 rounded-xl items-center justify-center shadow-raised"
+                disabled={!eventTitle.trim()}
+                className={`h-12 rounded-xl items-center justify-center ${eventTitle.trim() ? "bg-black shadow-raised" : "bg-ink-200"}`}
               >
                 <Text className="text-white text-base font-semibold">{editingEventId ? "Save Changes" : "Save Event"}</Text>
               </TouchableOpacity>
