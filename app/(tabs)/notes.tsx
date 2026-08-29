@@ -54,6 +54,7 @@ export default function NotesScreen() {
   const [showItemSheet, setShowItemSheet] = useState(false);
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showNewNoteSheet, setShowNewNoteSheet] = useState(false);
 
   useEffect(() => { loadNotes(); loadItems(); }, [loadNotes, loadItems]);
   useFocusEffect(useCallback(() => { loadNotes(); }, [loadNotes]));
@@ -78,10 +79,10 @@ export default function NotesScreen() {
     router.push(id ? { pathname: "/note", params: { id } } : "/note");
   }, []);
 
-  // The "+" FAB opens a fresh note straight into the editor, where the full
-  // tool toolbar (Camera / Photo / OCR / File / YouTube) lives inline — no
-  // intermediate action sheet to wade through.
-  const onAddPress = useCallback(() => openNote(), [openNote]);
+  // The "+" FAB opens a bottom sheet offering a blank note or an attachment
+  // shortcut (camera / photo / file / YouTube), each launching the editor with
+  // the matching action.
+  const onAddPress = useCallback(() => setShowNewNoteSheet(true), []);
 
   const renderCard = useCallback((item: Note) => {
     const attachments = item.attachments ?? [];
@@ -177,18 +178,18 @@ export default function NotesScreen() {
     if ("_header" in item) {
       return (
         <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
-        <Text className="text-[11px] font-bold text-ink-400 tracking-widest px-2 pt-3 pb-1">
-          {item._header.toUpperCase()}
-        </Text>
+          <Text className="text-[11px] font-bold text-ink-400 tracking-widest px-2 pt-3 pb-1">
+            {item._header.toUpperCase()}
+          </Text>
         </Animated.View>
       );
     }
     return (
       <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
-      <View className="flex-row items-start">
-        {item.map(renderCard)}
-        {item.length === 1 && <View className="flex-1 m-1.5" />}
-      </View>
+        <View className="flex-row items-start">
+          {item.map(renderCard)}
+          {item.length === 1 && <View className="flex-1 m-1.5" />}
+        </View>
       </Animated.View>
     );
   }, [renderCard]);
@@ -267,7 +268,15 @@ export default function NotesScreen() {
           </Text>
         </View>
         <View className="flex-row gap-2 items-center">
-          {tab === "notes" ? null : selecting ? (
+          {tab === "notes" ? (
+            <TouchableOpacity
+              onPress={onAddPress}
+              activeOpacity={0.85}
+              className="w-9 h-9 bg-black rounded-full items-center justify-center shadow-raised"
+            >
+              <Feather name="plus" size={20} color="#ffffff" />
+            </TouchableOpacity>
+          ) : selecting ? (
             <TouchableOpacity onPress={() => setSelecting(false)}>
               <Text className="text-sm font-medium text-ink-500">Cancel</Text>
             </TouchableOpacity>
@@ -313,6 +322,7 @@ export default function NotesScreen() {
               <FlatList
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                bounces
                 data={["all", ...allTags]}
                 keyExtractor={(t) => t}
                 contentContainerClassName="px-4 gap-2"
@@ -330,6 +340,7 @@ export default function NotesScreen() {
               keyExtractor={(row, i) => ("_header" in row ? `h-${row._header}` : `row-${i}-${row[0]?.id}`)}
               contentContainerClassName="px-2.5"
               contentContainerStyle={{ paddingBottom: bottomGap }}
+              alwaysBounceVertical
               removeClippedSubviews
               maxToRenderPerBatch={8}
               windowSize={5}
@@ -404,6 +415,7 @@ export default function NotesScreen() {
             keyExtractor={(item) => item.id}
             contentContainerClassName="px-4"
             contentContainerStyle={{ paddingBottom: bottomGap }}
+            alwaysBounceVertical
             removeClippedSubviews
             maxToRenderPerBatch={10}
             windowSize={10}
@@ -415,20 +427,7 @@ export default function NotesScreen() {
         </>
       )}
 
-      {tab === "notes" && (
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          style={{ position: "absolute", right: 20, bottom: insets.bottom + 20 }}
-        >
-          <TouchableOpacity
-            onPress={onAddPress}
-            activeOpacity={0.85}
-            className="w-14 h-14 bg-black rounded-full items-center justify-center shadow-float"
-          >
-            <Feather name="plus" size={26} color="#ffffff" />
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+
 
       <SheetModal
         visible={showItemSheet && sheetItem !== null}
@@ -452,18 +451,20 @@ export default function NotesScreen() {
               setSheetItem(null);
             },
           }] : []),
-          { icon: "cpu", label: "Send to AI", onPress: () => {
-            if (!sheetItem) return;
-            addMessage({
-              id: uid("inbox-msg"),
-              role: "user",
-              content: `From my inbox (${sheetItem.source}): ${sheetItem.title}${sheetItem.body ? " - " + sheetItem.body : ""}\n\nAdd this to my schedule if relevant.`,
-              timestamp: new Date().toISOString(),
-            });
-            setShowItemSheet(false);
-            setSheetItem(null);
-            router.push("/agent");
-          }},
+          {
+            icon: "cpu", label: "Send to AI", onPress: () => {
+              if (!sheetItem) return;
+              addMessage({
+                id: uid("inbox-msg"),
+                role: "user",
+                content: `From my inbox (${sheetItem.source}): ${sheetItem.title}${sheetItem.body ? " - " + sheetItem.body : ""}\n\nAdd this to my schedule if relevant.`,
+                timestamp: new Date().toISOString(),
+              });
+              setShowItemSheet(false);
+              setSheetItem(null);
+              router.push("/agent");
+            }
+          },
           { icon: "check-circle", label: "Mark Read", onPress: () => { if (sheetItem) markRead(sheetItem.id); } },
           { icon: "trash-2", label: "Delete", destructive: true, onPress: () => { if (sheetItem) deleteItem(sheetItem.id); } },
         ]}
@@ -476,6 +477,19 @@ export default function NotesScreen() {
         confirmLabel="Clear All"
         confirmDestructive
         onConfirm={clearAll}
+      />
+      <SheetModal
+        visible={showNewNoteSheet}
+        onClose={() => setShowNewNoteSheet(false)}
+        title="New Note"
+        message="Start a blank note or add an attachment"
+        options={[
+          { icon: "file-text", label: "Blank Note", onPress: () => openNote() },
+          { icon: "camera", label: "Take Photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
+          { icon: "image", label: "Choose Photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },
+          { icon: "paperclip", label: "Upload File", onPress: () => router.push({ pathname: "/note", params: { action: "file" } }) },
+          { icon: "youtube", label: "YouTube Summary", onPress: () => router.push({ pathname: "/note", params: { action: "youtube" } }) },
+        ]}
       />
     </View>
   );

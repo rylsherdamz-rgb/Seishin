@@ -96,6 +96,14 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                   <Text className="text-xs text-ink-400 capitalize">Source: {event.source}</Text>
                 )}
               </View>
+              <TouchableOpacity
+                onPress={() => router.push(`/note?eventId=${event.id}`)}
+                className="flex-row items-center gap-1.5 h-9 px-3.5 bg-black rounded-full"
+                activeOpacity={0.8}
+              >
+                <Feather name="plus" size={14} color="#ffffff" />
+                <Text className="text-xs font-semibold text-white">Note</Text>
+              </TouchableOpacity>
             </View>
 
             <View className="bg-ink-50 border border-ink-100 rounded-card p-4 mb-4">
@@ -216,7 +224,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
               </View>
             )}
 
-            <View className="flex-row flex-wrap gap-2 mb-4">
+            <View className="flex-row gap-2 mb-4">
               {onEventEdit && (
                 <TouchableOpacity
                   onPress={() => onEventEdit(event)}
@@ -227,14 +235,6 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                   <Text className="text-sm font-medium text-black">Edit Event</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                onPress={() => router.push(`/note?eventId=${event.id}`)}
-                className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"
-                activeOpacity={0.7}
-              >
-                <Feather name="file-text" size={14} color="#000" />
-                <Text className="text-sm font-medium text-black">Add Note</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push(`/todo?eventId=${event.id}`)}
                 className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"

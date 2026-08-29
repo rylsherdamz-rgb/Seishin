@@ -7,15 +7,54 @@ import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { useAlarmStore } from "@/stores/alarm-store";
 import { CalendarEvent } from "@/stores/calendar-store";
 import { settingsStorage } from "@/stores/mmkv";
-import { expandOccurrences, todayKey } from "@/utils/recurrence";
+import { expandOccurrences, eventStartDate } from "@/utils/recurrence";
 
 /** Native full-screen alarm module (background/locked-screen rings). */
 const NativeAlarm = NativeModules.AlarmFullScreen as
   | {
-      scheduleAlarm: (id: string, title: string, body: string, startTimeMs: number, fireAtMs: number, expoNotifId: string | null) => void;
+      scheduleAlarm: (id: string, title: string, body: string, startTimeMs: number, fireAtMs: number, expoNotifId: string | null, endTimeMs: number, notes: string) => void;
       cancelAlarms: (prefix: string) => void;
+      pickRingtone: (currentUri: string | null) => Promise<{ uri: string | null; name: string } | null>;
+      setAlarmSound: (uri: string | null) => void;
+      startRinging: () => void;
+      stopRinging: () => void;
     }
   | undefined;
+
+/** Start looping the alarm sound while the foreground overlay is visible. */
+export function startAlarmRinging(): void {
+  if (Platform.OS !== "android") return;
+  try { NativeAlarm?.startRinging(); } catch {}
+}
+
+/** Stop the looping alarm sound. */
+export function stopAlarmRinging(): void {
+  if (Platform.OS !== "android") return;
+  try { NativeAlarm?.stopRinging(); } catch {}
+}
+
+/**
+ * Open the Android system ringtone picker (alarm type). Resolves with the
+ * chosen `{ uri, name }`, or `null` if the picker was cancelled or is
+ * unavailable (e.g. on iOS). Android only.
+ */
+export async function pickAlarmRingtone(
+  currentUri: string | null,
+): Promise<{ uri: string | null; name: string } | null> {
+  if (Platform.OS !== "android" || !NativeAlarm?.pickRingtone) return null;
+  return NativeAlarm.pickRingtone(currentUri);
+}
+
+/**
+ * Persist the chosen alarm sound natively and rebuild the alarm channel so it
+ * takes effect. Pass `null` to fall back to the system default alarm sound.
+ */
+export function applyAlarmRingtone(uri: string | null): void {
+  if (Platform.OS !== "android") return;
+  try {
+    NativeAlarm?.setAlarmSound(uri);
+  } catch {}
+}
 
 export type { NotificationData };
 
@@ -92,6 +131,8 @@ export function useNotifications() {
           body: notification.request.content.body ?? undefined,
           eventId: typeof data.eventId === "string" ? data.eventId : undefined,
           startTime: typeof data.startTime === "string" ? data.startTime : undefined,
+          endTime: typeof data.endTime === "string" ? data.endTime : undefined,
+          notes: typeof data.notes === "string" ? data.notes : undefined,
         };
         lastAlarmPayload.current = payload;
         useAlarmStore.getState().trigger({ ...payload, snoozed: false });
@@ -217,7 +258,7 @@ function saveReminderMap(map: Record<string, string>) {
 /** The most recently fired alarm, used to re-fire a snoozed alarm. */
 const lastAlarmPayload = {
   current: undefined as
-    | { title: string; body?: string; eventId?: string; startTime?: string }
+    | { title: string; body?: string; eventId?: string; startTime?: string; endTime?: string; notes?: string }
     | undefined,
 };
 
@@ -245,9 +286,10 @@ export async function cancelEventReminder(eventId: string) {
 function fireDateFor(occurrenceStart: Date, minutesBefore: number): Date {
   const fireDate = new Date(occurrenceStart);
   fireDate.setMinutes(fireDate.getMinutes() - minutesBefore);
-  // If the alarm moment is already here but the schedule hasn't started yet,
-  // still fire it shortly rather than silently dropping it.
-  if (fireDate.getTime() <= Date.now() && occurrenceStart.getTime() > Date.now()) {
+  // If the reminder moment (or even the start) is already here/past when the
+  // alarm is set, ring it shortly instead of silently dropping it. This covers
+  // "I set a 15m reminder but the event is already <15m away (or just passed)".
+  if (fireDate.getTime() <= Date.now()) {
     return new Date(Date.now() + 10 * 1000);
   }
   return fireDate;
@@ -257,11 +299,15 @@ async function scheduleOccurrenceAlarm({
   eventId,
   title,
   occurrence,
+  occurrenceEnd,
+  notes,
   minutesBefore,
 }: {
   eventId: string;
   title: string;
   occurrence: Date;
+  occurrenceEnd?: Date;
+  notes?: string;
   minutesBefore: number;
 }): Promise<void> {
   const fireDate = fireDateFor(occurrence, minutesBefore);
@@ -276,15 +322,21 @@ async function scheduleOccurrenceAlarm({
   if (prevId) {
     try { await Notifications.cancelScheduledNotificationAsync(prevId); } catch {}
   }
+  const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const timeRange = occurrenceEnd
+    ? `${fmtTime(occurrence)} – ${fmtTime(occurrenceEnd)}`
+    : fmtTime(occurrence);
   const notifId = await Notifications.scheduleNotificationAsync({
     content: {
       title,
-      body: `${occurrence.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${occurrence.toLocaleDateString([], { month: "short", day: "numeric" })}`,
+      body: notes ? `${timeRange}\n${notes}` : timeRange,
       sound: Platform.OS === "ios" ? "default" : undefined,
       data: {
         type: "event-alarm",
         eventId,
         startTime: occurrence.toISOString(),
+        endTime: occurrenceEnd ? occurrenceEnd.toISOString() : undefined,
+        notes: notes || undefined,
       },
     },
     trigger: {
@@ -301,10 +353,12 @@ async function scheduleOccurrenceAlarm({
     NativeAlarm?.scheduleAlarm(
       key,
       title,
-      `${occurrence.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${occurrence.toLocaleDateString([], { month: "long", day: "numeric" })}`,
+      timeRange,
       occurrence.getTime(),
       fireDate.getTime(),
       notifId,
+      occurrenceEnd ? occurrenceEnd.getTime() : 0,
+      notes || "",
     );
   } catch {}
 }
@@ -332,19 +386,47 @@ export async function scheduleEventReminder(event: CalendarEvent) {
   try { NativeAlarm?.cancelAlarms(event.id); } catch {}
 
   const start = new Date(event.startDate);
-  const from = todayKey();
+  const end = new Date(event.endDate);
+  // Duration to project onto each occurrence's start (0 if unknown/invalid).
+  const durationMs =
+    !isNaN(end.getTime()) && !isNaN(start.getTime()) && end.getTime() > start.getTime()
+      ? end.getTime() - start.getTime()
+      : 0;
+  const eventNotes = event.notes || event.description || "";
+  // Look back a little so an event whose start (or reminder lead time) has just
+  // passed still rings immediately, instead of being skipped.
+  const from = dateKeyInDays(-1);
   const to = dateKeyInDays(ALARM_WINDOW_DAYS);
-  const days = expandOccurrences(event, from, to, ALARM_WINDOW_DAYS * 2);
+  let days = expandOccurrences(event, from, to, ALARM_WINDOW_DAYS * 2);
+
+  // Non-recurring events always ring — even if the start already passed when
+  // the alarm was (re)set — so a just-added past event fires right away.
+  if (!event.recurrence && days.length === 0) {
+    days = [eventStartDate(event)];
+  }
+
+  // Grace window: fire immediately for occurrences that started within the last
+  // 6 hours; genuinely old occurrences (before that) are skipped.
+  const GRACE_MS = 6 * 60 * 60 * 1000;
 
   for (const day of days) {
     const occurrence = new Date(`${day}T00:00:00`);
     occurrence.setHours(start.getHours(), start.getMinutes(), 0, 0);
-    if (occurrence.getTime() <= Date.now()) continue;
+    const isRecurring = !!event.recurrence;
+    if (occurrence.getTime() <= Date.now()) {
+      // Skip stale occurrences, but keep recent ones (and always a single
+      // non-recurring event) so they fire immediately via fireDateFor.
+      const tooOld = Date.now() - occurrence.getTime() > GRACE_MS;
+      if (isRecurring && tooOld) continue;
+    }
+    const occurrenceEnd = durationMs > 0 ? new Date(occurrence.getTime() + durationMs) : undefined;
     try {
       await scheduleOccurrenceAlarm({
         eventId: event.id,
         title: event.title,
         occurrence,
+        occurrenceEnd,
+        notes: eventNotes,
         minutesBefore: event.reminder,
       });
     } catch {}
@@ -369,6 +451,8 @@ export async function snoozeAlarm(minutes = 1): Promise<void> {
           type: "event-alarm",
           eventId: payload.eventId,
           startTime: payload.startTime,
+          endTime: payload.endTime,
+          notes: payload.notes,
           snoozed: true,
         },
       },

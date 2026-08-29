@@ -25,6 +25,9 @@ interface SettingsState {
   modelPath: string | null;
   cleanupPolicies: CleanupPolicy;
   notificationFilter: string[];
+  /** Selected alarm ringtone. Empty/null means the system default alarm sound. */
+  alarmRingtoneUri: string | null;
+  alarmRingtoneName: string;
 
   loadSettings: () => void;
   setEmailConfig: (config: SettingsState["emailConfig"]) => void;
@@ -36,6 +39,7 @@ interface SettingsState {
   setModelPath: (path: string | null) => void;
   setCleanupPolicies: (policies: Partial<CleanupPolicy>) => void;
   setNotificationFilter: (packages: string[]) => void;
+  setAlarmRingtone: (uri: string | null, name: string) => void;
 }
 
 const DEFAULT_CLEANUP: CleanupPolicy = {
@@ -55,6 +59,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   modelPath: null,
   cleanupPolicies: DEFAULT_CLEANUP,
   notificationFilter: [],
+  alarmRingtoneUri: null,
+  alarmRingtoneName: "Default alarm sound",
 
   loadSettings: () => {
     const emailRaw = settingsStorage.getString("emailConfig");
@@ -66,6 +72,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const modelPath = settingsStorage.getString("modelPath");
     const cleanupRaw = settingsStorage.getString("cleanupPolicies");
     const notifFilterRaw = settingsStorage.getString("notificationFilter");
+    const alarmRingtoneUri = settingsStorage.getString("alarmRingtoneUri");
+    const alarmRingtoneName = settingsStorage.getString("alarmRingtoneName");
 
     if (emailRaw) set({ emailConfig: JSON.parse(emailRaw) });
     if (apiKeysRaw) set({ apiKeys: JSON.parse(apiKeysRaw) });
@@ -76,6 +84,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (modelPath) set({ modelPath });
     if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
     if (notifFilterRaw) set({ notificationFilter: JSON.parse(notifFilterRaw) });
+    if (alarmRingtoneUri) set({ alarmRingtoneUri });
+    if (alarmRingtoneName) set({ alarmRingtoneName });
   },
 
   setEmailConfig: (config) => {
@@ -125,5 +135,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setNotificationFilter: (packages) => {
     settingsStorage.set("notificationFilter", JSON.stringify(packages));
     set({ notificationFilter: packages });
+  },
+
+  setAlarmRingtone: (uri, name) => {
+    if (uri) settingsStorage.set("alarmRingtoneUri", uri);
+    else settingsStorage.remove("alarmRingtoneUri");
+    settingsStorage.set("alarmRingtoneName", name);
+    set({ alarmRingtoneUri: uri, alarmRingtoneName: name });
   },
 }));

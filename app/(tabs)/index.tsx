@@ -879,6 +879,7 @@ export default function CalendarScreen() {
         indicatorStyle="black"
         keyExtractor={(item) => ("kind" in item ? `header-${item.date}` : item.id)}
         contentContainerClassName="px-4 pb-8"
+        alwaysBounceVertical
         removeClippedSubviews
         maxToRenderPerBatch={10}
         windowSize={10}
@@ -1001,6 +1002,7 @@ export default function CalendarScreen() {
               contentContainerStyle={{ paddingBottom: 56 + androidKeyboardPad }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              alwaysBounceVertical
             >
               <View className="flex-row justify-between items-center mb-5">
                 <View className="flex-row items-center gap-2">

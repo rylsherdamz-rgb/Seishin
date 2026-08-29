@@ -204,6 +204,7 @@ export default function InvitesScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-8"
+        alwaysBounceVertical
         removeClippedSubviews={true}
         maxToRenderPerBatch={10}
         windowSize={10}

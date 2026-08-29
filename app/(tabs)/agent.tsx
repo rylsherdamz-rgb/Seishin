@@ -367,6 +367,7 @@ export default function AgentScreen() {
         extraData={streamTick}
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-2"
+        alwaysBounceVertical
         removeClippedSubviews
         maxToRenderPerBatch={15}
         windowSize={10}

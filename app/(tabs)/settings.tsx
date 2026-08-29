@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Platform } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 
 import { router } from "expo-router";
@@ -12,7 +12,7 @@ import {
 } from "@/stores/mmkv";
 import { clearOcrHistory } from "@/services/ocr";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
-import { useNotifications } from "@/services/notification-service";
+import { useNotifications, pickAlarmRingtone, applyAlarmRingtone } from "@/services/notification-service";
 import * as FileSystem from "expo-file-system/legacy";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -82,6 +82,9 @@ export default function SettingsScreen() {
   const setNimModel = useSettingsStore((s) => s.setNimModel);
   const modelPath = useSettingsStore((s) => s.modelPath);
   const setModelPath = useSettingsStore((s) => s.setModelPath);
+  const alarmRingtoneUri = useSettingsStore((s) => s.alarmRingtoneUri);
+  const alarmRingtoneName = useSettingsStore((s) => s.alarmRingtoneName);
+  const setAlarmRingtone = useSettingsStore((s) => s.setAlarmRingtone);
   const { isGranted, openSettings } = useNotifications();
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [nimKey, setNimKey] = useState("");
@@ -145,6 +148,23 @@ export default function SettingsScreen() {
       },
     });
   }, [setConfirmConfig, setModalConfig, setSizes]);
+
+  const chooseRingtone = useCallback(async () => {
+    try {
+      const result = await pickAlarmRingtone(alarmRingtoneUri);
+      // `null` => user cancelled; keep the current selection.
+      if (result === null) return;
+      setAlarmRingtone(result.uri, result.name);
+      applyAlarmRingtone(result.uri);
+    } catch {
+      setModalConfig({ title: "Ringtone", message: "Could not open the ringtone picker. Try again." });
+    }
+  }, [alarmRingtoneUri, setAlarmRingtone, setModalConfig]);
+
+  const resetRingtone = useCallback(() => {
+    setAlarmRingtone(null, "Default alarm sound");
+    applyAlarmRingtone(null);
+  }, [setAlarmRingtone]);
 
   const saveNimConfig = useCallback(async () => {
     setApiKey("nim", nimKey);
@@ -263,7 +283,7 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: keyboardPadding }}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} alwaysBounceVertical contentContainerStyle={{ paddingBottom: keyboardPadding }}>
         <View className="px-4 pb-12">
           <View className="flex-row items-center gap-3 mb-6 pt-3">
             <Logo size={32} />
@@ -347,7 +367,7 @@ export default function SettingsScreen() {
                 <Feather name="chevron-down" size={16} color="#bbbbbb" />
               </TouchableOpacity>
               <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Quick Models</Text>
-              <ScrollView horizontal className="mb-2" showsHorizontalScrollIndicator={false}>
+              <ScrollView horizontal bounces className="mb-2" showsHorizontalScrollIndicator={false}>
                 {[
                   { id: "meta/llama-3.2-1b-instruct", label: "Llama 1B", desc: "Fastest" },
                   { id: "meta/llama-3.2-3b-instruct", label: "Llama 3B", desc: "Balanced" },
@@ -431,6 +451,25 @@ export default function SettingsScreen() {
               label="Foreground Service"
               subtitle="Listen to notifications in background"
             />
+            {Platform.OS === "android" && (
+              <MenuRow
+                icon="music"
+                label="Alarm Ringtone"
+                subtitle={alarmRingtoneName}
+                onPress={chooseRingtone}
+                right={
+                  alarmRingtoneUri ? (
+                    <TouchableOpacity
+                      onPress={resetRingtone}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      className="px-2.5 py-1 rounded-lg bg-ink-100"
+                    >
+                      <Text className="text-xs text-ink-500 font-medium">Reset</Text>
+                    </TouchableOpacity>
+                  ) : undefined
+                }
+              />
+            )}
           </Card>
 
           <SectionHeader title="Storage" />

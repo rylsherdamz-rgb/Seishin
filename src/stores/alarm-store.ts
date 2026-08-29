@@ -6,6 +6,10 @@ export interface ActiveAlarm {
   eventId?: string;
   /** ISO time of the schedule (the event start / alarm time). */
   startTime?: string;
+  /** ISO end time of the event, if known. */
+  endTime?: string;
+  /** Freeform notes for the event, if any. */
+  notes?: string;
   snoozed: boolean;
 }
 

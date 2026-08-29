@@ -299,98 +299,104 @@ export default function NoteEditorScreen() {
         </View>
       </View>
 
-      <View className="flex-1">
-        <ScrollView className="flex-1 h-100vh px-4" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: keyboardPadding + insets.bottom + 96 }}>
-          {eventId && (
-            <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
-              <Feather name="calendar" size={11} color="#ffffff" />
-              <Text className="text-[11px] font-semibold text-white">Linked to event</Text>
-            </View>
-          )}
-          <TextInput
-            className="text-2xl font-semibold tracking-tight text-black py-2"
-            placeholder="Title"
-            placeholderTextColor="#cccccc"
-            value={title}
-            onChangeText={setTitle}
-            multiline
-          />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: keyboardPadding + insets.bottom + 180 }}
+        keyboardShouldPersistTaps="handled"
+        alwaysBounceVertical
+        showsVerticalScrollIndicator={false}
+      >
+        {eventId && (
+          <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
+            <Feather name="calendar" size={11} color="#ffffff" />
+            <Text className="text-[11px] font-semibold text-white">Linked to event</Text>
+          </View>
+        )}
+        <TextInput
+          className="text-2xl font-semibold tracking-tight text-black py-2"
+          placeholder="Title"
+          placeholderTextColor="#cccccc"
+          value={title}
+          onChangeText={setTitle}
+          multiline
+        />
 
-          {/* Image attachments */}
-          {imageAtts.length > 0 && (
-            <View className="flex-row flex-wrap gap-2 mb-3">
-              {imageAtts.map((a) => (
-                <View key={a.id} className="relative">
-                  <Image source={{ uri: a.uri }} className="w-24 h-24 rounded-card bg-ink-100" resizeMode="cover" />
-                  <TouchableOpacity
-                    onPress={() => removeAttachment(a.id)}
-                    hitSlop={10}
-                    className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
-                  >
-                    <Feather name="x" size={11} color="#ffffff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-
-          <TextInput
-            className="text-base text-ink-800 leading-6 py-2 min-h-[320px] max-h-[560px]"
-            placeholder="Start writing, or tap the + button below to add photos, files, tags…"
-            placeholderTextColor="#cccccc"
-            value={body}
-            onChangeText={setBody}
-            multiline
-            scrollEnabled
-            textAlignVertical="top"
-          />
-
-          {ocrBusy && (
-            <View className="flex-row items-center gap-2 mb-3">
-              <ActivityIndicator size="small" color="#000000" />
-              <Text className="text-xs text-ink-500">Reading text from image…</Text>
-            </View>
-          )}
-
-
-
-          {/* File attachments */}
-          {fileAtts.length > 0 && (
-            <View className="gap-2 mb-3">
-              {fileAtts.map((a) => (
-                <View key={a.id} className="flex-row items-center gap-3 bg-white border border-ink-100 rounded-card p-3 shadow-subtle">
-                  <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                    <Feather name="file-text" size={16} color="#000000" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm text-black font-medium" numberOfLines={1}>{a.name || "File"}</Text>
-                    <Text className="text-xs text-ink-300">{[a.mimeType, fmtSize(a.size)].filter(Boolean).join(" · ")}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => removeAttachment(a.id)} hitSlop={6} className="w-8 h-8 items-center justify-center">
-                    <Feather name="x" size={15} color="#999999" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Tags preview (managed from the floating toolbox) */}
-          {tags.length > 0 && (
-            <View className="flex-row flex-wrap items-center gap-2 mb-2 mt-1">
-              {tags.map((t) => (
+        {/* Image attachments */}
+        {imageAtts.length > 0 && (
+          <View className="flex-row flex-wrap gap-2 mb-3">
+            {imageAtts.map((a) => (
+              <View key={a.id} className="relative">
+                <Image source={{ uri: a.uri }} className="w-24 h-24 rounded-card bg-ink-100" resizeMode="cover" />
                 <TouchableOpacity
-                  key={t}
-                  onPress={() => removeTag(t)}
-                  className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
+                  onPress={() => removeAttachment(a.id)}
+                  hitSlop={10}
+                  className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
                 >
-                  <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
-                  <Feather name="x" size={11} color="#999999" />
+                  <Feather name="x" size={11} color="#ffffff" />
                 </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      </View>
+              </View>
+            ))}
+          </View>
+        )}
+        {/* File attachments */}
+        {fileAtts.length > 0 && (
+          <View className="gap-2 mb-3">
+            {fileAtts.map((a) => (
+              <View key={a.id} className="flex-row items-center gap-3 bg-white border border-ink-100 rounded-card p-3 shadow-subtle">
+                <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+                  <Feather name="file-text" size={16} color="#000000" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm text-black font-medium" numberOfLines={1}>{a.name || "File"}</Text>
+                  <Text className="text-xs text-ink-300">{[a.mimeType, fmtSize(a.size)].filter(Boolean).join(" · ")}</Text>
+                </View>
+                <TouchableOpacity onPress={() => removeAttachment(a.id)} hitSlop={6} className="w-8 h-8 items-center justify-center">
+                  <Feather name="x" size={15} color="#999999" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+
+        <TextInput
+          className="text-base text-ink-800 leading-6 py-2 pb-20 min-h-[320px]"
+          placeholder="Start writing, or tap the + button below to add photos, files, tags…"
+          placeholderTextColor="#cccccc"
+          value={body}
+          onChangeText={setBody}
+          multiline
+          scrollEnabled={false}
+          textAlignVertical="top"
+        />
+
+
+        {ocrBusy && (
+          <View className="flex-row items-center gap-2 mb-3">
+            <ActivityIndicator size="small" color="#000000" />
+            <Text className="text-xs text-ink-500">Reading text from image…</Text>
+          </View>
+        )}
+
+
+
+
+        {/* Tags preview (managed from the floating toolbox) */}
+        {tags.length > 0 && (
+          <View className="flex-row flex-wrap items-center gap-2 mb-2 mt-1">
+            {tags.map((t) => (
+              <TouchableOpacity
+                key={t}
+                onPress={() => removeTag(t)}
+                className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
+              >
+                <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
+                <Feather name="x" size={11} color="#999999" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </ScrollView>
 
       {/* Floating, collapsible tool + tag box — anchored bottom-center. */}
       {toolboxOpen && (
