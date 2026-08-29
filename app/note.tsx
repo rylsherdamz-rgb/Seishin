@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from "react-native"; import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet"; import { Stack, router, useLocalSearchParams } from "expo-router"; import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker"; import { getDocumentAsync } from "expo-document-picker"; import { useNotesStore, NoteAttachment } from "@/stores/notes-store"; import { useKeyboardPadding } from "@/hooks/useKeyboardPadding"; import { recognizeText } from "@/services/ocr"; import { AlertDialog } from "@/components/ui/AlertDialog"; import { uid } from "@/utils/id"; import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
+import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet"; import { Stack, router, useLocalSearchParams } from "expo-router"; import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker"; import { getDocumentAsync } from "expo-document-picker"; import { useNotesStore, NoteAttachment } from "@/stores/notes-store"; import { useKeyboardPadding } from "@/hooks/useKeyboardPadding"; import { recognizeText } from "@/services/ocr"; import { AlertDialog } from "@/components/ui/AlertDialog"; import { uid } from "@/utils/id"; import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
 
 function fmtSize(bytes?: number) {
@@ -31,6 +34,9 @@ export default function NoteEditorScreen() {
   const [youtubeBusy, setYoutubeBusy] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [savedVisible, setSavedVisible] = useState(false);
+  // Floating, collapsible tool/tag box anchored bottom-center of the editor.
+  const [toolboxOpen, setToolboxOpen] = useState(false);
+  const insets = useSafeAreaInsets();
   const keyboardPadding = useKeyboardPadding();
   const youtubeSnapPoints = useMemo(() => ["40%"], []);
   const noteIdRef = useRef<string | undefined>(existing?.id);
@@ -159,15 +165,20 @@ export default function NoteEditorScreen() {
       }
     } catch {
       // OCR is best-effort; nothing is attached when scanning text only.
+      Alert.alert("Scan failed", "Couldn't read text from that image.");
     } finally {
       setOcrBusy(false);
     }
   }, [body, persist]);
 
   const scanOnly = useCallback(async () => {
-    const result = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
-    runOcrIntoBody(result.assets[0].uri);
+    try {
+      const result = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+      if (result.canceled || !result.assets[0]) return;
+      runOcrIntoBody(result.assets[0].uri);
+    } catch {
+      Alert.alert("Picker failed", "Could not open the photo picker. Check app permissions and try again.");
+    }
   }, [runOcrIntoBody]);
 
   const fetchYoutubeTranscript = useCallback(async () => {
@@ -209,20 +220,27 @@ export default function NoteEditorScreen() {
 
   const addPhoto = useCallback(async (fromCamera: boolean) => {
     const picker = fromCamera ? launchCameraAsync : launchImageLibraryAsync;
-    const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    const att: NoteAttachment = {
-      id: uid("att"),
-      type: "image",
-      uri: asset.uri,
-      name: asset.fileName ?? undefined,
-      mimeType: asset.mimeType ?? "image/*",
-      size: asset.fileSize,
-    };
-    const next = [...attachments, att];
-    setAttachments(next);
-    persist({ attachments: next });
+    try {
+      const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      const att: NoteAttachment = {
+        id: uid("att"),
+        type: "image",
+        uri: asset.uri,
+        name: asset.fileName ?? undefined,
+        mimeType: asset.mimeType ?? "image/*",
+        size: asset.fileSize,
+      };
+      const next = [...attachments, att];
+      setAttachments(next);
+      persist({ attachments: next });
+    } catch {
+      Alert.alert(
+        fromCamera ? "Camera unavailable" : "Photo unavailable",
+        "Could not open the picker. Check app permissions and try again."
+      );
+    }
   }, [attachments, persist]);
 
   const addFile = useCallback(async () => {
@@ -258,7 +276,7 @@ export default function NoteEditorScreen() {
     <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
-        <TouchableOpacity onPress={handleBack} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+        <TouchableOpacity onPress={handleBack} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
           <Feather name="arrow-left" size={16} color="#000000" />
         </TouchableOpacity>
         <View className="flex-row items-center gap-2">
@@ -270,18 +288,19 @@ export default function NoteEditorScreen() {
           )}
           <TouchableOpacity
             onPress={togglePin}
+            hitSlop={6}
             className={`w-9 h-9 rounded-full items-center justify-center ${pinned ? "bg-black" : "bg-ink-100"}`}
           >
             <Feather name="bookmark" size={15} color={pinned ? "#ffffff" : "#000000"} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+          <TouchableOpacity onPress={handleDelete} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
             <Feather name="trash-2" size={15} color="#ff3b30" />
           </TouchableOpacity>
         </View>
       </View>
 
       <View className="flex-1">
-        <ScrollView className="flex-1 h-100vh px-4" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: keyboardPadding + 32 }}>
+        <ScrollView className="flex-1 h-100vh px-4" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: keyboardPadding + insets.bottom + 96 }}>
           {eventId && (
             <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
               <Feather name="calendar" size={11} color="#ffffff" />
@@ -296,9 +315,10 @@ export default function NoteEditorScreen() {
             onChangeText={setTitle}
             multiline
           />
+
           <TextInput
             className="text-base text-ink-800 leading-6 py-2 min-h-[320px] max-h-[560px]"
-            placeholder="Start writing, or attach a photo/file below…"
+            placeholder="Start writing, or tap the + button below to add photos, files, tags…"
             placeholderTextColor="#cccccc"
             value={body}
             onChangeText={setBody}
@@ -322,6 +342,7 @@ export default function NoteEditorScreen() {
                   <Image source={{ uri: a.uri }} className="w-24 h-24 rounded-card bg-ink-100" resizeMode="cover" />
                   <TouchableOpacity
                     onPress={() => removeAttachment(a.id)}
+                    hitSlop={10}
                     className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
                   >
                     <Feather name="x" size={11} color="#ffffff" />
@@ -343,7 +364,7 @@ export default function NoteEditorScreen() {
                     <Text className="text-sm text-black font-medium" numberOfLines={1}>{a.name || "File"}</Text>
                     <Text className="text-xs text-ink-300">{[a.mimeType, fmtSize(a.size)].filter(Boolean).join(" · ")}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => removeAttachment(a.id)} className="w-8 h-8 items-center justify-center">
+                  <TouchableOpacity onPress={() => removeAttachment(a.id)} hitSlop={6} className="w-8 h-8 items-center justify-center">
                     <Feather name="x" size={15} color="#999999" />
                   </TouchableOpacity>
                 </View>
@@ -351,66 +372,129 @@ export default function NoteEditorScreen() {
             </View>
           )}
 
-          {/* Attachment toolbar */}
-          <View className="gap-2.5 mt-1 mb-5">
-            <View className="flex-row gap-2.5">
-              <TouchableOpacity onPress={() => addPhoto(true)} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                <Feather name="camera" size={16} color="#000000" />
-                <Text className="text-[13px] font-semibold text-black">Camera</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => addPhoto(false)} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                <Feather name="image" size={16} color="#000000" />
-                <Text className="text-[13px] font-semibold text-black">Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={scanOnly} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                <Feather name="maximize" size={16} color="#000000" />
-                <Text className="text-[13px] font-semibold text-black">OCR</Text>
-              </TouchableOpacity>
+          {/* Tags preview (managed from the floating toolbox) */}
+          {tags.length > 0 && (
+            <View className="flex-row flex-wrap items-center gap-2 mb-2 mt-1">
+              {tags.map((t) => (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => removeTag(t)}
+                  className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
+                >
+                  <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
+                  <Feather name="x" size={11} color="#999999" />
+                </TouchableOpacity>
+              ))}
             </View>
-            <View className="flex-row gap-2.5">
-              <TouchableOpacity onPress={addFile} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                <Feather name="paperclip" size={16} color="#000000" />
-                <Text className="text-[13px] font-semibold text-black">File</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowYoutubeInput(true)} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                <Feather name="youtube" size={16} color="#000000" />
-                <Text className="text-[13px] font-semibold text-black">YouTube</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Tags */}
-          <View className="flex-row flex-wrap items-center gap-2 mb-2">
-            {tags.map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => removeTag(t)}
-                className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
-              >
-                <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
-                <Feather name="x" size={11} color="#999999" />
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View className="flex-row items-center gap-2 mb-10 h-11 bg-ink-50 rounded-xl px-4">
-            <Feather name="tag" size={14} color="#999999" />
-            <TextInput
-              className="flex-1 text-sm text-black"
-              placeholder="Add a tag"
-              placeholderTextColor="#999999"
-              value={tagInput}
-              onChangeText={setTagInput}
-              onSubmitEditing={addTag}
-              autoCapitalize="none"
-              returnKeyType="done"
-            />
-            {tagInput.length > 0 && (
-              <TouchableOpacity onPress={addTag}>
-                <Feather name="plus-circle" size={16} color="#000000" />
-              </TouchableOpacity>
-            )}
-          </View>
+          )}
         </ScrollView>
+      </View>
+
+      {/* Floating, collapsible tool + tag box — anchored bottom-center. */}
+      {toolboxOpen && (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(120)}
+          style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}
+        >
+          {/* Tap-outside scrim to collapse. */}
+          <TouchableOpacity activeOpacity={1} onPress={() => setToolboxOpen(false)} style={{ flex: 1 }} />
+        </Animated.View>
+      )}
+
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          // Lift the whole toolbox above the keyboard while typing a tag;
+          // otherwise rest just above the safe-area at the bottom.
+          bottom: keyboardPadding > 0 ? keyboardPadding + 12 : insets.bottom + 16,
+          alignItems: "center",
+        }}
+      >
+        {toolboxOpen && (
+          <Animated.View
+            entering={FadeInDown.duration(180)}
+            exiting={FadeOut.duration(120)}
+            className="w-full px-4 mb-3"
+          >
+            <View className="bg-white rounded-sheet border border-ink-100 shadow-float p-3 gap-2.5">
+              {/* Tool tiles */}
+              <View className="flex-row gap-2.5">
+                <TouchableOpacity onPress={() => { setToolboxOpen(false); addPhoto(true); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                  <Feather name="camera" size={16} color="#000000" />
+                  <Text className="text-[13px] font-semibold text-black">Camera</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setToolboxOpen(false); addPhoto(false); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                  <Feather name="image" size={16} color="#000000" />
+                  <Text className="text-[13px] font-semibold text-black">Photo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setToolboxOpen(false); scanOnly(); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                  <Feather name="maximize" size={16} color="#000000" />
+                  <Text className="text-[13px] font-semibold text-black">OCR</Text>
+                </TouchableOpacity>
+              </View>
+              <View className="flex-row gap-2.5">
+                <TouchableOpacity onPress={() => { setToolboxOpen(false); addFile(); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                  <Feather name="paperclip" size={16} color="#000000" />
+                  <Text className="text-[13px] font-semibold text-black">File</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setToolboxOpen(false); setShowYoutubeInput(true); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
+                  <Feather name="youtube" size={16} color="#000000" />
+                  <Text className="text-[13px] font-semibold text-black">YouTube</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Existing tags (tap to remove) */}
+              {tags.length > 0 && (
+                <View className="flex-row flex-wrap items-center gap-2 pt-1">
+                  {tags.map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      onPress={() => removeTag(t)}
+                      className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
+                    >
+                      <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
+                      <Feather name="x" size={11} color="#999999" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Tag input */}
+              <View className="flex-row items-center gap-2 h-11 bg-ink-50 rounded-xl px-4">
+                <Feather name="tag" size={14} color="#999999" />
+                <TextInput
+                  className="flex-1 text-sm text-black"
+                  placeholder="Add a tag"
+                  placeholderTextColor="#999999"
+                  value={tagInput}
+                  onChangeText={setTagInput}
+                  onSubmitEditing={addTag}
+                  autoCapitalize="none"
+                  returnKeyType="done"
+                  blurOnSubmit={false}
+                />
+                {tagInput.length > 0 && (
+                  <TouchableOpacity onPress={addTag}>
+                    <Feather name="plus-circle" size={16} color="#000000" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* The toggle FAB */}
+        <TouchableOpacity
+          onPress={() => setToolboxOpen((v) => !v)}
+          activeOpacity={0.85}
+          className="w-14 h-14 bg-black rounded-full items-center justify-center shadow-float"
+        >
+          <Feather name={toolboxOpen ? "x" : "plus"} size={26} color="#ffffff" />
+        </TouchableOpacity>
       </View>
       <BottomSheet
         index={showYoutubeInput || youtubeBusy ? 0 : -1}

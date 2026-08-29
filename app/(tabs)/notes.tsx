@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Alert } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
@@ -22,6 +23,10 @@ const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = 
 };
 
 export default function NotesScreen() {
+  const insets = useSafeAreaInsets();
+  // Clearance so list content / toolbars never hide behind the FAB, tab bar,
+  // or the device home indicator in the safe-area.
+  const bottomGap = insets.bottom + 96;
   const notes = useNotesStore((s) => s.notes);
   const query = useNotesStore((s) => s.query);
   const loadNotes = useNotesStore((s) => s.loadNotes);
@@ -73,9 +78,10 @@ export default function NotesScreen() {
     router.push(id ? { pathname: "/note", params: { id } } : "/note");
   }, []);
 
-  const [showNewNoteSheet, setShowNewNoteSheet] = useState(false);
-
-  const onAddPress = useCallback(() => setShowNewNoteSheet(true), []);
+  // The "+" FAB opens a fresh note straight into the editor, where the full
+  // tool toolbar (Camera / Photo / OCR / File / YouTube) lives inline — no
+  // intermediate action sheet to wade through.
+  const onAddPress = useCallback(() => openNote(), [openNote]);
 
   const renderCard = useCallback((item: Note) => {
     const attachments = item.attachments ?? [];
@@ -261,15 +267,7 @@ export default function NotesScreen() {
           </Text>
         </View>
         <View className="flex-row gap-2 items-center">
-          {tab === "notes" ? (
-            <TouchableOpacity
-              onPress={onAddPress}
-              activeOpacity={0.85}
-              className="w-11 h-11 bg-black rounded-full items-center justify-center shadow-raised"
-            >
-              <Feather name="plus" size={20} color="#ffffff" />
-            </TouchableOpacity>
-          ) : selecting ? (
+          {tab === "notes" ? null : selecting ? (
             <TouchableOpacity onPress={() => setSelecting(false)}>
               <Text className="text-sm font-medium text-ink-500">Cancel</Text>
             </TouchableOpacity>
@@ -330,7 +328,8 @@ export default function NotesScreen() {
             <FlatList
               data={noteListData}
               keyExtractor={(row, i) => ("_header" in row ? `h-${row._header}` : `row-${i}-${row[0]?.id}`)}
-              contentContainerClassName="px-2.5 pb-8"
+              contentContainerClassName="px-2.5"
+              contentContainerStyle={{ paddingBottom: bottomGap }}
               removeClippedSubviews
               maxToRenderPerBatch={8}
               windowSize={5}
@@ -403,7 +402,8 @@ export default function NotesScreen() {
           <FlatList
             data={inboxFiltered}
             keyExtractor={(item) => item.id}
-            contentContainerClassName="px-4 pb-8"
+            contentContainerClassName="px-4"
+            contentContainerStyle={{ paddingBottom: bottomGap }}
             removeClippedSubviews
             maxToRenderPerBatch={10}
             windowSize={10}
@@ -413,6 +413,21 @@ export default function NotesScreen() {
             }
           />
         </>
+      )}
+
+      {tab === "notes" && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          style={{ position: "absolute", right: 20, bottom: insets.bottom + 20 }}
+        >
+          <TouchableOpacity
+            onPress={onAddPress}
+            activeOpacity={0.85}
+            className="w-14 h-14 bg-black rounded-full items-center justify-center shadow-float"
+          >
+            <Feather name="plus" size={26} color="#ffffff" />
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
       <SheetModal
@@ -461,19 +476,6 @@ export default function NotesScreen() {
         confirmLabel="Clear All"
         confirmDestructive
         onConfirm={clearAll}
-      />
-      <SheetModal
-        visible={showNewNoteSheet}
-        onClose={() => setShowNewNoteSheet(false)}
-        title="New Note"
-        message="Start a blank note or add an attachment"
-        options={[
-          { icon: "file-text", label: "Blank Note", onPress: () => openNote() },
-          { icon: "camera", label: "Take Photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
-          { icon: "image", label: "Choose Photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },
-          { icon: "paperclip", label: "Upload File", onPress: () => router.push({ pathname: "/note", params: { action: "file" } }) },
-          { icon: "youtube", label: "YouTube Summary", onPress: () => router.push({ pathname: "/note", params: { action: "youtube" } }) },
-        ]}
       />
     </View>
   );
