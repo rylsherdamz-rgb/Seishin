@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View, Text, TouchableOpacity, FlatList, TextInput, ScrollView, Platform,
-  Image, ActivityIndicator,
+  Image, ActivityIndicator, Alert,
 } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, FadeInDown, FadeOutUp } from "react-native-reanimated";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
@@ -230,10 +230,11 @@ const CALENDAR_BASE_THEME = {
     week: { marginVertical: 1, flexDirection: "row", justifyContent: "space-around" },
   },
   "stylesheet.day.basic": {
-    base: { width: 30, height: 22, alignItems: "center" },
+    // ponytail: 32px cell keeps the tap target usable on a phone; visual circles stay 22px.
+    base: { width: 30, height: 32, alignItems: "center", justifyContent: "center" },
     selected: { backgroundColor: "#000000", borderRadius: 11, width: 22, height: 22 },
     today: { backgroundColor: "#eeeeee", borderRadius: 11, width: 22, height: 22 },
-    text: { fontSize: 12, fontWeight: "400", color: "#000000", marginTop: 2 },
+    text: { fontSize: 12, fontWeight: "400", color: "#000000" },
   },
 } as unknown as Theme;
 
@@ -412,34 +413,45 @@ export default function CalendarScreen() {
         );
       }
     } catch {
-      // OCR is best-effort; the image is still attached even if it fails.
+      Alert.alert("Scan failed", "Couldn't read text from that image.");
     } finally {
       setOcrBusy(false);
     }
   }, []);
 
   const scanPhoto = useCallback(async () => {
-    const result = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
-    scanImage(result.assets[0].uri);
+    try {
+      const result = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+      if (result.canceled || !result.assets[0]) return;
+      scanImage(result.assets[0].uri);
+    } catch {
+      Alert.alert("Picker failed", "Could not open the photo picker. Check app permissions and try again.");
+    }
   }, [scanImage]);
 
   const attachPhoto = useCallback(async (fromCamera: boolean) => {
     const picker = fromCamera ? launchCameraAsync : launchImageLibraryAsync;
-    const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setEventAttachments((prev) => [
-      ...prev,
-      {
-        id: uid("att"),
-        type: "image",
-        uri: asset.uri,
-        name: asset.fileName ?? undefined,
-        mimeType: asset.mimeType ?? "image/*",
-        size: asset.fileSize,
-      },
-    ]);
+    try {
+      const result = await picker({ mediaTypes: ["images"], quality: 0.8 });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      setEventAttachments((prev) => [
+        ...prev,
+        {
+          id: uid("att"),
+          type: "image",
+          uri: asset.uri,
+          name: asset.fileName ?? undefined,
+          mimeType: asset.mimeType ?? "image/*",
+          size: asset.fileSize,
+        },
+      ]);
+    } catch {
+      Alert.alert(
+        fromCamera ? "Camera unavailable" : "Photo unavailable",
+        "Could not open the picker. Check app permissions and try again."
+      );
+    }
   }, []);
 
   const hydrateFormFields = useCallback((opts: {
@@ -714,6 +726,7 @@ export default function CalendarScreen() {
               <Card variant="elevated" className={`flex-row items-center gap-3.5 mb-2.5 ${past && !item.completed ? "opacity-55" : ""}`}>
                 <TouchableOpacity
                   onPress={(e) => { e.stopPropagation(); if (item.todoId) toggleTodo(item.todoId); }}
+                  hitSlop={8}
                   className={`w-7 h-7 rounded-md border-2 items-center justify-center ${item.completed ? "bg-black border-black" : "border-ink-300"
                     }`}
                 >
@@ -780,6 +793,7 @@ export default function CalendarScreen() {
           )}
           <TouchableOpacity
             onPress={() => setViewMonth((m) => shiftMonthKey(m, -1))}
+            hitSlop={8}
             className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center"
             activeOpacity={0.7}
           >
@@ -787,6 +801,7 @@ export default function CalendarScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setViewMonth((m) => shiftMonthKey(m, 1))}
+            hitSlop={8}
             className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center"
             activeOpacity={0.7}
           >
@@ -989,12 +1004,12 @@ export default function CalendarScreen() {
             >
               <View className="flex-row justify-between items-center mb-5">
                 <View className="flex-row items-center gap-2">
-                  <TouchableOpacity onPress={() => setSheetMode("menu")} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                  <TouchableOpacity onPress={() => setSheetMode("menu")} hitSlop={6} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
                     <Feather name="chevron-left" size={16} color="#666666" />
                   </TouchableOpacity>
                   <Text className="text-lg font-semibold tracking-tightest text-black">{editingEventId ? "Edit Event" : "New Event"}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowModal(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+                <TouchableOpacity onPress={() => setShowModal(false)} hitSlop={6} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
                   <Feather name="x" size={16} color="#666666" />
                 </TouchableOpacity>
               </View>
@@ -1073,6 +1088,7 @@ export default function CalendarScreen() {
                       <TouchableOpacity
                         key={d}
                         onPress={() => toggleWeekday(d)}
+                        hitSlop={4}
                         className={`w-9 h-9 rounded-full items-center justify-center ${customWeekdays.includes(d) ? "bg-black" : "bg-ink-100"
                           }`}
                         activeOpacity={0.7}
@@ -1145,6 +1161,7 @@ export default function CalendarScreen() {
                           />
                           <TouchableOpacity
                             onPress={() => setEventAttachments((prev) => prev.filter((x) => x.id !== a.id))}
+                            hitSlop={10}
                             className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
                           >
                             <Feather name="x" size={11} color="#ffffff" />

@@ -99,6 +99,7 @@ export default function TodoScreen() {
       <Card variant="elevated" className="flex-row items-center gap-3 mb-2.5">
         <TouchableOpacity
           onPress={(e) => { e.stopPropagation(); toggleTodo(item.id); }}
+          hitSlop={12}
           className={`w-5 h-5 rounded-md border-2 items-center justify-center ${
             item.completed ? "bg-black border-black" : "border-ink-300"
           }`}
@@ -144,7 +145,7 @@ export default function TodoScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
-          <TouchableOpacity onPress={() => router.back()} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+          <TouchableOpacity onPress={() => router.back()} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
             <Feather name="arrow-left" size={16} color="#000000" />
           </TouchableOpacity>
           <Logo size={32} />
@@ -158,6 +159,7 @@ export default function TodoScreen() {
         {stats.completed > 0 && (
           <TouchableOpacity
             onPress={() => setShowClearConfirm(true)}
+            hitSlop={6}
             className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
           >
             <Feather name="check-circle" size={14} color="#666666" />
@@ -206,7 +208,7 @@ export default function TodoScreen() {
                 : "Set due date"}
             </Text>
             {newDueDate && (
-              <TouchableOpacity onPress={() => setNewDueDate(null)}>
+              <TouchableOpacity onPress={() => setNewDueDate(null)} hitSlop={12}>
                 <Feather name="x-circle" size={14} color="#cccccc" />
               </TouchableOpacity>
             )}

@@ -316,6 +316,24 @@ export default function NoteEditorScreen() {
             multiline
           />
 
+          {/* Image attachments */}
+          {imageAtts.length > 0 && (
+            <View className="flex-row flex-wrap gap-2 mb-3">
+              {imageAtts.map((a) => (
+                <View key={a.id} className="relative">
+                  <Image source={{ uri: a.uri }} className="w-24 h-24 rounded-card bg-ink-100" resizeMode="cover" />
+                  <TouchableOpacity
+                    onPress={() => removeAttachment(a.id)}
+                    hitSlop={10}
+                    className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
+                  >
+                    <Feather name="x" size={11} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
           <TextInput
             className="text-base text-ink-800 leading-6 py-2 min-h-[320px] max-h-[560px]"
             placeholder="Start writing, or tap the + button below to add photos, files, tags…"
@@ -334,23 +352,7 @@ export default function NoteEditorScreen() {
             </View>
           )}
 
-          {/* Image attachments */}
-          {imageAtts.length > 0 && (
-            <View className="flex-row flex-wrap gap-2 mb-3">
-              {imageAtts.map((a) => (
-                <View key={a.id} className="relative">
-                  <Image source={{ uri: a.uri }} className="w-24 h-24 rounded-card bg-ink-100" resizeMode="cover" />
-                  <TouchableOpacity
-                    onPress={() => removeAttachment(a.id)}
-                    hitSlop={10}
-                    className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
-                  >
-                    <Feather name="x" size={11} color="#ffffff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
+
 
           {/* File attachments */}
           {fileAtts.length > 0 && (
