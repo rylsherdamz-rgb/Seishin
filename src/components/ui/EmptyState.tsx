@@ -1,5 +1,6 @@
 import { View, Text } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import { useColors } from "@/theme/ThemeProvider";
 
 interface EmptyStateProps {
   icon: React.ComponentProps<typeof Feather>["name"];
@@ -13,10 +14,11 @@ interface EmptyStateProps {
  * ring, a title, and an optional hint. Used across every list screen.
  */
 export function EmptyState({ icon, title, subtitle, className = "" }: EmptyStateProps) {
+  const T = useColors();
   return (
     <View className={`items-center justify-center py-20 px-8 ${className}`}>
       <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
-        <Feather name={icon} size={24} color="#cccccc" />
+        <Feather name={icon} size={24} color={T.ink200} />
       </View>
       <Text className="text-base font-medium text-ink-400">{title}</Text>
       {subtitle ? (

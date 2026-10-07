@@ -4,6 +4,7 @@ import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet"; import { Stack, router, useLocalSearchParams } from "expo-router"; import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker"; import { getDocumentAsync } from "expo-document-picker"; import { useNotesStore, NoteAttachment } from "@/stores/notes-store"; import { useKeyboardPadding } from "@/hooks/useKeyboardPadding"; import { recognizeText } from "@/services/ocr"; import { AlertDialog } from "@/components/ui/AlertDialog"; import { uid } from "@/utils/id"; import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
+import { useColors } from "@/theme/ThemeProvider";
 
 function fmtSize(bytes?: number) {
   if (!bytes) return "";
@@ -13,6 +14,7 @@ function fmtSize(bytes?: number) {
 }
 
 export default function NoteEditorScreen() {
+  const T = useColors();
   const { id, eventId, action } = useLocalSearchParams<{ id?: string; eventId?: string; action?: string }>();
   const notes = useNotesStore((s) => s.notes);
   const addNote = useNotesStore((s) => s.addNote);
@@ -277,7 +279,7 @@ export default function NoteEditorScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <TouchableOpacity onPress={handleBack} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-          <Feather name="arrow-left" size={16} color="#000000" />
+          <Feather name="arrow-left" size={16} color={T.black} />
         </TouchableOpacity>
         <View className="flex-row items-center gap-2">
           {savedVisible && (
@@ -291,10 +293,10 @@ export default function NoteEditorScreen() {
             hitSlop={6}
             className={`w-9 h-9 rounded-full items-center justify-center ${pinned ? "bg-black" : "bg-ink-100"}`}
           >
-            <Feather name="bookmark" size={15} color={pinned ? "#ffffff" : "#000000"} />
+            <Feather name="bookmark" size={15} color={pinned ? T.white : T.black} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleDelete} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-            <Feather name="trash-2" size={15} color="#ff3b30" />
+            <Feather name="trash-2" size={15} color={T.danger} />
           </TouchableOpacity>
         </View>
       </View>
@@ -308,14 +310,14 @@ export default function NoteEditorScreen() {
       >
         {eventId && (
           <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
-            <Feather name="calendar" size={11} color="#ffffff" />
+            <Feather name="calendar" size={11} color={T.white} />
             <Text className="text-[11px] font-semibold text-white">Linked to event</Text>
           </View>
         )}
         <TextInput
           className="text-2xl font-semibold tracking-tight text-black py-2"
           placeholder="Title"
-          placeholderTextColor="#cccccc"
+          placeholderTextColor={T.ink200}
           value={title}
           onChangeText={setTitle}
           multiline
@@ -332,7 +334,7 @@ export default function NoteEditorScreen() {
                   hitSlop={10}
                   className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
                 >
-                  <Feather name="x" size={11} color="#ffffff" />
+                  <Feather name="x" size={11} color={T.white} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -344,14 +346,14 @@ export default function NoteEditorScreen() {
             {fileAtts.map((a) => (
               <View key={a.id} className="flex-row items-center gap-3 bg-white border border-ink-100 rounded-card p-3 shadow-subtle">
                 <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name="file-text" size={16} color="#000000" />
+                  <Feather name="file-text" size={16} color={T.black} />
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm text-black font-medium" numberOfLines={1}>{a.name || "File"}</Text>
                   <Text className="text-xs text-ink-300">{[a.mimeType, fmtSize(a.size)].filter(Boolean).join(" · ")}</Text>
                 </View>
                 <TouchableOpacity onPress={() => removeAttachment(a.id)} hitSlop={6} className="w-8 h-8 items-center justify-center">
-                  <Feather name="x" size={15} color="#999999" />
+                  <Feather name="x" size={15} color={T.ink300} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -362,7 +364,7 @@ export default function NoteEditorScreen() {
         <TextInput
           className="text-base text-ink-800 leading-6 py-2 pb-20 min-h-[320px]"
           placeholder="Start writing, or tap the + button below to add photos, files, tags…"
-          placeholderTextColor="#cccccc"
+          placeholderTextColor={T.ink200}
           value={body}
           onChangeText={setBody}
           multiline
@@ -373,7 +375,7 @@ export default function NoteEditorScreen() {
 
         {ocrBusy && (
           <View className="flex-row items-center gap-2 mb-3">
-            <ActivityIndicator size="small" color="#000000" />
+            <ActivityIndicator size="small" color={T.black} />
             <Text className="text-xs text-ink-500">Reading text from image…</Text>
           </View>
         )}
@@ -391,7 +393,7 @@ export default function NoteEditorScreen() {
                 className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
               >
                 <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
-                <Feather name="x" size={11} color="#999999" />
+                <Feather name="x" size={11} color={T.ink300} />
               </TouchableOpacity>
             ))}
           </View>
@@ -432,25 +434,25 @@ export default function NoteEditorScreen() {
               {/* Tool tiles */}
               <View className="flex-row gap-2.5">
                 <TouchableOpacity onPress={() => { setToolboxOpen(false); addPhoto(true); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="camera" size={16} color="#000000" />
+                  <Feather name="camera" size={16} color={T.black} />
                   <Text className="text-[13px] font-semibold text-black">Camera</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => { setToolboxOpen(false); addPhoto(false); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="image" size={16} color="#000000" />
+                  <Feather name="image" size={16} color={T.black} />
                   <Text className="text-[13px] font-semibold text-black">Photo</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => { setToolboxOpen(false); scanOnly(); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="maximize" size={16} color="#000000" />
+                  <Feather name="maximize" size={16} color={T.black} />
                   <Text className="text-[13px] font-semibold text-black">OCR</Text>
                 </TouchableOpacity>
               </View>
               <View className="flex-row gap-2.5">
                 <TouchableOpacity onPress={() => { setToolboxOpen(false); addFile(); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="paperclip" size={16} color="#000000" />
+                  <Feather name="paperclip" size={16} color={T.black} />
                   <Text className="text-[13px] font-semibold text-black">File</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => { setToolboxOpen(false); setShowYoutubeInput(true); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="youtube" size={16} color="#000000" />
+                  <Feather name="youtube" size={16} color={T.black} />
                   <Text className="text-[13px] font-semibold text-black">YouTube</Text>
                 </TouchableOpacity>
               </View>
@@ -465,7 +467,7 @@ export default function NoteEditorScreen() {
                       className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
                     >
                       <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
-                      <Feather name="x" size={11} color="#999999" />
+                      <Feather name="x" size={11} color={T.ink300} />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -473,11 +475,11 @@ export default function NoteEditorScreen() {
 
               {/* Tag input */}
               <View className="flex-row items-center gap-2 h-11 bg-ink-50 rounded-xl px-4">
-                <Feather name="tag" size={14} color="#999999" />
+                <Feather name="tag" size={14} color={T.ink300} />
                 <TextInput
                   className="flex-1 text-sm text-black"
                   placeholder="Add a tag"
-                  placeholderTextColor="#999999"
+                  placeholderTextColor={T.ink300}
                   value={tagInput}
                   onChangeText={setTagInput}
                   onSubmitEditing={addTag}
@@ -487,7 +489,7 @@ export default function NoteEditorScreen() {
                 />
                 {tagInput.length > 0 && (
                   <TouchableOpacity onPress={addTag}>
-                    <Feather name="plus-circle" size={16} color="#000000" />
+                    <Feather name="plus-circle" size={16} color={T.black} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -501,14 +503,14 @@ export default function NoteEditorScreen() {
           activeOpacity={0.85}
           className="w-14 h-14 bg-black rounded-full items-center justify-center shadow-float"
         >
-          <Feather name={toolboxOpen ? "x" : "plus"} size={26} color="#ffffff" />
+          <Feather name={toolboxOpen ? "x" : "plus"} size={26} color={T.white} />
         </TouchableOpacity>
       </View>
       <BottomSheet
         index={showYoutubeInput || youtubeBusy ? 0 : -1}
         snapPoints={youtubeSnapPoints}
         enablePanDownToClose
-        backgroundStyle={{ backgroundColor: "#ffffff" }}
+        backgroundStyle={{ backgroundColor: T.white }}
         onChange={(index: number) => { if (index === -1 && !youtubeBusy) { setShowYoutubeInput(false); setYoutubeUrl(""); } }}
       >
         <BottomSheetView style={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 8 }}>
@@ -516,7 +518,7 @@ export default function NoteEditorScreen() {
           <Text className="text-xs text-ink-400 mb-4">Paste a YouTube link to generate a timestamped transcript</Text>
           {youtubeBusy ? (
             <View className="items-center py-8">
-              <ActivityIndicator size="large" color="#000000" />
+              <ActivityIndicator size="large" color={T.black} />
               <Text className="text-sm text-ink-500 mt-3">Fetching transcript and thumbnail...</Text>
             </View>
           ) : (
@@ -524,7 +526,7 @@ export default function NoteEditorScreen() {
               <TextInput
                 className="h-11 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
                 placeholder="https://youtube.com/watch?v=..."
-                placeholderTextColor="#999"
+                placeholderTextColor={T.ink300}
                 value={youtubeUrl}
                 onChangeText={setYoutubeUrl}
                 autoCapitalize="none"

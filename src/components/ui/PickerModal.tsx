@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, View, Text, TouchableOpacity } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useTheme } from "@/theme/ThemeProvider";
 
 interface PickerModalProps {
   visible: boolean;
@@ -17,6 +18,7 @@ interface PickerModalProps {
  */
 export function PickerModal({ visible, title, mode, value, onConfirm, onClose }: PickerModalProps) {
   const [draft, setDraft] = useState(value);
+  const { colors, dark } = useTheme();
 
   useEffect(() => {
     if (visible) setDraft(value);
@@ -34,6 +36,8 @@ export function PickerModal({ visible, title, mode, value, onConfirm, onClose }:
             value={draft}
             mode={mode}
             display="inline"
+            themeVariant={dark ? "dark" : "light"}
+            accentColor={colors.accent}
             onChange={(_, d) => { if (d) setDraft(d); }}
           />
           <View className="flex-row gap-2.5 mt-4">
@@ -46,10 +50,10 @@ export function PickerModal({ visible, title, mode, value, onConfirm, onClose }:
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => { onConfirm(draft); onClose(); }}
-              className="flex-1 h-11 bg-black rounded-xl items-center justify-center"
+              className="flex-1 h-11 bg-accent rounded-xl items-center justify-center"
               activeOpacity={0.85}
             >
-              <Text className="text-sm font-medium text-white">Done</Text>
+              <Text className="text-sm font-medium text-accent-on">Done</Text>
             </TouchableOpacity>
           </View>
         </View>

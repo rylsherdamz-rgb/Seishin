@@ -9,6 +9,7 @@ import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import Feather from "@expo/vector-icons/Feather";
+import { useColors } from "@/theme/ThemeProvider";
 
 type InviteTab = "cards" | "p2p" | "shared";
 
@@ -19,6 +20,7 @@ const typeIcons: Record<InviteTab, React.ComponentProps<typeof Feather>["name"]>
 };
 
 export default function InvitesScreen() {
+  const T = useColors();
   const invites = useInvitesStore((s) => s.invites);
   const loadInvites = useInvitesStore((s) => s.loadInvites);
   const addInvite = useInvitesStore((s) => s.addInvite);
@@ -91,7 +93,7 @@ export default function InvitesScreen() {
           <Feather
             name={item.type === "invite-card" ? "file-text" : item.type === "p2p-code" ? "wifi" : "share-2"}
             size={14}
-            color="#000000"
+            color={T.black}
           />
         </View>
         <View className="flex-1">
@@ -106,7 +108,7 @@ export default function InvitesScreen() {
           )}
           <View className="flex-row items-center gap-3 mt-2">
             <View className="flex-row items-center gap-1">
-              <Feather name="clock" size={10} color="#cccccc" />
+              <Feather name="clock" size={10} color={T.ink200} />
               <Text className="text-xs text-ink-300">
                 {new Date(item.createdAt).toLocaleDateString()}
               </Text>
@@ -117,10 +119,10 @@ export default function InvitesScreen() {
         </View>
         <View className="gap-2">
           <TouchableOpacity onPress={handleShareInvite(item)} hitSlop={15}>
-            <Feather name="share-2" size={14} color="#666666" />
+            <Feather name="share-2" size={14} color={T.ink500} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => handleDeleteTarget(item.id)} hitSlop={15}>
-            <Feather name="trash-2" size={14} color="#999999" />
+            <Feather name="trash-2" size={14} color={T.ink300} />
           </TouchableOpacity>
         </View>
       </View>
@@ -132,7 +134,7 @@ export default function InvitesScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center gap-3">
         <TouchableOpacity onPress={() => router.back()} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-          <Feather name="arrow-left" size={16} color="#000000" />
+          <Feather name="arrow-left" size={16} color={T.black} />
         </TouchableOpacity>
         <Text className="text-2xl font-semibold tracking-tightest text-black flex-1">Invites</Text>
         <Text className="text-xs text-ink-500">{invites.length} total</Text>
@@ -155,21 +157,21 @@ export default function InvitesScreen() {
           <TextInput
             className="h-12 bg-ink-50 rounded-xl px-4 text-base text-black mb-2"
             placeholder="Event title..."
-            placeholderTextColor="#999999"
+            placeholderTextColor={T.ink300}
             value={newCardTitle}
             onChangeText={setNewCardTitle}
           />
           <TextInput
             className="h-12 bg-ink-50 rounded-xl px-4 text-base text-black mb-3"
             placeholder="Description (optional)"
-            placeholderTextColor="#999999"
+            placeholderTextColor={T.ink300}
             value={newCardDesc}
             onChangeText={setNewCardDesc}
           />
           <Button
             title="Create Invitation Card"
             onPress={createInviteCard}
-            icon={<Feather name="plus" size={14} color="#ffffff" />}
+            icon={<Feather name="plus" size={14} color={T.white} />}
           />
         </View>
       )}
@@ -182,7 +184,7 @@ export default function InvitesScreen() {
               setCodeAlertText(generateP2pCode());
               setShowCodeAlert(true);
             }}
-            icon={<Feather name="wifi" size={14} color="#ffffff" />}
+            icon={<Feather name="wifi" size={14} color={T.white} />}
           />
         </View>
       )}
@@ -195,7 +197,7 @@ export default function InvitesScreen() {
               setShareAlertText(shareTodoList([]));
               setShowShareAlert(true);
             }}
-            icon={<Feather name="share-2" size={14} color="#ffffff" />}
+            icon={<Feather name="share-2" size={14} color={T.white} />}
           />
         </View>
       )}

@@ -22,6 +22,7 @@ import Feather from "@expo/vector-icons/Feather";
 import {
   onModelStateChange, getModelState, loadModel, unloadModel, isModelLoaded,
 } from "@/services/local-llama";
+import { useColors } from "@/theme/ThemeProvider";
 
 function ThinkingIndicator() {
   const dot1 = useSharedValue(0.3);
@@ -48,6 +49,7 @@ function ThinkingIndicator() {
 }
 
 export default function AgentScreen() {
+  const T = useColors();
   const messages = useAgentStore((s) => s.messages);
   const currentProvider = useAgentStore((s) => s.currentProvider);
   const isProcessing = useAgentStore((s) => s.isProcessing);
@@ -179,7 +181,7 @@ export default function AgentScreen() {
       >
         {!isUser && (
           <View className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center shrink-0">
-            <Feather name="cpu" size={12} color="#000000" />
+            <Feather name="cpu" size={12} color={T.black} />
           </View>
         )}
         <View className={`max-w-[80%] px-4 py-3 ${isUser
@@ -191,7 +193,7 @@ export default function AgentScreen() {
           {item.toolName && (
             <View className="flex-row items-center gap-1 mb-1.5 pb-1.5 border-b border-ink-100">
               <View className="w-5 h-5 bg-ink-100 rounded items-center justify-center">
-                <Feather name="terminal" size={8} color="#666666" />
+                <Feather name="terminal" size={8} color={T.ink500} />
               </View>
               <Text className="text-xs text-ink-500 font-mono flex-1">{item.toolName}</Text>
               <Feather name="check-circle" size={10} color="#2fbf71" />
@@ -209,7 +211,7 @@ export default function AgentScreen() {
                   <Image key={i} source={{ uri: att.uri }} className="w-20 h-20 rounded-lg" />
                 ) : (
                   <View key={i} className="flex-row items-center gap-1 bg-ink-100 rounded-lg px-2 py-1.5">
-                    <Feather name="file" size={12} color="#666" />
+                    <Feather name="file" size={12} color={T.ink500} />
                     <Text className="text-xs text-ink-500">{att.name || "File"}</Text>
                   </View>
                 )
@@ -226,7 +228,7 @@ export default function AgentScreen() {
                 activeOpacity={0.6}
                 className="flex-row items-center gap-1 ml-3 py-0.5"
               >
-                <Feather name={copiedId === item.id ? "check" : "copy"} size={12} color="#999999" />
+                <Feather name={copiedId === item.id ? "check" : "copy"} size={12} color={T.ink300} />
                 <Text className="text-xs text-ink-400">{copiedId === item.id ? "Copied" : "Copy"}</Text>
               </TouchableOpacity>
             )}
@@ -234,7 +236,7 @@ export default function AgentScreen() {
         </View>
         {isUser && (
           <View className="w-7 h-7 bg-black rounded-full items-center justify-center shrink-0">
-            <Feather name="user" size={12} color="#ffffff" />
+            <Feather name="user" size={12} color={T.white} />
           </View>
         )}
       </View>
@@ -267,13 +269,13 @@ export default function AgentScreen() {
               onPress={() => router.push("/settings")}
               className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
             >
-              <Feather name="settings" size={14} color="#666666" />
+              <Feather name="settings" size={14} color={T.ink500} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowClearConfirm(true)}
               className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
             >
-              <Feather name="trash-2" size={14} color="#666666" />
+              <Feather name="trash-2" size={14} color={T.ink500} />
             </TouchableOpacity>
           </View>
         </View>
@@ -321,14 +323,14 @@ export default function AgentScreen() {
 
       {!hasKey && currentProvider === "nim" && (
         <View key="agent-nim-nokey-banner" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
-          <Feather name="alert-circle" size={14} color="#ff3b30" />
+          <Feather name="alert-circle" size={14} color={T.danger} />
           <Text className="text-xs text-danger flex-1">No NIM API key set. Go to Settings to add one.</Text>
         </View>
       )}
       {currentProvider === "local" && modelState === "loading" && (
         <View key="agent-local-loading" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3">
           <View className="flex-row items-center gap-2 mb-2">
-            <ActivityIndicator size="small" color="#666666" />
+            <ActivityIndicator size="small" color={T.ink500} />
             <Text className="text-xs text-ink-600 flex-1">Loading local model... {modelProgress}%</Text>
           </View>
           <View className="h-1.5 bg-ink-200 rounded-full overflow-hidden">
@@ -345,7 +347,7 @@ export default function AgentScreen() {
       {currentProvider === "local" && modelState === "error" && (
         <View key="agent-local-error" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3">
           <View className="flex-row items-center gap-2 mb-1">
-            <Feather name="alert-circle" size={14} color="#ff3b30" />
+            <Feather name="alert-circle" size={14} color={T.danger} />
             <Text className="text-xs text-danger flex-1">Failed to load model</Text>
             <TouchableOpacity onPress={() => { if (modelPath) loadModel(modelPath).catch(() => { }); }}>
               <Text className="text-xs text-danger font-medium">Retry</Text>
@@ -356,7 +358,7 @@ export default function AgentScreen() {
       )}
       {currentProvider === "local" && modelState === "unloaded" && !modelPath && (
         <View key="agent-local-nopath" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
-          <Feather name="info" size={14} color="#666666" />
+          <Feather name="info" size={14} color={T.ink500} />
           <Text className="text-xs text-ink-600 flex-1">No GGUF model selected. Go to Settings to pick one.</Text>
         </View>
       )}
@@ -376,7 +378,7 @@ export default function AgentScreen() {
         ListEmptyComponent={
           <View className="items-center justify-center py-24 px-8">
             <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
-              <Feather name="cpu" size={24} color="#cccccc" />
+              <Feather name="cpu" size={24} color={T.ink200} />
             </View>
             <Text className="text-base font-medium text-ink-400 text-center">Ask me anything</Text>
             <Text className="text-sm text-ink-200 mt-1 text-center max-w-[260px]">
@@ -396,14 +398,14 @@ export default function AgentScreen() {
                 <Image source={{ uri: att.uri }} className="w-16 h-16 rounded-lg" />
               ) : (
                 <View className="w-16 h-16 rounded-lg bg-ink-100 items-center justify-center">
-                  <Feather name="file" size={20} color="#666" />
+                  <Feather name="file" size={20} color={T.ink500} />
                 </View>
               )}
               <TouchableOpacity
                 onPress={() => removePendingAttachment(i)}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger rounded-full items-center justify-center"
               >
-                <Feather name="x" size={10} color="#fff" />
+                <Feather name="x" size={10} color={T.white} />
               </TouchableOpacity>
             </View>
           ))}
@@ -435,12 +437,12 @@ export default function AgentScreen() {
             activeOpacity={0.7}
             className="w-10 h-12 items-center justify-center"
           >
-            <Feather name="paperclip" size={18} color={isProcessing ? "#ccc" : "#666"} />
+            <Feather name="paperclip" size={18} color={isProcessing ? T.ink200 : T.ink500} />
           </TouchableOpacity>
           <TextInput
             className="flex-1 h-12 bg-ink-50 rounded-xl px-4 text-base text-black"
             placeholder={isProcessing ? "AI is thinking..." : "Type a message..."}
-            placeholderTextColor="#999999"
+            placeholderTextColor={T.ink300}
             value={input}
             onChangeText={setInput}
             onSubmitEditing={handleSend}
@@ -462,7 +464,7 @@ export default function AgentScreen() {
               className={`h-12 w-12 items-center justify-center rounded-xl ${input.trim() ? "bg-black" : "bg-ink-300"
                 }`}
             >
-              <Feather name="arrow-up" size={18} color="#ffffff" />
+              <Feather name="arrow-up" size={18} color={T.white} />
             </TouchableOpacity>
           )}
         </View>
@@ -472,7 +474,7 @@ export default function AgentScreen() {
         enableDynamicSizing
         enablePanDownToClose
         index={showPicker ? 0 : -1}
-        backgroundStyle={{ backgroundColor: "#ffffff" }}
+        backgroundStyle={{ backgroundColor: T.white }}
         onChange={(index: number) => { if (index === -1) setShowPicker(false); }}
       >
         <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
@@ -481,7 +483,7 @@ export default function AgentScreen() {
             onPress={() => { setShowPicker(false); addPhoto(true); }}
           >
             <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-              <Feather name="camera" size={16} color="#000" />
+              <Feather name="camera" size={16} color={T.black} />
             </View>
             <Text className="text-base text-black">Take Photo</Text>
           </TouchableOpacity>
@@ -491,7 +493,7 @@ export default function AgentScreen() {
             onPress={() => { setShowPicker(false); addPhoto(false); }}
           >
             <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-              <Feather name="image" size={16} color="#000" />
+              <Feather name="image" size={16} color={T.black} />
             </View>
             <Text className="text-base text-black">Choose from Library</Text>
           </TouchableOpacity>
@@ -501,7 +503,7 @@ export default function AgentScreen() {
             onPress={() => { setShowPicker(false); addFile(); }}
           >
             <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-              <Feather name="file" size={14} color="#000" />
+              <Feather name="file" size={14} color={T.black} />
             </View>
             <Text className="text-base text-black">Pick File</Text>
           </TouchableOpacity>

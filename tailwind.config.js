@@ -1,3 +1,5 @@
+const v = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -7,28 +9,37 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+      // Every color is a CSS variable so themes can swap them at runtime
+      // (see src/theme/themes.ts). "black" = foreground ink, "white" = page.
       colors: {
+        black: v("black"),
+        white: v("white"),
         ink: {
-          black: "#000000",
-          900: "#1a1a1a",
-          800: "#262626",
-          700: "#333333",
-          600: "#4d4d4d",
-          500: "#666666",
-          400: "#808080",
-          300: "#999999",
-          200: "#cccccc",
-          150: "#dcdcdc",
-          100: "#e5e5e5",
-          75: "#eeeeee",
-          50: "#f2f2f2",
-          25: "#f8f8f8",
-          white: "#ffffff",
+          black: v("black"),
+          900: v("ink-900"),
+          800: v("ink-800"),
+          700: v("ink-700"),
+          600: v("ink-600"),
+          500: v("ink-500"),
+          400: v("ink-400"),
+          300: v("ink-300"),
+          200: v("ink-200"),
+          150: v("ink-150"),
+          100: v("ink-100"),
+          75: v("ink-75"),
+          50: v("ink-50"),
+          25: v("ink-25"),
+          white: v("white"),
         },
-        // Sole accent, reserved for destructive actions per the design system.
+        // User-selectable accent ("Ink" = monochrome, the default).
+        accent: {
+          DEFAULT: v("accent"),
+          on: v("on-accent"),
+        },
+        // Reserved for destructive actions per the design system.
         danger: {
-          DEFAULT: "#ff3b30",
-          soft: "#ffeceb",
+          DEFAULT: v("danger"),
+          soft: v("danger-soft"),
         },
         // Neutral status affordance (e.g. "service active").
         success: {

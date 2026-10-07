@@ -1,4 +1,6 @@
 import { TouchableOpacity, Text, View, ActivityIndicator } from "react-native";
+import { useColors } from "@/theme/ThemeProvider";
+import type { Palette } from "@/theme/themes";
 
 type Variant = "primary" | "secondary" | "ghost" | "destructive";
 type Size = "sm" | "md" | "lg";
@@ -16,14 +18,14 @@ interface ButtonProps {
 }
 
 const variantStyles: Record<Variant, string> = {
-  primary: "bg-black shadow-raised",
+  primary: "bg-accent shadow-raised",
   secondary: "bg-white border border-ink-200 shadow-subtle",
   ghost: "bg-transparent",
   destructive: "bg-black shadow-raised",
 };
 
 const textStyles: Record<Variant, string> = {
-  primary: "text-white",
+  primary: "text-accent-on",
   secondary: "text-black",
   ghost: "text-ink-500",
   destructive: "text-white",
@@ -41,11 +43,11 @@ const textSizeStyles: Record<Size, string> = {
   lg: "text-base",
 };
 
-const spinnerColor: Record<Variant, string> = {
-  primary: "#ffffff",
-  secondary: "#000000",
-  ghost: "#666666",
-  destructive: "#ffffff",
+const spinnerColor: Record<Variant, keyof Palette> = {
+  primary: "onAccent",
+  secondary: "black",
+  ghost: "ink500",
+  destructive: "white",
 };
 
 export function Button({
@@ -59,6 +61,7 @@ export function Button({
   icon,
   className = "",
 }: ButtonProps) {
+  const T = useColors();
   const isDisabled = disabled || loading;
   return (
     <TouchableOpacity
@@ -70,7 +73,7 @@ export function Button({
       } ${fullWidth ? "w-full" : "self-start"} ${isDisabled ? "opacity-40" : ""} ${className}`}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={spinnerColor[variant]} />
+        <ActivityIndicator size="small" color={T[spinnerColor[variant]]} />
       ) : (
         <View className="flex-row items-center gap-2">
           {icon}

@@ -1,5 +1,6 @@
 import { TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import { useColors } from "@/theme/ThemeProvider";
 
 type IconButtonVariant = "solid" | "surface" | "plain";
 type IconButtonSize = "sm" | "md";
@@ -32,6 +33,7 @@ export function IconButton({
   disabled = false,
   className = "",
 }: IconButtonProps) {
+  const T = useColors();
   const s = sizeMap[size];
   const solid = variant === "solid" || active;
 
@@ -42,7 +44,7 @@ export function IconButton({
       ? "bg-black shadow-raised"
       : "bg-ink-100";
 
-  const iconColor = solid ? "#ffffff" : variant === "plain" ? "#666666" : "#000000";
+  const iconColor = solid ? T.white : variant === "plain" ? T.ink500 : T.black;
 
   return (
     <TouchableOpacity

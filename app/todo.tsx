@@ -13,6 +13,7 @@ import { ItemSheet } from "@/components/ItemSheet";
 import { Logo } from "@/components/Logo";
 import { loadTodoDraft, saveTodoDraft, clearTodoDraft } from "@/utils/drafts";
 import Feather from "@expo/vector-icons/Feather";
+import { useColors } from "@/theme/ThemeProvider";
 
 type TodoFilter = "all" | "active" | "completed";
 
@@ -23,6 +24,7 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function TodoScreen() {
+  const T = useColors();
   const { eventId } = useLocalSearchParams<{ eventId?: string }>();
   const todos = useTodoStore((s) => s.todos);
   const storeFilter = useTodoStore((s) => s.filter);
@@ -104,7 +106,7 @@ export default function TodoScreen() {
             item.completed ? "bg-black border-black" : "border-ink-300"
           }`}
         >
-          {item.completed && <Feather name="check" size={10} color="#ffffff" />}
+          {item.completed && <Feather name="check" size={10} color={T.white} />}
         </TouchableOpacity>
         <View className="flex-1">
           <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
@@ -112,7 +114,7 @@ export default function TodoScreen() {
           </Text>
           {item.dueDate && (
             <View className="flex-row items-center gap-1.5 mt-1">
-              <Feather name="clock" size={10} color={overdue ? "#000000" : "#999999"} />
+              <Feather name="clock" size={10} color={overdue ? T.black : T.ink300} />
               <Text className={`text-xs ${overdue ? "text-black font-medium" : "text-ink-300"}`}>
                 {new Date(item.dueDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
               </Text>
@@ -132,7 +134,7 @@ export default function TodoScreen() {
         <Text className={`text-xs font-semibold ${priorityColors[item.priority]}`}>
           {item.priority}
         </Text>
-        <Feather name="chevron-up" size={14} color="#cccccc" />
+        <Feather name="chevron-up" size={14} color={T.ink200} />
       </Card>
     </TouchableOpacity>
     );
@@ -146,7 +148,7 @@ export default function TodoScreen() {
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-            <Feather name="arrow-left" size={16} color="#000000" />
+            <Feather name="arrow-left" size={16} color={T.black} />
           </TouchableOpacity>
           <Logo size={32} />
           <View>
@@ -162,7 +164,7 @@ export default function TodoScreen() {
             hitSlop={6}
             className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
           >
-            <Feather name="check-circle" size={14} color="#666666" />
+            <Feather name="check-circle" size={14} color={T.ink500} />
           </TouchableOpacity>
         )}
       </View>
@@ -182,7 +184,7 @@ export default function TodoScreen() {
         onPress={() => setShowAdd(!showAdd)}
         className="mx-4 mb-3 h-11 border-2 border-dashed border-ink-200 rounded-xl items-center justify-center flex-row gap-2"
       >
-        <Feather name="plus" size={16} color="#999999" />
+        <Feather name="plus" size={16} color={T.ink300} />
         <Text className="text-sm text-ink-300 font-medium">Add Todo</Text>
       </TouchableOpacity>
 
@@ -191,7 +193,7 @@ export default function TodoScreen() {
           <TextInput
             className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-2"
             placeholder="What needs to be done?"
-            placeholderTextColor="#999999"
+            placeholderTextColor={T.ink300}
             value={newTitle}
             onChangeText={setNewTitle}
             onSubmitEditing={handleAdd}
@@ -201,7 +203,7 @@ export default function TodoScreen() {
             onPress={() => setShowDatePicker(true)}
             className="flex-row items-center gap-2 mb-3 h-11 bg-ink-50 rounded-xl px-4"
           >
-            <Feather name="calendar" size={14} color="#999999" />
+            <Feather name="calendar" size={14} color={T.ink300} />
             <Text className={`text-sm flex-1 ${newDueDate ? "text-black" : "text-ink-300"}`}>
               {newDueDate
                 ? newDueDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
@@ -209,7 +211,7 @@ export default function TodoScreen() {
             </Text>
             {newDueDate && (
               <TouchableOpacity onPress={() => setNewDueDate(null)} hitSlop={12}>
-                <Feather name="x-circle" size={14} color="#cccccc" />
+                <Feather name="x-circle" size={14} color={T.ink200} />
               </TouchableOpacity>
             )}
           </TouchableOpacity>
