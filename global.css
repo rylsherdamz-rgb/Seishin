@@ -1,3 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Default (Mono Light) theme. ThemeProvider overrides these at runtime. */
+@layer base {
+  :root {
+    --c-black: 0 0 0;
+    --c-ink-900: 26 26 26;
+    --c-ink-800: 38 38 38;
+    --c-ink-700: 51 51 51;
+    --c-ink-600: 77 77 77;
+    --c-ink-500: 102 102 102;
+    --c-ink-400: 128 128 128;
+    --c-ink-300: 153 153 153;
+    --c-ink-200: 204 204 204;
+    --c-ink-150: 220 220 220;
+    --c-ink-100: 229 229 229;
+    --c-ink-75: 238 238 238;
+    --c-ink-50: 242 242 242;
+    --c-ink-25: 248 248 248;
+    --c-white: 255 255 255;
+    --c-accent: 0 0 0;
+    --c-on-accent: 255 255 255;
+    --c-danger: 255 59 48;
+    --c-danger-soft: 255 236 235;
+  }
+}

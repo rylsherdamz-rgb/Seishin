@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { View, TouchableOpacity, Animated, Easing, Text } from "react-native";
+import { useTheme } from "@/theme/ThemeProvider";
 
 interface ToggleProps {
   value: boolean;
@@ -22,10 +23,15 @@ export function Toggle({
   onValueChange,
   disabled = false,
   size = "medium",
-  activeColor = "#000000",
-  inactiveColor = "#e5e5e5",
-  thumbColor = "#ffffff",
+  activeColor: activeProp,
+  inactiveColor: inactiveProp,
+  thumbColor: thumbProp,
 }: ToggleProps) {
+  const { colors: T, dark } = useTheme();
+  const activeColor = activeProp ?? T.accent;
+  const inactiveColor = inactiveProp ?? (dark ? T.ink200 : T.ink100);
+  // Light themes keep the classic white thumb; dark themes use bright ink.
+  const thumbColor = thumbProp ?? (dark ? T.black : "#ffffff");
   const { width, height, thumbSize, padding } = SIZE_CONFIG[size];
   const translateX = useRef(new Animated.Value(value ? width - thumbSize - padding : padding)).current;
 
@@ -86,7 +92,7 @@ export function Toggle({
             height: thumbSize,
             borderRadius: thumbSize / 2,
             backgroundColor: thumbColor,
-            shadowColor: "#000",
+            shadowColor: "#000000",
             shadowOffset: { width: 0, height: 1 },
             shadowOpacity: 0.15,
             shadowRadius: 3,
@@ -106,8 +112,8 @@ export function ToggleWithLabel({
   disabled = false,
   size = "medium",
   labelStyle,
-  activeColor = "#000000",
-  inactiveColor = "#e5e5e5",
+  activeColor,
+  inactiveColor,
 }: ToggleProps & { label: string; labelStyle?: string }) {
   const labelClassName = `text-sm font-medium ${disabled ? "text-ink-400" : "text-black"} ${labelStyle || ""}`;
   return (

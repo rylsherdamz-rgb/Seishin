@@ -12,6 +12,7 @@ export interface EventDraft {
   startDate?: string;
   /** ISO datetime — carries the chosen end time (same day as start). */
   endDate?: string;
+  allDay?: boolean;
   repeatMode?: string;
   customWeekdays?: number[];
   reminderMinutes?: number;

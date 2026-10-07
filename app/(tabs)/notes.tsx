@@ -16,6 +16,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import Feather from "@expo/vector-icons/Feather";
 import { uid } from "@/utils/id";
+import { useColors } from "@/theme/ThemeProvider";
 
 const FILTERS = ["all", "notification", "email", "chat"] as const;
 const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
@@ -23,6 +24,7 @@ const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = 
 };
 
 export default function NotesScreen() {
+  const T = useColors();
   const insets = useSafeAreaInsets();
   // Clearance so list content / toolbars never hide behind the FAB, tab bar,
   // or the device home indicator in the safe-area.
@@ -106,7 +108,7 @@ export default function NotesScreen() {
             ) : (
               <Text className="text-sm font-semibold text-ink-300 flex-1">Untitled</Text>
             )}
-            {item.pinned && <Feather name="bookmark" size={13} color="#000000" />}
+            {item.pinned && <Feather name="bookmark" size={13} color={T.black} />}
           </View>
           {item.body ? (
             <Text className="text-xs text-ink-600 mt-1.5 leading-5" numberOfLines={firstImage ? 4 : 8}>
@@ -117,13 +119,13 @@ export default function NotesScreen() {
             <View className="flex-row flex-wrap items-center gap-1 mt-2.5">
               {item.eventId && (
                 <View className="flex-row items-center gap-1 px-2 py-0.5 bg-black rounded-full">
-                  <Feather name="calendar" size={9} color="#ffffff" />
+                  <Feather name="calendar" size={9} color={T.white} />
                   <Text className="text-[9px] font-semibold text-white">event</Text>
                 </View>
               )}
               {fileCount > 0 && (
                 <View className="flex-row items-center gap-1 px-2 py-0.5 bg-ink-100 rounded-full">
-                  <Feather name="paperclip" size={9} color="#666666" />
+                  <Feather name="paperclip" size={9} color={T.ink500} />
                   <Text className="text-[9px] font-semibold text-ink-600">{fileCount}</Text>
                 </View>
               )}
@@ -212,14 +214,14 @@ export default function NotesScreen() {
           <View className="flex-row items-start gap-3">
             {selecting && (
               <View className={`w-6 h-6 rounded-md border-2 items-center justify-center mt-1.5 ${checked ? "bg-black border-black" : "border-ink-300"}`}>
-                {checked && <Feather name="check" size={14} color="#ffffff" />}
+                {checked && <Feather name="check" size={14} color={T.white} />}
               </View>
             )}
             <View className={`w-9 h-9 rounded-full items-center justify-center ${item.read ? "bg-ink-100" : "bg-black"}`}>
               <Feather
                 name={typeIcons[item.type] || "bell"}
                 size={14}
-                color={item.read ? "#999999" : "#ffffff"}
+                color={item.read ? T.ink300 : T.white}
               />
             </View>
             <View className="flex-1">
@@ -238,7 +240,7 @@ export default function NotesScreen() {
                 {item.body}
               </Text>
               <View className="flex-row items-center gap-1 mt-1.5">
-                <Feather name="at-sign" size={10} color="#cccccc" />
+                <Feather name="at-sign" size={10} color={T.ink200} />
                 <Text className="text-xs text-ink-200">{item.source}</Text>
               </View>
             </View>
@@ -274,7 +276,7 @@ export default function NotesScreen() {
               activeOpacity={0.85}
               className="w-9 h-9 bg-black rounded-full items-center justify-center shadow-raised"
             >
-              <Feather name="plus" size={20} color="#ffffff" />
+              <Feather name="plus" size={20} color={T.white} />
             </TouchableOpacity>
           ) : selecting ? (
             <TouchableOpacity onPress={() => setSelecting(false)}>
@@ -302,17 +304,17 @@ export default function NotesScreen() {
       {tab === "notes" ? (
         <>
           <View className="mx-4 mb-3 h-11 bg-ink-50 rounded-xl px-4 flex-row items-center gap-2">
-            <Feather name="search" size={15} color="#999999" />
+            <Feather name="search" size={15} color={T.ink300} />
             <TextInput
               className="flex-1 text-sm text-black"
               placeholder="Search notes"
-              placeholderTextColor="#999999"
+              placeholderTextColor={T.ink300}
               value={query}
               onChangeText={setQuery}
             />
             {query.length > 0 && (
               <TouchableOpacity onPress={() => setQuery("")}>
-                <Feather name="x-circle" size={15} color="#cccccc" />
+                <Feather name="x-circle" size={15} color={T.ink200} />
               </TouchableOpacity>
             )}
           </View>

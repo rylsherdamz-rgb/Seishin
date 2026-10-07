@@ -1,5 +1,6 @@
 import { TouchableOpacity, Text } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import { useColors } from "@/theme/ThemeProvider";
 
 interface ChipProps {
   label: string;
@@ -22,6 +23,7 @@ export function Chip({
   icon,
   className = "",
 }: ChipProps) {
+  const T = useColors();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -29,16 +31,16 @@ export function Chip({
       activeOpacity={0.7}
       className={`flex-row items-center gap-1.5 px-3.5 py-2 rounded-full border ${
         active
-          ? "bg-black border-black"
+          ? "bg-accent border-accent"
           : "bg-white border-ink-200"
       } ${disabled ? "opacity-40" : ""} ${className}`}
     >
       {icon ? (
-        <Feather name={icon} size={12} color={active ? "#ffffff" : "#999999"} />
+        <Feather name={icon} size={12} color={active ? T.onAccent : T.ink300} />
       ) : null}
       <Text
         className={`text-xs font-semibold ${
-          active ? "text-white" : "text-ink-500"
+          active ? "text-accent-on" : "text-ink-500"
         }`}
       >
         {label}

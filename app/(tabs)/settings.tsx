@@ -20,6 +20,8 @@ import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
 import { fetchNimModels, fetchAllNimModels, cacheNimModels, categorizeModel, getTierLabel } from "@/services/nim-models";
+import { useColors } from "@/theme/ThemeProvider";
+import { AppearancePicker } from "@/components/AppearancePicker";
 
 const storageCategories = [
   { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
@@ -49,16 +51,17 @@ function MenuRow({
   right?: React.ReactNode;
   onPress?: () => void;
 }) {
+  const T = useColors();
   return (
     <TouchableOpacity disabled={!onPress} onPress={onPress} className="flex-row items-center gap-3 py-3.5 border-b border-ink-100 active:opacity-60">
       <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-        <Feather name={icon} size={14} color="#000000" />
+        <Feather name={icon} size={14} color={T.black} />
       </View>
       <View className="flex-1">
         <Text className="text-sm font-medium text-black">{label}</Text>
         {subtitle && <Text className="text-xs text-ink-400 mt-0.5">{subtitle}</Text>}
       </View>
-      {right || (onPress && <Feather name="chevron-right" size={16} color="#d0d0d0" />)}
+      {right || (onPress && <Feather name="chevron-right" size={16} color={T.ink150} />)}
     </TouchableOpacity>
   );
 }
@@ -71,6 +74,7 @@ function formatBytes(bytes: number): string {
 }
 
 export default function SettingsScreen() {
+  const T = useColors();
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const cleanupPolicies = useSettingsStore((s) => s.cleanupPolicies);
   const setCleanupPolicies = useSettingsStore((s) => s.setCleanupPolicies);
@@ -261,7 +265,7 @@ export default function SettingsScreen() {
           item === nimMd ? "bg-black" : "bg-ink-100"
         }`}
       >
-        <Feather name="cpu" size={14} color={item === nimMd ? "#ffffff" : "#999999"} />
+        <Feather name="cpu" size={14} color={item === nimMd ? T.white : T.ink300} />
         <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
           {item}
         </Text>
@@ -275,7 +279,7 @@ export default function SettingsScreen() {
           </Text>
         </View>
         {item === nimMd && (
-          <Feather name="check" size={14} color="#ffffff" />
+          <Feather name="check" size={14} color={T.white} />
         )}
       </TouchableOpacity>
     );
@@ -293,6 +297,11 @@ export default function SettingsScreen() {
             </View>
           </View>
 
+          <SectionHeader title="Appearance" />
+          <Card variant="elevated" className="mb-4">
+            <AppearancePicker />
+          </Card>
+
           <SectionHeader title="Quick Access" />
           <Card className="mb-4 p-0 overflow-hidden">
             <MenuRow icon="check-square" label="Todo List" subtitle="Manage tasks with dates" onPress={() => router.push("/todo")} />
@@ -304,7 +313,7 @@ export default function SettingsScreen() {
             <Card variant="elevated" className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center gap-3 flex-1">
                 <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name="cpu" size={16} color="#000000" />
+                  <Feather name="cpu" size={16} color={T.black} />
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-medium text-black">AI Provider</Text>
@@ -314,7 +323,7 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               </View>
-              <Feather name={showAiConfig ? "chevron-up" : "chevron-down"} size={18} color="#bbbbbb" />
+              <Feather name={showAiConfig ? "chevron-up" : "chevron-down"} size={18} color={T.ink200} />
             </Card>
           </TouchableOpacity>
 
@@ -324,7 +333,7 @@ export default function SettingsScreen() {
               <TextInput
                 className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
                 placeholder="Enter your NVIDIA NIM key..."
-                placeholderTextColor="#bbbbbb"
+                placeholderTextColor={T.ink200}
                 value={nimKey}
                 onChangeText={setNimKey}
                 autoCapitalize="none"
@@ -335,7 +344,7 @@ export default function SettingsScreen() {
               <TextInput
                 className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
                 placeholder="https://integrate.api.nvidia.com/v1"
-                placeholderTextColor="#bbbbbb"
+                placeholderTextColor={T.ink200}
                 value={nimEp}
                 onChangeText={setNimEp}
                 autoCapitalize="none"
@@ -364,7 +373,7 @@ export default function SettingsScreen() {
                     </Text>
                   </View>
                 )}
-                <Feather name="chevron-down" size={16} color="#bbbbbb" />
+                <Feather name="chevron-down" size={16} color={T.ink200} />
               </TouchableOpacity>
               <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Quick Models</Text>
               <ScrollView horizontal bounces className="mb-2" showsHorizontalScrollIndicator={false}>
@@ -400,23 +409,23 @@ export default function SettingsScreen() {
                 className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center gap-3 mb-2"
               >
                 {ggufPicking ? (
-                  <ActivityIndicator size="small" color="#999999" />
+                  <ActivityIndicator size="small" color={T.ink300} />
                 ) : (
-                  <Feather name="folder" size={16} color="#999999" />
+                  <Feather name="folder" size={16} color={T.ink300} />
                 )}
                 <Text className={`text-sm flex-1 ${ggufFileName ? "text-black" : "text-ink-300"}`}>
                   {ggufFileName || (ggufPicking ? "Reading large file…" : "Tap to select a .gguf file")}
                 </Text>
                 {ggufFileName && (
                   <TouchableOpacity onPress={() => { setGgufPath(""); setGgufFileName(""); }}>
-                    <Feather name="x-circle" size={14} color="#cccccc" />
+                    <Feather name="x-circle" size={14} color={T.ink200} />
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
               {ggufCopying && (
                 <View className="bg-ink-50 rounded-lg p-3 mb-2">
                   <View className="flex-row items-center gap-2 mb-2">
-                    <ActivityIndicator size="small" color="#666666" />
+                    <ActivityIndicator size="small" color={T.ink500} />
                     <Text className="text-xs text-ink-600 flex-1">
                       Copying{ggufFileSize > 0 ? ` ${formatBytes(ggufFileSize)}` : ""}…
                     </Text>
@@ -477,14 +486,14 @@ export default function SettingsScreen() {
             <Card variant="elevated" className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center gap-3 flex-1">
                 <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name="hard-drive" size={16} color="#000000" />
+                  <Feather name="hard-drive" size={16} color={T.black} />
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-medium text-black">Data Storage</Text>
                   <Text className="text-xs text-ink-400 mt-0.5">Manage cached data per category</Text>
                 </View>
               </View>
-              <Feather name={showStorage ? "chevron-up" : "chevron-down"} size={18} color="#bbbbbb" />
+              <Feather name={showStorage ? "chevron-up" : "chevron-down"} size={18} color={T.ink200} />
             </Card>
           </TouchableOpacity>
 
@@ -493,7 +502,7 @@ export default function SettingsScreen() {
               {storageCategories.map(({ label, key, storage, icon }) => (
                 <View key={key} className="flex-row items-center gap-3 py-3 px-4 border-b border-ink-100 last:border-b-0">
                   <View className="w-8 h-8 bg-ink-100 rounded-lg items-center justify-center">
-                    <Feather name={icon} size={12} color="#666666" />
+                    <Feather name={icon} size={12} color={T.ink500} />
                   </View>
                   <View className="flex-1">
                     <Text className="text-sm text-black">{label}</Text>
@@ -514,7 +523,7 @@ export default function SettingsScreen() {
             title="Factory Reset — Delete All"
             variant="destructive"
             onPress={confirmFactoryReset}
-            icon={<Feather name="alert-triangle" size={14} color="#ffffff" />}
+            icon={<Feather name="alert-triangle" size={14} color={T.white} />}
             className="mb-8"
           />
 
@@ -536,7 +545,7 @@ export default function SettingsScreen() {
                     onPress={() => setCleanupPolicies({ [key]: Math.max(1, cleanupPolicies[key] - 1) })}
                     className="w-7 h-7 bg-ink-100 rounded-lg items-center justify-center"
                   >
-                    <Feather name="minus" size={12} color="#666666" />
+                    <Feather name="minus" size={12} color={T.ink500} />
                   </TouchableOpacity>
                   <Text className="text-sm font-semibold text-black w-7 text-center">
                     {cleanupPolicies[key]}
@@ -546,7 +555,7 @@ export default function SettingsScreen() {
                     onPress={() => setCleanupPolicies({ [key]: Math.min(365, cleanupPolicies[key] + 1) })}
                     className="w-7 h-7 bg-ink-100 rounded-lg items-center justify-center"
                   >
-                    <Feather name="plus" size={12} color="#666666" />
+                    <Feather name="plus" size={12} color={T.ink500} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -572,20 +581,20 @@ export default function SettingsScreen() {
           snapPoints={modelSnapPoints}
           enablePanDownToClose
           index={showModelPicker ? 0 : -1}
-          backgroundStyle={{ backgroundColor: "#ffffff" }}
+          backgroundStyle={{ backgroundColor: T.white }}
           onChange={(index: number) => { if (index === -1) setShowModelPicker(false); }}
         >
           <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}>
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold tracking-tightest text-black">Select Model</Text>
               <TouchableOpacity onPress={() => setShowModelPicker(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
-                <Feather name="x" size={16} color="#666666" />
+                <Feather name="x" size={16} color={T.ink500} />
               </TouchableOpacity>
             </View>
             <TextInput
               className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
               placeholder="Search models..."
-              placeholderTextColor="#999999"
+              placeholderTextColor={T.ink300}
               value={modelSearch}
               onChangeText={setModelSearch}
               autoCapitalize="none"
@@ -593,12 +602,12 @@ export default function SettingsScreen() {
             />
             {loadingModels ? (
               <View className="flex-1 items-center justify-center">
-                <ActivityIndicator size="small" color="#000000" />
+                <ActivityIndicator size="small" color={T.black} />
                 <Text className="text-sm text-ink-400 mt-3">Loading models...</Text>
               </View>
             ) : filteredModels.length === 0 ? (
               <View className="flex-1 items-center justify-center">
-                <Feather name="search" size={24} color="#cccccc" />
+                <Feather name="search" size={24} color={T.ink200} />
                 <Text className="text-sm text-ink-300 mt-2">{models.length === 0 ? "No models found" : "No matches"}</Text>
               </View>
             ) : (

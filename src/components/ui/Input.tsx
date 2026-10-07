@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, TextInput, Text } from "react-native";
+import { useColors } from "@/theme/ThemeProvider";
 
 type InputVariant = "filled" | "underline";
 
@@ -30,6 +31,7 @@ export function Input({
   autoCapitalize,
   className = "",
 }: InputProps) {
+  const T = useColors();
   const [focused, setFocused] = useState(false);
 
   const base =
@@ -56,7 +58,7 @@ export function Input({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         placeholder={placeholder}
-        placeholderTextColor="#999999"
+        placeholderTextColor={T.ink300}
         secureTextEntry={secureTextEntry}
         multiline={multiline}
         keyboardType={keyboardType}

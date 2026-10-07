@@ -9,6 +9,7 @@ import { Recurrence } from "@/stores/calendar-store";
 import { recurrenceLabel } from "@/utils/recurrence";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import Feather from "@expo/vector-icons/Feather";
+import { useColors } from "@/theme/ThemeProvider";
 
 interface EventData {
   id: string;
@@ -48,6 +49,7 @@ interface ItemSheetProps {
 }
 
 export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggle, onTodoDelete, onClose }: ItemSheetProps) {
+  const T = useColors();
   const sheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["35%", "50%"], []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -80,7 +82,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
       snapPoints={snapPoints}
       enablePanDownToClose
       index={0}
-      backgroundStyle={{ backgroundColor: "#ffffff" }}
+      backgroundStyle={{ backgroundColor: T.white }}
       onChange={(index: number) => { if (index === -1) onClose?.(); }}
     >
       <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 24 }}>
@@ -88,7 +90,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center gap-3 mb-5">
               <View className="w-10 h-10 bg-black rounded-full items-center justify-center">
-                <Feather name="calendar" size={16} color="#ffffff" />
+                <Feather name="calendar" size={16} color={T.white} />
               </View>
               <View className="flex-1">
                 <Text className="text-lg font-semibold tracking-tightest text-black">{event.title}</Text>
@@ -101,14 +103,14 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 className="flex-row items-center gap-1.5 h-9 px-3.5 bg-black rounded-full"
                 activeOpacity={0.8}
               >
-                <Feather name="plus" size={14} color="#ffffff" />
+                <Feather name="plus" size={14} color={T.white} />
                 <Text className="text-xs font-semibold text-white">Note</Text>
               </TouchableOpacity>
             </View>
 
             <View className="bg-ink-50 border border-ink-100 rounded-card p-4 mb-4">
               <View className="flex-row items-center gap-3 mb-2">
-                <Feather name="calendar" size={14} color="#666666" />
+                <Feather name="calendar" size={14} color={T.ink500} />
                 <Text className="text-sm text-black">
                   {new Date(event.date + "T00:00:00").toLocaleDateString(undefined, {
                     weekday: "long", month: "long", day: "numeric",
@@ -117,7 +119,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
               </View>
               {event.time && (
                 <View className="flex-row items-center gap-3">
-                  <Feather name="clock" size={14} color="#666666" />
+                  <Feather name="clock" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
                     {event.time}
                     {event.endTime && event.endTime !== event.time ? ` – ${event.endTime}` : ""}
@@ -126,7 +128,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
               )}
               {event.recurrence && (
                 <View className="flex-row items-center gap-3 mt-2">
-                  <Feather name="repeat" size={14} color="#666666" />
+                  <Feather name="repeat" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
                     Repeats · {recurrenceLabel(event.recurrence)}
                   </Text>
@@ -134,7 +136,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
               )}
               {event.reminder && (
                 <View className="flex-row items-center gap-3 mt-2">
-                  <Feather name="bell" size={14} color="#666666" />
+                  <Feather name="bell" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
                     Reminder · {event.reminder} min before
                   </Text>
@@ -176,13 +178,13 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                     activeOpacity={0.7}
                   >
                     <View className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
-                      <Feather name="file-text" size={14} color="#666" />
+                      <Feather name="file-text" size={14} color={T.ink500} />
                     </View>
                     <View className="flex-1">
                       <Text className="text-sm font-medium text-black">{n.title || "Untitled"}</Text>
                       {n.body && <Text className="text-xs text-ink-400 mt-0.5" numberOfLines={1}>{n.body}</Text>}
                     </View>
-                    <Feather name="chevron-right" size={14} color="#ccc" />
+                    <Feather name="chevron-right" size={14} color={T.ink200} />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -199,7 +201,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                         t.completed ? "bg-black border-black" : "border-ink-300"
                       }`}
                     >
-                      {t.completed && <Feather name="check" size={12} color="#ffffff" />}
+                      {t.completed && <Feather name="check" size={12} color={T.white} />}
                     </TouchableOpacity>
                     <View className="flex-1">
                       <Text className={`text-sm ${t.completed ? "line-through text-ink-300" : "text-black"}`}>
@@ -231,7 +233,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                   className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"
                   activeOpacity={0.7}
                 >
-                  <Feather name="edit-2" size={14} color="#000" />
+                  <Feather name="edit-2" size={14} color={T.black} />
                   <Text className="text-sm font-medium text-black">Edit Event</Text>
                 </TouchableOpacity>
               )}
@@ -240,13 +242,13 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"
                 activeOpacity={0.7}
               >
-                <Feather name="check-square" size={14} color="#000" />
+                <Feather name="check-square" size={14} color={T.black} />
                 <Text className="text-sm font-medium text-black">Add Todo</Text>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity onPress={handleDelete} className="h-12 border border-danger rounded-xl items-center justify-center flex-row gap-2">
-              <Feather name="trash-2" size={14} color="#ff3b30" />
+              <Feather name="trash-2" size={14} color={T.danger} />
               <Text className="text-sm font-medium text-danger">Delete Event</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -257,7 +259,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 onPress={() => { onTodoToggle?.(todo.todoId || todo.id); handleClose(); }}
                 className={`w-10 h-10 rounded-full items-center justify-center ${todo.completed ? "bg-black" : "bg-ink-100"}`}
               >
-                <Feather name="check" size={16} color={todo.completed ? "#ffffff" : "#666666"} />
+                <Feather name="check" size={16} color={todo.completed ? T.white : T.ink500} />
               </TouchableOpacity>
               <View className="flex-1">
                 <Text className={`text-lg font-semibold tracking-tightest ${todo.completed ? "line-through text-ink-300" : "text-black"}`}>
@@ -270,7 +272,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
             <View className="bg-ink-50 border border-ink-100 rounded-card p-4 mb-4">
               {todo.date && (
                 <View className="flex-row items-center gap-3 mb-2">
-                  <Feather name="calendar" size={14} color="#666666" />
+                  <Feather name="calendar" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
                     Due {new Date(todo.date + "T00:00:00").toLocaleDateString(undefined, {
                       weekday: "short", month: "short", day: "numeric",
@@ -279,11 +281,11 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 </View>
               )}
               <View className="flex-row items-center gap-3">
-                <Feather name="flag" size={14} color="#666666" />
+                <Feather name="flag" size={14} color={T.ink500} />
                 <Text className="text-sm text-black capitalize">Priority: {todo.priority || "medium"}</Text>
               </View>
               <View className="flex-row items-center gap-3 mt-2">
-                <Feather name="check-circle" size={14} color="#666666" />
+                <Feather name="check-circle" size={14} color={T.ink500} />
                 <Text className="text-sm text-black">{todo.completed ? "Completed" : "Active"}</Text>
               </View>
             </View>
@@ -295,13 +297,13 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                   todo.completed ? "border border-ink-200" : "bg-black"
                 }`}
               >
-                <Feather name={todo.completed ? "rotate-ccw" : "check"} size={14} color={todo.completed ? "#000000" : "#ffffff"} />
+                <Feather name={todo.completed ? "rotate-ccw" : "check"} size={14} color={todo.completed ? T.black : T.white} />
                 <Text className={`text-sm font-medium ${todo.completed ? "text-black" : "text-white"}`}>
                   {todo.completed ? "Reopen" : "Complete"}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleDelete} className="flex-1 h-12 border border-danger rounded-xl items-center justify-center flex-row gap-2">
-                <Feather name="trash-2" size={14} color="#ff3b30" />
+                <Feather name="trash-2" size={14} color={T.danger} />
                 <Text className="text-sm font-medium text-danger">Delete</Text>
               </TouchableOpacity>
             </View>

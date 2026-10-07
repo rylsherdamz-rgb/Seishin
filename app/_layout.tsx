@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
 import { Host } from "@expo/ui";
 import { useNotifications } from "@/services/notification-service";
+import { ThemeProvider, ThemeScope, useColors, useTheme } from "@/theme/ThemeProvider";
 
 ExpoSplashScreen.preventAutoHideAsync();
 
@@ -41,6 +42,7 @@ const ONBOARDING_PAGES = [
 ];
 
 function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
+  const T = useColors();
   const [step, setStep] = useState(0);
   const page = ONBOARDING_PAGES[step];
   const isLast = step === ONBOARDING_PAGES.length - 1;
@@ -54,7 +56,7 @@ function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
           </Animated.View>
         ) : (
           <Animated.View key={step} entering={FadeInDown.duration(400)} className="w-20 h-20 bg-ink-100 rounded-full items-center justify-center mb-6">
-            <Feather name={page.icon} size={32} color="#000000" />
+            <Feather name={page.icon} size={32} color={T.black} />
           </Animated.View>
         )}
         <Animated.Text key={`title-${step}`} entering={FadeInDown.delay(100).duration(350)} className="text-2xl font-semibold tracking-tight text-black text-center mt-6">
@@ -132,6 +134,16 @@ function SplashScreen() {
 }
 
 export default function RootLayout() {
+  return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}
+
+function AppShell() {
+  const { colors: T, dark } = useTheme();
+  const barStyle = dark ? "light-content" : "dark-content";
   const [phase, setPhase] = useState<"splash" | "loading" | "onboarding" | "app">("splash");
   const router = useRouter();
   useNotifications();
@@ -157,8 +169,8 @@ export default function RootLayout() {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={{ flex: 1 }}>
-          <RNStatusBar backgroundColor="#1a1a1a" barStyle="light-content" />
-          <StatusBar style="light" />
+          <RNStatusBar backgroundColor={T.white} barStyle={barStyle} />
+          <StatusBar style={dark ? "light" : "dark"} />
           <OnboardingScreen
             onComplete={() => {
               settingsStorage.set("hasSeenOnboarding", true);
@@ -176,15 +188,18 @@ export default function RootLayout() {
         <Host style={{ flex: 1 }}>
         <SafeAreaProvider>
           <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
-            <RNStatusBar backgroundColor="#ffffff" barStyle="dark-content" />
-            <StatusBar style="dark" />
-            <Stack screenOptions={{ headerShown: false, animation: "fade_from_bottom" }}>
+            <RNStatusBar backgroundColor={T.white} barStyle={barStyle} />
+            <StatusBar style={dark ? "light" : "dark"} />
+            <Stack screenOptions={{ headerShown: false, animation: "fade_from_bottom", contentStyle: { backgroundColor: T.white } }}>
               <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
               <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
             </Stack>
-            <AlarmOverlay />
+            {/* The alarm screen is designed dark-on-light-ink; pin it to the base palette. */}
+            <ThemeScope theme="light">
+              <AlarmOverlay />
+            </ThemeScope>
           </SafeAreaView>
         </SafeAreaProvider>
         </Host>

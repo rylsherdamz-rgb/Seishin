@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import type { ComponentProps } from "react";
+import { useColors } from "@/theme/ThemeProvider";
 
 interface SheetOption {
   icon?: ComponentProps<typeof Feather>["name"];
@@ -22,13 +23,14 @@ interface SheetModalProps {
 }
 
 export function SheetModal({ visible, onClose, title, message, options, confirmLabel, confirmDestructive, onConfirm }: SheetModalProps) {
+  const T = useColors();
   // No snapPoints: the sheet sizes itself to its content (fitToContents).
   // Fixed snap points bypass content measurement and can present blank.
   return (
     <BottomSheet
       index={visible ? 0 : -1}
       enablePanDownToClose
-      backgroundStyle={{ backgroundColor: "#ffffff" }}
+      backgroundStyle={{ backgroundColor: T.white }}
       onChange={(index: number) => { if (index === -1) onClose(); }}
     >
       <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
@@ -47,7 +49,7 @@ export function SheetModal({ visible, onClose, title, message, options, confirmL
             >
               {opt.icon && (
                 <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name={opt.icon} size={16} color={opt.destructive ? "#ff3b30" : "#000"} />
+                  <Feather name={opt.icon} size={16} color={opt.destructive ? T.danger : T.black} />
                 </View>
               )}
               <Text className={`text-base ${opt.destructive ? "text-danger" : "text-black"}`}>{opt.label}</Text>

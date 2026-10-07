@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity } from "react-native";
+import { useColors } from "@/theme/ThemeProvider";
 
 interface SegmentedControlProps<T extends string> {
   options: { label: string; value: T }[];
@@ -13,6 +14,7 @@ export function SegmentedControl<T extends string>({
   onChange,
   size = "medium",
 }: SegmentedControlProps<T>) {
+  const C = useColors();
   const height = size === "small" ? 32 : 38;
   const pillHeight = height - 4;
 
@@ -31,8 +33,8 @@ export function SegmentedControl<T extends string>({
             className="flex-1 items-center justify-center rounded-lg"
             style={{
               height: pillHeight,
-              backgroundColor: active ? "#ffffff" : "transparent",
-              shadowColor: active ? "#000" : "transparent",
+              backgroundColor: active ? C.white : "transparent",
+              shadowColor: active ? "#000000" : "transparent",
               shadowOpacity: active ? 0.08 : 0,
               shadowRadius: 4,
               shadowOffset: { width: 0, height: 1 },

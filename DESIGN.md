@@ -14,6 +14,13 @@
 Destructive only: #ff3b30
 ```
 
+## Themes (runtime)
+Every color above is a CSS variable (see `src/theme/themes.ts`, ADR 0001).
+`black` = foreground ink, `white` = page; dark themes invert them.
+Themes: Mono Light (default), Paper, Mono Dark, Midnight, AMOLED, or System.
+Accent (`bg-accent` / `text-accent-on`): Ink (default, = black), Blue, Green,
+Violet, Orange, Rose. Use classes or `useColors()` — never raw hex.
+
 ## Typography
 ```
 Body:      16px, #000, system font
