@@ -152,7 +152,7 @@ export default function TodoScreen() {
           </TouchableOpacity>
           <Logo size={32} />
           <View>
-            <Text className="text-2xl font-semibold tracking-tightest text-black">Todo List</Text>
+            <Text className="text-2xl font-semibold tracking-tightest text-black">Tasks</Text>
             <Text className="text-sm text-ink-500 mt-0.5">
               {stats.active} pending · {stats.completed} done
             </Text>
@@ -185,7 +185,7 @@ export default function TodoScreen() {
         className="mx-4 mb-3 h-11 border-2 border-dashed border-ink-200 rounded-xl items-center justify-center flex-row gap-2"
       >
         <Feather name="plus" size={16} color={T.ink300} />
-        <Text className="text-sm text-ink-300 font-medium">Add Todo</Text>
+        <Text className="text-sm text-ink-300 font-medium">Add task</Text>
       </TouchableOpacity>
 
       {showAdd && (
@@ -253,7 +253,7 @@ export default function TodoScreen() {
         initialNumToRender={8}
         renderItem={renderItem}
         ListEmptyComponent={
-          <EmptyState icon="check-square" title="No todos yet" subtitle="Tap + to add one" />
+          <EmptyState icon="check-square" title="No tasks yet" subtitle="Tap + to add your first task" />
         }
       />
 
@@ -261,7 +261,7 @@ export default function TodoScreen() {
         visible={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
         title="Clear Completed"
-        message="Delete all completed todos?"
+        message="Delete all completed tasks? This can't be undone."
         confirmLabel="Clear"
         confirmDestructive
         onConfirm={clearCompleted}

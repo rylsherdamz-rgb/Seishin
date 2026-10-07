@@ -5,6 +5,9 @@ import { Paths, File } from "expo-file-system";
 import OpenAI from "openai";
 import { useSettingsStore } from "@/stores/settings-store";
 import { isModelLoaded, generateResponse } from "./local-llama";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("summary");
 
 export interface TranscriptSegment {
   start: number;
@@ -216,7 +219,7 @@ export async function summarizeTranscript(
       });
       const summary = res.choices?.[0]?.message?.content?.trim() || "";
       if (summary) return summary;
-    } catch { console.warn("[summary] NIM summary generation failed"); }
+    } catch { log.warn("NIM summary generation failed"); }
   }
 
   if (isModelLoaded()) {
@@ -224,7 +227,7 @@ export async function summarizeTranscript(
       const prompt = `${SUMMARY_SYSTEM_PROMPT}\n\n${transcript}\n\nNow produce the summary:`;
       const result = await generateResponse(prompt);
       if (result.trim()) return result.trim();
-    } catch { console.warn("[summary] local model summarization failed"); }
+    } catch { log.warn("local model summarization failed"); }
   }
 
   return buildSummaryText(videoInfo, segments);

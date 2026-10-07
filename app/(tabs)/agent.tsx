@@ -383,7 +383,7 @@ export default function AgentScreen() {
             <Text className="text-base font-medium text-ink-400 text-center">Ask me anything</Text>
             <Text className="text-sm text-ink-200 mt-1 text-center max-w-[260px]">
               {hasKey
-                ? "I can manage your schedule, todos, and more"
+                ? "I can manage your schedule, tasks, and more"
                 : "Add an API key in Settings to use the AI agent"}
             </Text>
           </View>
@@ -414,7 +414,7 @@ export default function AgentScreen() {
       {!isProcessing && messages.length === 0 && (
         <View className="flex-row gap-2 px-4 py-1.5 bg-white">
           {[
-            { icon: "check-square" as const, label: "Todo", action: "Add a todo to buy groceries" },
+            { icon: "check-square" as const, label: "Task", action: "Add a task to buy groceries" },
             { icon: "calendar" as const, label: "Event", action: "Schedule a meeting tomorrow at 3pm" },
             { icon: "file-text" as const, label: "Note", action: "Save a note about my project ideas" },
             { icon: "list" as const, label: "Today", action: "What's on my calendar today?" },

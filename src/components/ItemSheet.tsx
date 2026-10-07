@@ -192,7 +192,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
 
             {eventTodos.length > 0 && (
               <View className="mb-4">
-                <Text className="text-xs font-medium text-ink-400 mb-2">Todos</Text>
+                <Text className="text-xs font-medium text-ink-400 mb-2">Tasks</Text>
                 {eventTodos.map((t) => (
                   <View key={t.id} className="flex-row items-center gap-3 bg-ink-50 rounded-xl px-4 py-3 mb-1.5">
                     <TouchableOpacity
@@ -243,7 +243,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 activeOpacity={0.7}
               >
                 <Feather name="check-square" size={14} color={T.black} />
-                <Text className="text-sm font-medium text-black">Add Todo</Text>
+                <Text className="text-sm font-medium text-black">Add task</Text>
               </TouchableOpacity>
             </View>
 
@@ -265,7 +265,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 <Text className={`text-lg font-semibold tracking-tightest ${todo.completed ? "line-through text-ink-300" : "text-black"}`}>
                   {todo.title}
                 </Text>
-                <Text className="text-xs text-ink-400">Todo</Text>
+                <Text className="text-xs text-ink-400">Task</Text>
               </View>
             </View>
 
@@ -315,7 +315,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         title="Delete"
-        message={`Delete "${event?.title || todo?.title || ""}"?`}
+        message={`Delete "${event?.title || todo?.title || ""}"? This can't be undone.`}
         confirmLabel="Delete"
         confirmDestructive
         onConfirm={() => {

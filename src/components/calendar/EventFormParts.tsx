@@ -2,6 +2,7 @@ import { View, Text, TouchableOpacity, TextInput, Image, ActivityIndicator } fro
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import type { NoteAttachment } from "@/stores/notes-store";
+import { COPY, LIMITS } from "@/constants/copy";
 import { WEEKDAY_LETTER } from "./calendar-utils";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
@@ -23,6 +24,8 @@ export function FieldCard({ icon, label, value, onPress, className = "" }: {
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value}`}
       className={`flex-row items-center gap-3 px-4 h-14 rounded-2xl bg-ink-50 border border-ink-75 ${className}`}
     >
       <Feather name={icon} size={16} color={C.ink500} />
@@ -49,6 +52,9 @@ export function PillRow<V extends string | number>({ options, value, onChange }:
             key={String(o.value)}
             onPress={() => onChange(o.value)}
             activeOpacity={0.7}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            hitSlop={{ top: 4, bottom: 4 }}
             className={`px-3.5 h-9 rounded-full items-center justify-center border ${active ? "bg-accent border-accent" : "bg-white border-ink-150"}`}
           >
             <Text className={`text-xs font-semibold ${active ? "text-accent-on" : "text-ink-600"}`}>{o.label}</Text>
@@ -69,6 +75,9 @@ export function WeekdayPicker({ value, onToggle }: { value: number[]; onToggle: 
             key={d}
             onPress={() => onToggle(d)}
             activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: on }}
+            accessibilityLabel={["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d]}
             className={`w-10 h-10 rounded-full items-center justify-center ${on ? "bg-accent" : "bg-ink-50 border border-ink-100"}`}
           >
             <Text className={`text-xs font-bold ${on ? "text-accent-on" : "text-ink-500"}`}>{label}</Text>
@@ -118,7 +127,8 @@ export function NotesBox({ notes, onChangeNotes, attachments, onRemove, onCamera
     <View className="bg-ink-50 border border-ink-75 rounded-2xl px-4 pt-3">
       <TextInput
         className="min-h-[72px] max-h-[180px] text-sm leading-5 text-black"
-        placeholder="Add notes, links, agenda…"
+        placeholder={COPY.form.notesPlaceholder}
+        maxLength={LIMITS.notes}
         placeholderTextColor={C.ink300}
         value={notes}
         onChangeText={onChangeNotes}
@@ -129,7 +139,7 @@ export function NotesBox({ notes, onChangeNotes, attachments, onRemove, onCamera
       {ocrBusy && (
         <View className="flex-row items-center gap-2 pt-2">
           <ActivityIndicator size="small" color={C.black} />
-          <Text className="text-xs text-ink-500">Reading text from image…</Text>
+          <Text className="text-xs text-ink-500">{COPY.form.readingImage}</Text>
         </View>
       )}
       {attachments.length > 0 && (
@@ -140,6 +150,8 @@ export function NotesBox({ notes, onChangeNotes, attachments, onRemove, onCamera
               <TouchableOpacity
                 onPress={() => onRemove(a.id)}
                 hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.form.removeAttachment}
                 className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
               >
                 <Feather name="x" size={11} color={C.white} />
@@ -149,9 +161,9 @@ export function NotesBox({ notes, onChangeNotes, attachments, onRemove, onCamera
         </View>
       )}
       <View className="flex-row items-center border-t border-ink-100 mt-3 py-1 -mx-1">
-        <ToolButton icon="camera" label="Camera" onPress={onCamera} />
-        <ToolButton icon="image" label="Photo" onPress={onGallery} />
-        <ToolButton icon="maximize" label="Scan text" onPress={onScan} />
+        <ToolButton icon="camera" label={COPY.form.camera} onPress={onCamera} />
+        <ToolButton icon="image" label={COPY.form.photo} onPress={onGallery} />
+        <ToolButton icon="maximize" label={COPY.form.scanText} onPress={onScan} />
       </View>
     </View>
   );
@@ -160,7 +172,7 @@ export function NotesBox({ notes, onChangeNotes, attachments, onRemove, onCamera
 function ToolButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   const C = useColors();
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} className="flex-row items-center gap-1.5 px-2.5 py-2.5">
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button" className="flex-row items-center gap-1.5 px-2.5 py-3">
       <Feather name={icon} size={15} color={C.ink500} />
       <Text className="text-xs font-semibold text-ink-600">{label}</Text>
     </TouchableOpacity>

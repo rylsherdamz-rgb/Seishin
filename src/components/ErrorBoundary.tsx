@@ -1,6 +1,9 @@
 import { Component, type ReactNode } from "react";
 import { View, Text } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("ErrorBoundary");
 
 interface Props {
   children: ReactNode;
@@ -24,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    console.error("[ErrorBoundary] caught:", error?.name, error?.message, error?.stack || "");
+    log.error("caught:", error?.name, error?.message, error?.stack || "");
   }
 
   handleReset = () => {

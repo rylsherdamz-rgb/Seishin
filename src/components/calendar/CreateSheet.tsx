@@ -3,11 +3,13 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from "r
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
+import { COPY, LIMITS } from "@/constants/copy";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { formatClock, atMinutes, formatDuration, nextSlotMinutes, parseQuickAdd, relativeDayLabel, type QuickParse } from "./calendar-utils";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
-export type CreateKind = "event" | "todo";
+import type { CreateKind } from "./actions";
+export type { CreateKind };
 
 export const TEMPLATES: { title: string; icon: IconName; minutes: number }[] = [
   { title: "Focus time", icon: "target", minutes: 60 },
@@ -58,14 +60,16 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
       onChange={(i: number) => { if (i === -1) onClose(); }}
     >
       <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28 + (Platform.OS === "android" ? keyboardPad : 0) }}>
-        <Text className="text-xl font-bold tracking-tightest text-black">Create</Text>
-        <Text className="text-xs text-ink-400 mt-0.5 mb-4">for {relativeDayLabel(date)} · type naturally, e.g. “Gym tomorrow 6pm for 1h”</Text>
+        <Text className="text-xl font-bold tracking-tightest text-black">{COPY.create.title}</Text>
+        <Text className="text-xs text-ink-400 mt-0.5 mb-4">{COPY.create.subtitle(relativeDayLabel(date))}</Text>
 
         <View className="flex-row items-center gap-2 pl-4 pr-1.5 h-14 rounded-2xl bg-ink-50 border border-ink-100">
           <Feather name="zap" size={16} color={C.accent} />
           <TextInput
             className="flex-1 text-[15px] text-black"
-            placeholder={kind === "event" ? "Add an event…" : "Add a task…"}
+            placeholder={kind === "event" ? COPY.create.quickEventPlaceholder : COPY.create.quickTaskPlaceholder}
+            maxLength={LIMITS.title}
+            accessibilityLabel={kind === "event" ? COPY.create.quickEventPlaceholder : COPY.create.quickTaskPlaceholder}
             placeholderTextColor={C.ink300}
             value={text}
             onChangeText={setText}
@@ -76,7 +80,9 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
             onPress={submitQuick}
             disabled={!parsed.title}
             className={`w-11 h-11 rounded-xl items-center justify-center ${parsed.title ? "bg-accent" : "bg-ink-100"}`}
-            accessibilityLabel="Quick add"
+            accessibilityLabel={COPY.create.quickAddLabel}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !parsed.title }}
           >
             <Feather name="arrow-up" size={18} color={parsed.title ? C.onAccent : C.ink300} />
           </TouchableOpacity>
@@ -87,30 +93,34 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
             <TouchableOpacity
               key={k}
               onPress={() => setKind(k)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: kind === k }}
               className={`flex-row items-center gap-1.5 px-3 h-8 rounded-full ${kind === k ? "bg-black" : "bg-ink-50"}`}
             >
               <Feather name={k === "event" ? "calendar" : "check-circle"} size={12} color={kind === k ? C.white : C.ink500} />
-              <Text className={`text-xs font-semibold ${kind === k ? "text-white" : "text-ink-500"}`}>{k === "event" ? "Event" : "Task"}</Text>
+              <Text className={`text-xs font-semibold ${kind === k ? "text-white" : "text-ink-500"}`}>{k === "event" ? COPY.terms.event : COPY.terms.task}</Text>
             </TouchableOpacity>
           ))}
           {parsed.title ? <ParsePreview kind={kind} parsed={parsed} /> : null}
         </View>
 
         <View className="flex-row gap-2.5 mt-5">
-          <Tile icon="calendar" label="Event" hint="Full details" primary onPress={() => done(onNewEvent)} />
-          <Tile icon="check-square" label="Task" hint="To-do list" onPress={() => done(onNewTodo)} />
+          <Tile icon="calendar" label={COPY.create.tiles.event.label} hint={COPY.create.tiles.event.hint} primary onPress={() => done(onNewEvent)} />
+          <Tile icon="check-square" label={COPY.create.tiles.task.label} hint={COPY.create.tiles.task.hint} onPress={() => done(onNewTodo)} />
         </View>
         <View className="flex-row gap-2.5 mt-2.5">
-          <Tile icon="file-text" label="Note" hint="Ideas & files" onPress={() => done(onNewNote)} />
-          <Tile icon="maximize" label="Scan" hint="Photo → event" onPress={() => done(onScan)} />
+          <Tile icon="file-text" label={COPY.create.tiles.note.label} hint={COPY.create.tiles.note.hint} onPress={() => done(onNewNote)} />
+          <Tile icon="maximize" label={COPY.create.tiles.scan.label} hint={COPY.create.tiles.scan.hint} onPress={() => done(onScan)} />
         </View>
 
-        <Text className="text-[11px] font-bold tracking-widest text-ink-300 mt-6 mb-2">QUICK BLOCKS</Text>
+        <Text className="text-[11px] font-bold tracking-widest text-ink-300 mt-6 mb-2">{COPY.create.quickBlocks}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {TEMPLATES.map((t) => (
             <TouchableOpacity
               key={t.title}
               onPress={() => done(() => onTemplate(t.title, t.minutes))}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.title}, ${formatDuration(t.minutes)}`}
               activeOpacity={0.7}
               className="flex-row items-center gap-2 pl-3 pr-3.5 h-10 rounded-full border border-ink-150 bg-white"
             >
@@ -142,6 +152,8 @@ function Tile({ icon, label, hint, onPress, primary }: { icon: IconName; label: 
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${hint}`}
       className={`flex-1 flex-row items-center gap-3 p-3.5 rounded-2xl ${primary ? "bg-accent" : "bg-ink-50 border border-ink-75"}`}
     >
       <View className={`w-10 h-10 rounded-xl items-center justify-center ${primary ? "bg-accent-on/20" : "bg-white"}`}>

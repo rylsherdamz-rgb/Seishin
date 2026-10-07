@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Pressable } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
+import { COPY } from "@/constants/copy";
 import { formatDuration, type CalendarItem } from "./calendar-utils";
 import { layoutEvents, type PlacedEvent } from "./timeline-layout";
 
@@ -109,6 +110,8 @@ function EventBlock({ placed, width, past, onPress }: { placed: PlacedEvent; wid
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${COPY.terms.event}: ${item.title}, ${item.time ?? ""}${item.endTime ? ` to ${item.endTime}` : ""}`}
       className={`absolute rounded-lg bg-accent/15 border-l-[3px] border-accent px-2 overflow-hidden ${past ? "opacity-50" : ""}`}
       style={{ top: (start / 60) * HOUR_H + 7, left: GUTTER + col * colW + 2, width: colW - 4, height }}
     >
@@ -148,7 +151,7 @@ function UntimedBand({ items, onOpen, onToggleTodo }: { items: CalendarItem[]; o
   const C = useColors();
   return (
     <View className="px-4 pb-2 border-b border-ink-75">
-      <Text className="text-[10px] font-bold tracking-widest text-ink-300 mb-1.5">ALL DAY · TASKS</Text>
+      <Text className="text-[10px] font-bold tracking-widest text-ink-300 mb-1.5">{COPY.calendar.allDayAndTasks}</Text>
       <View className="flex-row flex-wrap gap-1.5">
         {items.map((it) =>
           it.type === "todo" ? (
@@ -160,7 +163,10 @@ function UntimedBand({ items, onOpen, onToggleTodo }: { items: CalendarItem[]; o
             >
               <TouchableOpacity
                 onPress={() => it.todoId && onToggleTodo(it.todoId)}
-                hitSlop={8}
+                hitSlop={12}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: !!it.completed }}
+                accessibilityLabel={it.title}
                 className={`w-[18px] h-[18px] rounded-full border-[1.5px] items-center justify-center ${it.completed ? "bg-accent border-accent" : "border-ink-300"}`}
               >
                 {it.completed && <Feather name="check" size={11} color={C.onAccent} />}

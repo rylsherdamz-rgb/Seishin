@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
+import { COPY } from "@/constants/copy";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDuration, minutesOf, type AgendaRow, type CalendarItem } from "./calendar-utils";
 
@@ -26,7 +27,7 @@ export function AgendaList({ rows, today, emptyTitle, emptySubtitle, onOpen, onT
     ({ item, index }: { item: AgendaRow; index: number }) => (
       <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 180)).duration(260)}>
         {"kind" in item ? (
-          <TouchableOpacity onPress={() => onShowDay(item.date)} activeOpacity={0.7} className="flex-row items-center gap-2 pt-5 pb-2">
+          <TouchableOpacity onPress={() => onShowDay(item.date)} activeOpacity={0.7} accessibilityRole="header" className="flex-row items-center gap-2 pt-5 pb-2">
             <Text className={`text-xs font-bold tracking-wider uppercase ${item.date === today ? "text-accent" : "text-ink-400"}`}>
               {item.label}
             </Text>
@@ -70,6 +71,8 @@ const AgendaCard = memo(function AgendaCard({ item, past, onOpen, onToggleTodo }
       <TouchableOpacity
         onPress={() => onOpen(item)}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${COPY.terms.task}: ${item.title}`}
         className={`flex-row items-center gap-3 px-3.5 py-3 mb-2 rounded-2xl bg-ink-25 border border-ink-75 ${past && !item.completed ? "opacity-60" : ""}`}
       >
         <TouchableOpacity
@@ -88,7 +91,7 @@ const AgendaCard = memo(function AgendaCard({ item, past, onOpen, onToggleTodo }
         </View>
         {item.priority === "high" && !item.completed ? (
           <View className="px-2 py-0.5 rounded-full bg-danger-soft">
-            <Text className="text-[10px] font-bold text-danger">HIGH</Text>
+            <Text className="text-[10px] font-bold text-danger">{COPY.calendar.priorityHigh}</Text>
           </View>
         ) : (
           <Text className="text-[11px] text-ink-300 capitalize">{item.priority}</Text>
@@ -104,10 +107,12 @@ const AgendaCard = memo(function AgendaCard({ item, past, onOpen, onToggleTodo }
     <TouchableOpacity
       onPress={() => onOpen(item)}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${COPY.terms.event}: ${item.title}, ${item.allDay ? COPY.calendar.allDay : `${item.time ?? ""}${item.endTime ? ` to ${item.endTime}` : ""}`}`}
       className={`flex-row gap-3 mb-2 ${past ? "opacity-55" : ""}`}
     >
       <View className="w-14 pt-3 items-end">
-        <Text className="text-[13px] font-semibold text-black">{item.allDay ? "All day" : item.time}</Text>
+        <Text className="text-[13px] font-semibold text-black">{item.allDay ? COPY.calendar.allDay : item.time}</Text>
         {!item.allDay && dur ? <Text className="text-[11px] text-ink-300 mt-0.5">{formatDuration(dur)}</Text> : null}
       </View>
       <View className="flex-1 flex-row rounded-2xl bg-accent/10 overflow-hidden">
