@@ -1,24 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
-import { launchImageLibraryAsync } from "expo-image-picker";
 import { router } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
-import { recognizeText } from "@/services/ocr";
-import { cancelEventReminder } from "@/services/notification-service";
 import { useColors } from "@/theme/ThemeProvider";
-import { uid } from "@/utils/id";
-import { ItemSheet } from "@/components/ItemSheet";
+import { COPY } from "@/constants/copy";
 import { atMinutes, nextSlotMinutes, relativeDayLabel, shiftMonth, addDays, type CalendarItem, type QuickParse } from "@/components/calendar/calendar-utils";
+import { pickAndReadText, quickCreate, type CreateKind } from "@/components/calendar/actions";
+import { CalendarItemSheet } from "@/components/calendar/CalendarItemSheet";
 import { CalendarHeader, DaySummary, ViewSwitcher, type CalendarView } from "@/components/calendar/CalendarHeader";
 import { MonthGrid } from "@/components/calendar/MonthGrid";
 import { WeekStrip } from "@/components/calendar/WeekStrip";
 import { DayTimeline } from "@/components/calendar/DayTimeline";
 import { AgendaList } from "@/components/calendar/AgendaList";
-import { CreateSheet, type CreateKind } from "@/components/calendar/CreateSheet";
+import { CreateSheet } from "@/components/calendar/CreateSheet";
 import { EventFormSheet } from "@/components/calendar/EventFormSheet";
 import type { EventPrefill } from "@/components/calendar/useEventForm";
 import { useCalendarData, useToday } from "@/components/calendar/useCalendarData";
@@ -34,12 +32,8 @@ export default function CalendarScreen() {
   const selected = useCalendarStore((s) => s.selectedDate);
   const setSelected = useCalendarStore((s) => s.setSelectedDate);
   const loadEvents = useCalendarStore((s) => s.loadEvents);
-  const addEvent = useCalendarStore((s) => s.addEvent);
-  const deleteEvent = useCalendarStore((s) => s.deleteEvent);
   const loadTodos = useTodoStore((s) => s.loadTodos);
-  const addTodo = useTodoStore((s) => s.addTodo);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
-  const deleteTodo = useTodoStore((s) => s.deleteTodo);
 
   const [view, setView] = useState<CalendarView>("day");
   const [expanded, setExpanded] = useState(false);
@@ -77,29 +71,19 @@ export default function CalendarScreen() {
   }, [events]);
 
   const quickAdd = useCallback((kind: CreateKind, p: QuickParse) => {
-    if (kind === "todo") {
-      addTodo({
-        id: uid("todo"), title: p.title, completed: false, priority: "medium", category: "general",
-        tags: [], createdAt: new Date().toISOString(), dueDate: atMinutes(p.date, 12 * 60).toISOString(),
-      });
-    } else {
-      const start = atMinutes(p.date, p.minutes ?? (p.date === today ? nextSlotMinutes() : 9 * 60));
-      const end = new Date(start.getTime() + (p.duration ?? 60) * 60000);
-      addEvent({ id: uid("manual-evt"), title: p.title, startDate: start.toISOString(), endDate: end.toISOString(), source: "manual" });
+    if (!quickCreate(kind, p, today)) {
+      Alert.alert(COPY.errors.saveFailedTitle, kind === "todo" ? COPY.errors.saveTaskFailed : COPY.errors.saveEventFailed);
+      return;
     }
     select(p.date);
-  }, [addTodo, addEvent, today, select]);
+  }, [today, select]);
 
   const scanToEvent = useCallback(async () => {
     try {
-      const res = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-      if (res.canceled || !res.assets[0]) return;
-      setScanning(true);
-      const text = (await recognizeText(res.assets[0].uri)).trim();
-      const firstLine = text.split("\n").find((l) => l.trim())?.trim().slice(0, 60) ?? "";
-      openForm(selected, undefined, { title: firstLine, notes: text });
+      const res = await pickAndReadText(() => setScanning(true));
+      if (res) openForm(selected, undefined, { title: res.title, notes: res.text });
     } catch {
-      Alert.alert("Scan failed", "Couldn't read text from that image. Try a clearer photo.");
+      Alert.alert(COPY.errors.scanFailedTitle, COPY.errors.scanFailed);
     } finally {
       setScanning(false);
     }
@@ -140,8 +124,8 @@ export default function CalendarScreen() {
         <AgendaList
           rows={upcomingRows}
           today={today}
-          emptyTitle="Nothing coming up"
-          emptySubtitle="Your next 60 days are wide open. Tap + to plan something."
+          emptyTitle={COPY.calendar.emptyUpcomingTitle}
+          emptySubtitle={COPY.calendar.emptyUpcomingSubtitle}
           onOpen={setSheetItem}
           onToggleTodo={toggleTodo}
           onShowDay={select}
@@ -162,8 +146,8 @@ export default function CalendarScreen() {
             <AgendaList
               rows={dayItems}
               today={today}
-              emptyTitle="Nothing planned"
-              emptySubtitle="Tap + to add an event or task, or long-press a day."
+              emptyTitle={COPY.calendar.emptyDayTitle}
+              emptySubtitle={COPY.calendar.emptyDaySubtitle}
               onOpen={setSheetItem}
               onToggleTodo={toggleTodo}
               onShowDay={select}
@@ -177,7 +161,8 @@ export default function CalendarScreen() {
           onPress={() => setCreateOpen(true)}
           activeOpacity={0.85}
           className="w-14 h-14 rounded-2xl bg-accent items-center justify-center shadow-float"
-          accessibilityLabel="Create"
+          accessibilityRole="button"
+          accessibilityLabel={COPY.calendar.createFab}
         >
           <Feather name="plus" size={26} color={C.onAccent} />
         </TouchableOpacity>
@@ -186,7 +171,7 @@ export default function CalendarScreen() {
       {scanning && (
         <View className="absolute inset-0 items-center justify-center bg-white/80">
           <ActivityIndicator size="large" color={C.accent} />
-          <Text className="text-sm font-semibold text-ink-600 mt-3">Reading your schedule…</Text>
+          <Text className="text-sm font-semibold text-ink-600 mt-3">{COPY.calendar.scanning}</Text>
         </View>
       )}
 
@@ -208,22 +193,7 @@ export default function CalendarScreen() {
 
       {form && <EventFormSheet prefill={form} onClose={() => setForm(null)} />}
 
-      {sheetItem && (
-        <ItemSheet
-          {...(sheetItem.type === "event"
-            ? {
-                event: { ...sheetItem, id: sheetItem.eventId || sheetItem.id, eventId: sheetItem.eventId || sheetItem.id },
-                onEventDelete: (id: string) => { deleteEvent(id); cancelEventReminder(id); setSheetItem(null); },
-                onEventEdit: (ev: { id: string }) => { setSheetItem(null); openEdit(ev.id); },
-              }
-            : {
-                todo: { ...sheetItem, id: sheetItem.todoId || sheetItem.id, todoId: sheetItem.todoId || sheetItem.id },
-                onTodoToggle: (id: string) => toggleTodo(id),
-                onTodoDelete: (id: string) => { deleteTodo(id); setSheetItem(null); },
-              })}
-          onClose={() => setSheetItem(null)}
-        />
-      )}
+      {sheetItem && <CalendarItemSheet item={sheetItem} onClose={() => setSheetItem(null)} onEdit={openEdit} />}
     </View>
   );
 }

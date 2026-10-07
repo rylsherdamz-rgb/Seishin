@@ -7,6 +7,7 @@ import { recognizeText } from "@/services/ocr";
 import { uid } from "@/utils/id";
 import { dateKey } from "@/utils/recurrence";
 import { loadEventDraft, saveEventDraft, clearEventDraft } from "@/utils/drafts";
+import { COPY, LIMITS } from "@/constants/copy";
 import { atMinutes, buildRecurrence, recurrenceToState, type RepeatMode } from "./calendar-utils";
 
 export interface EventPrefill {
@@ -62,6 +63,7 @@ export function useEventForm(prefill: EventPrefill) {
   // Once saved, closing the sheet must not resurrect the cleared draft.
   const savedRef = useRef(false);
 
+  const endsNextDay = !allDay && endMin <= startMin;
   const duration = (endMin - startMin + 24 * 60) % (24 * 60) || 24 * 60;
 
   /** Moving the start keeps the duration, like every good calendar app. */
@@ -104,6 +106,7 @@ export function useEventForm(prefill: EventPrefill) {
   const updateEvent = useCalendarStore((s) => s.updateEvent);
 
   const save = useCallback((): boolean => {
+    if (savedRef.current) return true; // guard against double-tap duplicates
     if (!title.trim()) return false;
     const { start, end } = buildTimes();
     const changes = {
@@ -116,18 +119,16 @@ export function useEventForm(prefill: EventPrefill) {
       recurrence: buildRecurrence(repeat.mode, repeat.weekdays),
       reminder: reminder > 0 ? reminder : undefined,
     };
-    try {
-      if (editingId) updateEvent(editingId, changes);
-      else {
-        addEvent({ id: uid("manual-evt"), ...changes, source: "manual" });
-        clearEventDraft();
-      }
-      savedRef.current = true;
-      return true;
-    } catch {
-      Alert.alert("Couldn't save", "Something went wrong saving this event. Please try again.");
+    const ok = editingId
+      ? updateEvent(editingId, changes)
+      : addEvent({ id: uid("manual-evt"), ...changes, source: "manual" });
+    if (!ok) {
+      Alert.alert(COPY.errors.saveFailedTitle, COPY.errors.saveEventFailed);
       return false;
     }
+    if (!editingId) clearEventDraft();
+    savedRef.current = true;
+    return true;
   }, [title, buildTimes, allDay, notes, attachments, repeat, reminder, editingId, addEvent, updateEvent]);
 
   const pickImage = useCallback(async (fromCamera: boolean) => {
@@ -136,19 +137,20 @@ export function useEventForm(prefill: EventPrefill) {
       const res = await picker({ mediaTypes: ["images"], quality: 0.8 });
       return res.canceled ? null : res.assets[0] ?? null;
     } catch {
-      Alert.alert("Unavailable", "Could not open the picker. Check app permissions and try again.");
+      Alert.alert(COPY.errors.pickerUnavailableTitle, COPY.errors.pickerUnavailable);
       return null;
     }
   }, []);
 
   const attach = useCallback(async (fromCamera: boolean) => {
+    if (attachments.length >= LIMITS.attachments) return;
     const a = await pickImage(fromCamera);
     if (!a) return;
-    setAttachments((prev) => [...prev, {
+    setAttachments((prev) => prev.length >= LIMITS.attachments ? prev : [...prev, {
       id: uid("att"), type: "image", uri: a.uri,
       name: a.fileName ?? undefined, mimeType: a.mimeType ?? "image/*", size: a.fileSize,
     }]);
-  }, [pickImage]);
+  }, [pickImage, attachments.length]);
 
   const scan = useCallback(async () => {
     const a = await pickImage(false);
@@ -156,9 +158,10 @@ export function useEventForm(prefill: EventPrefill) {
     setOcrBusy(true);
     try {
       const text = (await recognizeText(a.uri)).trim();
-      if (text) setNotes((prev) => (prev ? `${prev}\n\n${text}` : text));
+      if (!text) throw new Error("no text");
+      setNotes((prev) => (prev ? `${prev}\n\n${text}` : text).slice(0, LIMITS.notes));
     } catch {
-      Alert.alert("Scan failed", "Couldn't read text from that image.");
+      Alert.alert(COPY.errors.scanFailedTitle, COPY.errors.scanFailed);
     } finally {
       setOcrBusy(false);
     }
@@ -173,7 +176,7 @@ export function useEventForm(prefill: EventPrefill) {
 
   return {
     editingId, title, setTitle, notes, setNotes, date, setDate,
-    startMin, endMin, changeStart, setEndMin, duration, setDuration,
+    startMin, endMin, endsNextDay, changeStart, setEndMin, duration, setDuration,
     allDay, setAllDay, repeat, setRepeat, toggleWeekday, reminder, setReminder,
     attachments, setAttachments, ocrBusy, attach, scan, save, flushDraft,
   };

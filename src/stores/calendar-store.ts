@@ -3,6 +3,7 @@ import { eventsStorage } from "./mmkv";
 import { occursOnDate, dateKey } from "@/utils/recurrence";
 import { scheduleEventReminder, cancelEventReminder } from "@/services/notification-service";
 import { NoteAttachment } from "@/stores/notes-store";
+import { isNonEmptyString, isRecord, readList, sizeOf, writeJSON } from "./persist";
 
 export interface Recurrence {
   frequency: "daily" | "weekly" | "monthly";
@@ -35,11 +36,38 @@ interface CalendarState {
   events: CalendarEvent[];
   selectedDate: string;
   loadEvents: () => void;
-  addEvent: (event: CalendarEvent) => void;
-  updateEvent: (id: string, changes: Partial<CalendarEvent>) => void;
-  deleteEvent: (id: string) => void;
+  addEvent: (event: CalendarEvent) => boolean;
+  updateEvent: (id: string, changes: Partial<CalendarEvent>) => boolean;
+  deleteEvent: (id: string) => boolean;
   setSelectedDate: (date: string) => void;
   getEventsForDate: (date: string) => CalendarEvent[];
+  clearAll: () => void;
+  getStorageSize: () => number;
+}
+
+// Storage key predates the `{domain}:{subdomain}:{id}` convention; kept so
+// existing installs don't lose data.
+const EVENTS_KEY = "events";
+const SOURCES: CalendarEvent["source"][] = ["manual", "ocr", "email", "notification", "chat", "ai"];
+const isISODate = (x: unknown): x is string => typeof x === "string" && !isNaN(Date.parse(x));
+
+/** Runtime guard for persisted events — anything malformed is dropped on load. */
+export function isCalendarEvent(x: unknown): x is CalendarEvent {
+  if (!isRecord(x)) return false;
+  return (
+    isNonEmptyString(x.id) &&
+    typeof x.title === "string" &&
+    isISODate(x.startDate) &&
+    isISODate(x.endDate) &&
+    SOURCES.includes(x.source as CalendarEvent["source"])
+  );
+}
+
+/** Persist first, then publish to subscribers — UI never shows unsaved state. */
+function commit(set: (s: Partial<CalendarState>) => void, events: CalendarEvent[]): boolean {
+  if (!writeJSON(eventsStorage, EVENTS_KEY, events)) return false;
+  set({ events });
+  return true;
 }
 
 export const useCalendarStore = create<CalendarState>((set, get) => ({
@@ -47,42 +75,40 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   selectedDate: dateKey(new Date()),
 
   loadEvents: () => {
-    const raw = eventsStorage.getString("events");
-    if (raw) {
-      set({ events: JSON.parse(raw) });
-    }
+    set({ events: readList(eventsStorage, EVENTS_KEY, isCalendarEvent) });
   },
 
   addEvent: (event) => {
-    const events = [...get().events, event];
-    eventsStorage.set("events", JSON.stringify(events));
-    set({ events });
-    if (event.reminder) scheduleEventReminder(event).catch(() => {});
+    if (!isCalendarEvent(event)) return false;
+    const ok = commit(set, [...get().events, event]);
+    if (ok && event.reminder) scheduleEventReminder(event).catch(() => {});
+    return ok;
   },
 
   updateEvent: (id, changes) => {
-    const events = get().events.map((e) =>
-      e.id === id ? { ...e, ...changes } : e
-    );
-    eventsStorage.set("events", JSON.stringify(events));
-    set({ events });
-    const updated = get().events.find((e) => e.id === id);
-    if (updated) {
-      if (updated.reminder) scheduleEventReminder(updated).catch(() => {});
-      else if ("reminder" in changes) cancelEventReminder(id);
-    }
+    const events = get().events.map((e) => (e.id === id ? { ...e, ...changes, id } : e));
+    const updated = events.find((e) => e.id === id);
+    if (!updated || !isCalendarEvent(updated) || !commit(set, events)) return false;
+    if (updated.reminder) scheduleEventReminder(updated).catch(() => {});
+    else if ("reminder" in changes) cancelEventReminder(id);
+    return true;
   },
 
   deleteEvent: (id) => {
-    const events = get().events.filter((e) => e.id !== id);
-    eventsStorage.set("events", JSON.stringify(events));
-    set({ events });
-    cancelEventReminder(id);
+    const ok = commit(set, get().events.filter((e) => e.id !== id));
+    if (ok) cancelEventReminder(id);
+    return ok;
   },
 
   setSelectedDate: (date) => set({ selectedDate: date }),
 
-  getEventsForDate: (date) => {
-    return get().events.filter((e) => occursOnDate(e, date));
+  getEventsForDate: (date) => get().events.filter((e) => occursOnDate(e, date)),
+
+  clearAll: () => {
+    get().events.forEach((e) => cancelEventReminder(e.id));
+    eventsStorage.remove(EVENTS_KEY);
+    set({ events: [] });
   },
+
+  getStorageSize: () => sizeOf(eventsStorage, EVENTS_KEY),
 }));

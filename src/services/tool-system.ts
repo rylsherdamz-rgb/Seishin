@@ -1,4 +1,7 @@
 import type OpenAI from "openai";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("tools");
 
 export class ToolResult {
   output?: string;
@@ -95,7 +98,7 @@ export class ToolCollection {
 
   addTool(tool: BaseTool): this {
     if (this.toolMap.has(tool.name)) {
-      console.warn(`Tool ${tool.name} already exists, skipping`);
+      log.warn(`Tool ${tool.name} already exists, skipping`);
       return this;
     }
     this.tools.push(tool);

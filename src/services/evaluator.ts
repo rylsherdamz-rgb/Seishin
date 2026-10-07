@@ -1,4 +1,7 @@
 import { Platform } from "youtubei.js";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("evaluator");
 
 function supportsFunctionEval(): boolean {
   try {
@@ -16,7 +19,7 @@ function runViaFunction(data: any, env: any) {
 
 export function setupPlatformEvaluator(): boolean {
   if (!supportsFunctionEval()) {
-    console.warn("[evaluator] Function constructor not available");
+    log.warn("Function constructor not available");
     return false;
   }
 
@@ -26,17 +29,17 @@ export function setupPlatformEvaluator(): boolean {
       try {
         const r = runViaFunction(data, env);
         if (typeof r !== "object" || r === null) {
-          console.warn("[evaluator] eval returned non-object:", typeof r);
+          log.warn("eval returned non-object:", typeof r);
         }
         return r;
       } catch (err) {
-        console.warn("[evaluator] cipher eval failed:", (err as Error).message);
+        log.warn("cipher eval failed:", (err as Error).message);
         throw err;
       }
     };
     return true;
   } catch (err) {
-    console.warn("[evaluator] setup failed:", (err as Error).message);
+    log.warn("setup failed:", (err as Error).message);
     return false;
   }
 }

@@ -192,7 +192,7 @@ export default function InvitesScreen() {
       {tab === "shared" && (
         <View className="px-4 mb-4">
           <Button
-            title="Share Todo List"
+            title="Share task list"
             onPress={() => {
               setShareAlertText(shareTodoList([]));
               setShowShareAlert(true);

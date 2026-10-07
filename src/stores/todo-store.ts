@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { todosStorage } from "./mmkv";
+import { isNonEmptyString, isRecord, readList, sizeOf, writeJSON } from "./persist";
 
 export interface Todo {
   id: string;
@@ -22,77 +23,88 @@ interface TodoState {
   todos: Todo[];
   filter: TodoFilter;
   loadTodos: () => void;
-  addTodo: (todo: Todo) => void;
-  toggleTodo: (id: string) => void;
-  updateTodo: (id: string, changes: Partial<Todo>) => void;
-  deleteTodo: (id: string) => void;
-  clearCompleted: () => void;
+  addTodo: (todo: Todo) => boolean;
+  toggleTodo: (id: string) => boolean;
+  updateTodo: (id: string, changes: Partial<Todo>) => boolean;
+  deleteTodo: (id: string) => boolean;
+  clearCompleted: () => boolean;
   setFilter: (filter: TodoFilter) => void;
   getFilteredTodos: () => Todo[];
   getStats: () => { total: number; active: number; completed: number };
   getTodosForEvent: (eventId: string) => Todo[];
+  clearAll: () => void;
+  getStorageSize: () => number;
 }
 
-export const useTodoStore = create<TodoState>((set, get) => ({
-  todos: [],
-  filter: "all",
+// Legacy key (pre `{domain}:{subdomain}:{id}`), kept for existing installs.
+const TODOS_KEY = "todos";
+const PRIORITIES: Todo["priority"][] = ["low", "medium", "high"];
 
-  loadTodos: () => {
-    const raw = todosStorage.getString("todos");
-    if (raw) set({ todos: JSON.parse(raw) });
-  },
+/** Runtime guard for persisted tasks; fills safe defaults for optional fields. */
+export function isTodo(x: unknown): x is Todo {
+  if (!isRecord(x)) return false;
+  if (!isNonEmptyString(x.id) || typeof x.title !== "string") return false;
+  if (typeof x.completed !== "boolean") x.completed = false;
+  if (!PRIORITIES.includes(x.priority as Todo["priority"])) x.priority = "medium";
+  if (typeof x.category !== "string") x.category = "general";
+  if (!Array.isArray(x.tags)) x.tags = [];
+  if (typeof x.createdAt !== "string") x.createdAt = new Date(0).toISOString();
+  return true;
+}
 
-  addTodo: (todo) => {
-    const todos = [todo, ...get().todos];
-    todosStorage.set("todos", JSON.stringify(todos));
+export const useTodoStore = create<TodoState>((set, get) => {
+  /** Persist first, then publish — the UI never shows unsaved state. */
+  const commit = (todos: Todo[]): boolean => {
+    if (!writeJSON(todosStorage, TODOS_KEY, todos)) return false;
     set({ todos });
-  },
+    return true;
+  };
 
-  toggleTodo: (id) => {
-    const todos = get().todos.map((t) =>
-      t.id === id
-        ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : undefined }
-        : t
-    );
-    todosStorage.set("todos", JSON.stringify(todos));
-    set({ todos });
-  },
+  return {
+    todos: [],
+    filter: "all",
 
-  updateTodo: (id, changes) => {
-    const todos = get().todos.map((t) => (t.id === id ? { ...t, ...changes } : t));
-    todosStorage.set("todos", JSON.stringify(todos));
-    set({ todos });
-  },
+    loadTodos: () => set({ todos: readList(todosStorage, TODOS_KEY, isTodo) }),
 
-  deleteTodo: (id) => {
-    const todos = get().todos.filter((t) => t.id !== id);
-    todosStorage.set("todos", JSON.stringify(todos));
-    set({ todos });
-  },
+    addTodo: (todo) => commit([todo, ...get().todos]),
 
-  clearCompleted: () => {
-    const todos = get().todos.filter((t) => !t.completed);
-    todosStorage.set("todos", JSON.stringify(todos));
-    set({ todos });
-  },
+    toggleTodo: (id) =>
+      commit(
+        get().todos.map((t) =>
+          t.id === id
+            ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : undefined }
+            : t,
+        ),
+      ),
 
-  setFilter: (filter) => set({ filter }),
+    updateTodo: (id, changes) => commit(get().todos.map((t) => (t.id === id ? { ...t, ...changes, id } : t))),
 
-  getFilteredTodos: () => {
-    const { todos, filter } = get();
-    if (filter === "active") return todos.filter((t) => !t.completed);
-    if (filter === "completed") return todos.filter((t) => t.completed);
-    return todos;
-  },
+    deleteTodo: (id) => commit(get().todos.filter((t) => t.id !== id)),
 
-  getStats: () => {
-    const { todos } = get();
-    const total = todos.length;
-    const completed = todos.filter((t) => t.completed).length;
-    return { total, active: total - completed, completed };
-  },
+    clearCompleted: () => commit(get().todos.filter((t) => !t.completed)),
 
-  getTodosForEvent: (eventId) => {
-    return get().todos.filter((t) => t.eventId === eventId);
-  },
-}));
+    setFilter: (filter) => set({ filter }),
+
+    getFilteredTodos: () => {
+      const { todos, filter } = get();
+      if (filter === "active") return todos.filter((t) => !t.completed);
+      if (filter === "completed") return todos.filter((t) => t.completed);
+      return todos;
+    },
+
+    getStats: () => {
+      const { todos } = get();
+      const completed = todos.filter((t) => t.completed).length;
+      return { total: todos.length, active: todos.length - completed, completed };
+    },
+
+    getTodosForEvent: (eventId) => get().todos.filter((t) => t.eventId === eventId),
+
+    clearAll: () => {
+      todosStorage.remove(TODOS_KEY);
+      set({ todos: [] });
+    },
+
+    getStorageSize: () => sizeOf(todosStorage, TODOS_KEY),
+  };
+});

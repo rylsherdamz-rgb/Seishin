@@ -30,7 +30,7 @@ const storageCategories = [
   { label: "Notifications", key: "notifications" as const, storage: notificationsStorage, icon: "bell" as const },
   { label: "Agent Memory", key: "agent" as const, storage: agentStorage, icon: "cpu" as const },
   { label: "OCR History", key: "ocr" as const, storage: ocrStorage, icon: "camera" as const },
-  { label: "Todo Lists", key: "todos" as const, storage: todosStorage, icon: "check-square" as const },
+  { label: "Tasks", key: "todos" as const, storage: todosStorage, icon: "check-square" as const },
   { label: "Invites", key: "invites" as const, storage: invitesStorage, icon: "send" as const },
 ];
 
@@ -304,7 +304,7 @@ export default function SettingsScreen() {
 
           <SectionHeader title="Quick Access" />
           <Card className="mb-4 p-0 overflow-hidden">
-            <MenuRow icon="check-square" label="Todo List" subtitle="Manage tasks with dates" onPress={() => router.push("/todo")} />
+            <MenuRow icon="check-square" label="Tasks" subtitle="Your task list and due dates" onPress={() => router.push("/todo")} />
             <MenuRow icon="send" label="Invites" subtitle="Invitation cards and P2P codes" onPress={() => router.push("/invites")} />
           </Card>
 

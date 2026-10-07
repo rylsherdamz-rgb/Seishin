@@ -8,6 +8,9 @@ import { useAlarmStore } from "@/stores/alarm-store";
 import { CalendarEvent } from "@/stores/calendar-store";
 import { settingsStorage } from "@/stores/mmkv";
 import { expandOccurrences, eventStartDate } from "@/utils/recurrence";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("notifications");
 
 /** Native full-screen alarm module (background/locked-screen rings). */
 const NativeAlarm = NativeModules.AlarmFullScreen as
@@ -116,7 +119,7 @@ export function useNotifications() {
           try { await scheduleTodayReminders(); } catch {}
         }
       } catch (e) {
-        console.error("[notifications] init failed:", e);
+        log.error("init failed:", e);
       }
     })();
 

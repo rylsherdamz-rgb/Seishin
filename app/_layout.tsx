@@ -27,7 +27,7 @@ const ONBOARDING_PAGES = [
   {
     icon: "cpu" as const,
     title: "AI-Powered",
-    desc: "Smart agent helps manage your schedule, todos, and more. Works offline too.",
+    desc: "Smart agent helps manage your schedule, tasks, and more. Works offline too.",
   },
   {
     icon: "file-text" as const,

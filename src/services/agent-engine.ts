@@ -19,6 +19,9 @@ import {
   appendToSessionLog, getSessionLog, getRelated, findPath,
   updateEntity, deleteEntity, deleteRelation,
 } from "./agent-memory";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("agent");
 
 let currentAbort: AbortController | null = null;
 
@@ -51,7 +54,9 @@ class AddEventTool extends BaseTool {
       description: args.description as string | undefined,
       notes: args.notes as string | undefined,
     };
-    addEvent(event);
+    if (!addEvent(event)) {
+      return this.failResponse("Couldn't save the event. Check that startDate and endDate are valid ISO datetimes.");
+    }
     return this.successResponse(`Added event: "${event.title}" on ${new Date(event.startDate).toLocaleString()}`);
   }
 }
@@ -245,7 +250,9 @@ class UpdateEventTool extends BaseTool {
     if (typeof args.notes === "string") changes.notes = args.notes;
     if (Object.keys(changes).length === 0) return this.failResponse("No changes provided.");
 
-    updateEvent(item.id, changes);
+    if (!updateEvent(item.id, changes)) {
+      return this.failResponse("Couldn't update the event. Check that any dates are valid ISO datetimes.");
+    }
     return this.successResponse(`Updated event "${(changes.title as string) || item.title}".`);
   }
 }
@@ -801,7 +808,7 @@ async function streamResponse(
       if (!tool) continue;
       try {
         const args = JSON.parse(call.arguments);
-        console.log(`[Agent] Executing tool: ${call.name}`, args);
+        log.debug(`Executing tool: ${call.name}`, args);
         const result = await tool.executeWithString(args);
         summary.push(result);
         agentStore.addMessage({
@@ -1029,7 +1036,7 @@ export async function runAgentLoop(
     const activeModel = pickModelForTask(userInput, nimModel, nimLargeModel);
     const complexity = detectQueryComplexity(userInput);
     const tierInfo = categorizeModel(activeModel);
-    console.log(`[Agent] Routing query="${complexity}" model=${activeModel} (${tierInfo.tier})`);
+    log.debug(`Routing query="${complexity}" model=${activeModel} (${tierInfo.tier})`);
 
     const msgId = `msg-${Date.now()}-asst`;
     agentStore.addMessage({
@@ -1041,7 +1048,7 @@ export async function runAgentLoop(
 
     await streamResponse(openai, activeModel, conversation, toolParams, msgId);
   } catch (e) {
-    console.error("[Agent] Error:", e);
+    log.error("Error:", e);
     const rawMsg = e instanceof Error ? e.message : "Unknown error occurred";
     const isNetworkError = /fetch|network|connection|timeout|abort/i.test(rawMsg);
     const errorMsg = isNetworkError
