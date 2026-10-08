@@ -3,7 +3,7 @@ import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore, type Todo } from "@/stores/todo-store";
 import { dateKey, expandOccurrences, occursOnDate } from "@/utils/recurrence";
 import {
-  addDays, buildSections, eventToItem, minutesOf, sortItems, todoToItem,
+  addDays, buildSections, eventToItem, minutesOf, sortItems, startOfWeek, todoToItem,
   type AgendaRow, type CalendarItem,
 } from "./calendar-utils";
 import type { DayMarks } from "./MonthGrid";
@@ -29,12 +29,18 @@ export function useCalendarData(selected: string, viewMonth: string, today: stri
   const events = useCalendarStore((s) => s.events);
   const todos = useTodoStore((s) => s.todos);
 
-  // Dots for the visible month grid (± a week for the leading/trailing days).
+  // Dots for the visible month grid (± a week for leading/trailing days) and
+  // the selected week strip. Keyed by month + week start rather than the
+  // selected day, so tapping between days in the same week doesn't re-expand
+  // every recurring event.
+  const weekStart = startOfWeek(selected);
+  const monthKey = viewMonth.slice(0, 7);
   const marks = useMemo(() => {
-    const from = addDays(viewMonth.slice(0, 8) + "01", -7);
-    const to = addDays(viewMonth.slice(0, 8) + "28", 21);
-    const lo = from < addDays(selected, -7) ? from : addDays(selected, -7);
-    const hi = to > addDays(selected, 7) ? to : addDays(selected, 7);
+    const from = addDays(monthKey + "-01", -7);
+    const to = addDays(monthKey + "-28", 21);
+    const weekEnd = addDays(weekStart, 6);
+    const lo = from < weekStart ? from : weekStart;
+    const hi = to > weekEnd ? to : weekEnd;
     const m: Record<string, DayMarks> = {};
     const bump = (k: string, field: keyof DayMarks) => {
       m[k] = m[k] ?? { events: 0, todos: 0 };
@@ -46,7 +52,7 @@ export function useCalendarData(selected: string, viewMonth: string, today: stri
       if (d && d >= lo && d <= hi && !t.completed) bump(d, "todos");
     }
     return m;
-  }, [events, todos, viewMonth, selected]);
+  }, [events, todos, monthKey, weekStart]);
 
   const dayItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];

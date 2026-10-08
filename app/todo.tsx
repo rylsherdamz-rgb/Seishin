@@ -147,12 +147,12 @@ export default function TodoScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
         <View className="flex-row items-center gap-3">
-          <TouchableOpacity onPress={() => router.back()} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+          <TouchableOpacity onPress={() => router.back()} hitSlop={6} className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
             <Feather name="arrow-left" size={16} color={T.black} />
           </TouchableOpacity>
           <Logo size={32} />
           <View>
-            <Text className="text-2xl font-semibold tracking-tightest text-black">Tasks</Text>
+            <Text className="text-[30px] font-extrabold tracking-tightest text-black">Tasks</Text>
             <Text className="text-sm text-ink-500 mt-0.5">
               {stats.active} pending · {stats.completed} done
             </Text>
@@ -162,7 +162,7 @@ export default function TodoScreen() {
           <TouchableOpacity
             onPress={() => setShowClearConfirm(true)}
             hitSlop={6}
-            className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
+            className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center"
           >
             <Feather name="check-circle" size={14} color={T.ink500} />
           </TouchableOpacity>

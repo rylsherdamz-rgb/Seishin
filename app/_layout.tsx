@@ -121,7 +121,7 @@ function SplashScreen() {
     ExpoSplashScreen.hideAsync();
     logoOpacity.value = withTiming(1, { duration: 200 });
     logoScale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
-    bgOpacity.value = withDelay(400, withTiming(0, { duration: 300 }));
+    bgOpacity.value = withDelay(200, withTiming(0, { duration: 150 }));
   }, []);
 
   return (
@@ -150,9 +150,12 @@ function AppShell() {
 
   useEffect(() => {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");
-    setTimeout(() => {
+    // Short branded beat, then straight in: the stores read synchronously from
+    // MMKV, so there's nothing to wait for (was a fixed 600 ms delay).
+    const t = setTimeout(() => {
       setPhase(seen ? "app" : "onboarding");
-    }, 600);
+    }, 350);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {

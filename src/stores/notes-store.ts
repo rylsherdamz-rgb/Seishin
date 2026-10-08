@@ -50,7 +50,8 @@ function persist(notes: Note[]) {
 function sortNotes(notes: Note[]): Note[] {
   return [...notes].sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    // ISO-8601 UTC strings sort lexicographically — no Date parsing per compare.
+    return b.updatedAt < a.updatedAt ? -1 : b.updatedAt > a.updatedAt ? 1 : 0;
   });
 }
 

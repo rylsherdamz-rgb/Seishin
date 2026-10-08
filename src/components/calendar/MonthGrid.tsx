@@ -20,7 +20,7 @@ interface MonthGridProps {
 }
 
 /** Swipeable month grid: tap selects, long-press quick-creates, swipe changes month. */
-export function MonthGrid({ month, selected, today, marks, onSelect, onLongPress, onSwipe }: MonthGridProps) {
+export const MonthGrid = memo(function MonthGrid({ month, selected, today, marks, onSelect, onLongPress, onSwipe }: MonthGridProps) {
   const rows = useMemo(() => monthMatrix(month), [month]);
   const swipe = useMemo(
     () =>
@@ -63,7 +63,7 @@ export function MonthGrid({ month, selected, today, marks, onSelect, onLongPress
       </Animated.View>
     </GestureDetector>
   );
-}
+});
 
 interface DayCellProps {
   dateKey: string;

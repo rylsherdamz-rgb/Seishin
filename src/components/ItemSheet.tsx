@@ -1,5 +1,5 @@
 import { useCallback, useRef, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import { router } from "expo-router";
 import { useNotesStore } from "@/stores/notes-store";
@@ -9,6 +9,7 @@ import { Recurrence } from "@/stores/calendar-store";
 import { recurrenceLabel } from "@/utils/recurrence";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import Feather from "@expo/vector-icons/Feather";
+import { Photo } from "@/components/ui/Photo";
 import { useColors } from "@/theme/ThemeProvider";
 
 interface EventData {
@@ -156,12 +157,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 <Text className="text-xs font-medium text-ink-400 mb-2">Images</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {event.attachments.map((a) => (
-                    <Image
-                      key={a.id}
-                      source={{ uri: a.uri }}
-                      className="w-20 h-20 rounded-card bg-ink-100"
-                      resizeMode="cover"
-                    />
+                    <Photo key={a.id} uri={a.uri} width={80} height={80} />
                   ))}
                 </View>
               </View>

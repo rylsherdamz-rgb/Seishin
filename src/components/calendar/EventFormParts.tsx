@@ -1,5 +1,6 @@
-import { View, Text, TouchableOpacity, TextInput, Image, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, TextInput, ActivityIndicator } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
+import { Photo } from "@/components/ui/Photo";
 import { useColors } from "@/theme/ThemeProvider";
 import type { NoteAttachment } from "@/stores/notes-store";
 import { COPY, LIMITS } from "@/constants/copy";
@@ -146,7 +147,7 @@ export function NotesBox({ notes, onChangeNotes, attachments, onRemove, onCamera
         <View className="flex-row flex-wrap gap-2 pt-3">
           {attachments.map((a) => (
             <View key={a.id}>
-              <Image source={{ uri: a.uri }} className="w-20 h-20 rounded-xl bg-ink-100" resizeMode="cover" />
+              <Photo uri={a.uri} width={80} height={80} />
               <TouchableOpacity
                 onPress={() => onRemove(a.id)}
                 hitSlop={10}

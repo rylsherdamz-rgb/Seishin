@@ -15,11 +15,11 @@ interface CardProps {
 const variantStyles: Record<CardVariant, string> = {
   // Documented default: soft gray surface. Slightly larger radius for a
   // more refined, contemporary feel — still strictly monochrome.
-  filled: "bg-ink-100 rounded-card",
+  filled: "bg-ink-50 rounded-[20px]",
   // White surface lifted off the background with a hairline + soft shadow.
-  elevated: "bg-white rounded-card border border-ink-100 shadow-card",
+  elevated: "bg-white rounded-[20px] border border-ink-75 shadow-card",
   // Quiet, bordered surface for grouping without weight.
-  outlined: "bg-white rounded-card border border-ink-200",
+  outlined: "bg-white rounded-[20px] border border-ink-100",
 };
 
 export function Card({

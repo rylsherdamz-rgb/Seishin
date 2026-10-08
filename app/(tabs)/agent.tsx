@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, Image, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, ActivityIndicator,
 } from "react-native";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
@@ -16,13 +16,29 @@ import { recognizeText } from "@/services/ocr";
 import { uid } from "@/utils/id";
 import { categorizeModel, getTierLabel } from "@/services/nim-models";
 import * as Clipboard from "expo-clipboard";
-import { Markdown } from "@/components/Markdown";
+import { MessageBubble } from "@/components/agent/MessageBubble";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import Feather from "@expo/vector-icons/Feather";
+import { Photo } from "@/components/ui/Photo";
 import {
   onModelStateChange, getModelState, loadModel, unloadModel, isModelLoaded,
 } from "@/services/local-llama";
 import { useColors } from "@/theme/ThemeProvider";
+
+// Static class names: NativeWind only generates classes it can see verbatim,
+// so tier colors can't be assembled with template strings.
+const TIER_STYLE: Record<string, { bg: string; text: string }> = {
+  fast: { bg: "bg-green-100", text: "text-green-700" },
+  balanced: { bg: "bg-yellow-100", text: "text-yellow-700" },
+  smart: { bg: "bg-red-100", text: "text-red-700" },
+};
+
+const SUGGESTIONS = [
+  { icon: "list" as const, label: "Plan my day", action: "What's on my calendar today?" },
+  { icon: "calendar" as const, label: "Add an event", action: "Schedule a meeting tomorrow at 3pm" },
+  { icon: "check-square" as const, label: "Add a task", action: "Add a task to buy groceries" },
+  { icon: "file-text" as const, label: "New note", action: "Save a note about my project ideas" },
+];
 
 function ThinkingIndicator() {
   const dot1 = useSharedValue(0.3);
@@ -53,7 +69,6 @@ export default function AgentScreen() {
   const messages = useAgentStore((s) => s.messages);
   const currentProvider = useAgentStore((s) => s.currentProvider);
   const isProcessing = useAgentStore((s) => s.isProcessing);
-  const streamTick = useAgentStore((s) => s.streamTick);
   const load = useAgentStore((s) => s.load);
   const setProvider = useAgentStore((s) => s.setProvider);
   const clearConversation = useAgentStore((s) => s.clearConversation);
@@ -172,76 +187,12 @@ export default function AgentScreen() {
     setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
   }, []);
 
-  const renderItem = useCallback(({ item }: { item: AgentMessage }) => {
-    const isUser = item.role === "user";
-    if (!isUser && !item.content) return null;
-    return (
-      <View
-        className={`flex-row mb-3 ${isUser ? "justify-end" : "justify-start"} items-end gap-2`}
-      >
-        {!isUser && (
-          <View className="w-7 h-7 bg-ink-100 rounded-full items-center justify-center shrink-0">
-            <Feather name="cpu" size={12} color={T.black} />
-          </View>
-        )}
-        <View className={`max-w-[80%] px-4 py-3 ${isUser
-          ? "bg-black rounded-2xl rounded-br-md"
-          : item.role === "tool"
-            ? "bg-ink-25 rounded-2xl rounded-bl-md border border-ink-150"
-            : "bg-white rounded-2xl rounded-bl-md border border-ink-100"
-          }`}>
-          {item.toolName && (
-            <View className="flex-row items-center gap-1 mb-1.5 pb-1.5 border-b border-ink-100">
-              <View className="w-5 h-5 bg-ink-100 rounded items-center justify-center">
-                <Feather name="terminal" size={8} color={T.ink500} />
-              </View>
-              <Text className="text-xs text-ink-500 font-mono flex-1">{item.toolName}</Text>
-              <Feather name="check-circle" size={10} color="#2fbf71" />
-            </View>
-          )}
-          {isUser ? (
-            <Text className="text-sm leading-5 text-white">{item.content}</Text>
-          ) : (
-            <Markdown content={item.content} />
-          )}
-          {item.attachments && item.attachments.length > 0 && (
-            <View className="flex-row flex-wrap gap-1.5 mt-2">
-              {item.attachments.map((att: AgentAttachment, i: number) =>
-                att.type === "image" ? (
-                  <Image key={i} source={{ uri: att.uri }} className="w-20 h-20 rounded-lg" />
-                ) : (
-                  <View key={i} className="flex-row items-center gap-1 bg-ink-100 rounded-lg px-2 py-1.5">
-                    <Feather name="file" size={12} color={T.ink500} />
-                    <Text className="text-xs text-ink-500">{att.name || "File"}</Text>
-                  </View>
-                )
-              )}
-            </View>
-          )}
-          <View className="flex-row items-center justify-between mt-2">
-            <Text className={`text-xs ${isUser ? "text-ink-200" : "text-ink-400"}`}>
-              {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </Text>
-            {!isUser && !!item.content && (
-              <TouchableOpacity
-                onPress={() => copyToClipboard(item.content, item.id)}
-                activeOpacity={0.6}
-                className="flex-row items-center gap-1 ml-3 py-0.5"
-              >
-                <Feather name={copiedId === item.id ? "check" : "copy"} size={12} color={T.ink300} />
-                <Text className="text-xs text-ink-400">{copiedId === item.id ? "Copied" : "Copy"}</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-        {isUser && (
-          <View className="w-7 h-7 bg-black rounded-full items-center justify-center shrink-0">
-            <Feather name="user" size={12} color={T.white} />
-          </View>
-        )}
-      </View>
-    );
-  }, [copiedId, copyToClipboard, streamTick]);
+  const renderItem = useCallback(
+    ({ item }: { item: AgentMessage }) => (
+      <MessageBubble item={item} copied={copiedId === item.id} onCopy={copyToClipboard} />
+    ),
+    [copiedId, copyToClipboard],
+  );
 
   const hasKey = !!apiKeys.nim;
 
@@ -250,7 +201,7 @@ export default function AgentScreen() {
       <View className="px-4 pt-3 pb-2">
         <View className="flex-row items-center justify-between mb-3">
           <View>
-            <Text className="text-2xl font-semibold tracking-tightest text-black">AI Agent</Text>
+            <Text className="text-[30px] font-extrabold tracking-tightest text-black">AI Agent</Text>
             <Text className="text-sm text-ink-500 mt-0.5">
               {currentProvider === "nim"
                 ? `NVIDIA NIM${nimLargeModel ? ` · auto-routes ${getTierLabel(categorizeModel(nimModel).tier)}→${getTierLabel(categorizeModel(nimLargeModel).tier)}` : ""}`
@@ -267,13 +218,13 @@ export default function AgentScreen() {
           <View className="flex-row gap-2">
             <TouchableOpacity
               onPress={() => router.push("/settings")}
-              className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
+              className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center"
             >
               <Feather name="settings" size={14} color={T.ink500} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowClearConfirm(true)}
-              className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center"
+              className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center"
             >
               <Feather name="trash-2" size={14} color={T.ink500} />
             </TouchableOpacity>
@@ -304,14 +255,8 @@ export default function AgentScreen() {
               <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
                 {nimModel.split("/").pop() || "model"}
               </Text>
-              <View className={`px-1.5 py-0.5 rounded-full bg-${categorizeModel(nimModel).tier === "fast" ? "green-100" :
-                categorizeModel(nimModel).tier === "balanced" ? "yellow-100" :
-                  categorizeModel(nimModel).tier === "smart" ? "red-100" : "ink-200"
-                }`}>
-                <Text className={`text-[9px] font-semibold ${categorizeModel(nimModel).tier === "fast" ? "text-green-700" :
-                  categorizeModel(nimModel).tier === "balanced" ? "text-yellow-700" :
-                    categorizeModel(nimModel).tier === "smart" ? "text-red-700" : "text-ink-500"
-                  }`}>
+              <View className={`px-1.5 py-0.5 rounded-full ${TIER_STYLE[categorizeModel(nimModel).tier]?.bg ?? "bg-ink-200"}`}>
+                <Text className={`text-[9px] font-semibold ${TIER_STYLE[categorizeModel(nimModel).tier]?.text ?? "text-ink-500"}`}>
                   {getTierLabel(categorizeModel(nimModel).tier)}
                 </Text>
               </View>
@@ -366,7 +311,6 @@ export default function AgentScreen() {
       <FlatList
         ref={flatListRef}
         data={messages}
-        extraData={streamTick}
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-4 pb-2"
         alwaysBounceVertical
@@ -395,7 +339,7 @@ export default function AgentScreen() {
           {pendingAttachments.map((att, i) => (
             <View key={i} className="mr-2 relative">
               {att.type === "image" ? (
-                <Image source={{ uri: att.uri }} className="w-16 h-16 rounded-lg" />
+                <Photo uri={att.uri} width={64} height={64} radius={8} />
               ) : (
                 <View className="w-16 h-16 rounded-lg bg-ink-100 items-center justify-center">
                   <Feather name="file" size={20} color={T.ink500} />
@@ -412,59 +356,71 @@ export default function AgentScreen() {
         </ScrollView>
       )}
       {!isProcessing && messages.length === 0 && (
-        <View className="flex-row gap-2 px-4 py-1.5 bg-white">
-          {[
-            { icon: "check-square" as const, label: "Task", action: "Add a task to buy groceries" },
-            { icon: "calendar" as const, label: "Event", action: "Schedule a meeting tomorrow at 3pm" },
-            { icon: "file-text" as const, label: "Note", action: "Save a note about my project ideas" },
-            { icon: "list" as const, label: "Today", action: "What's on my calendar today?" },
-          ].map((suggestion) => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="px-4 gap-2"
+          className="grow-0 py-1.5"
+          keyboardShouldPersistTaps="handled"
+        >
+          {SUGGESTIONS.map((sg) => (
             <TouchableOpacity
-              key={suggestion.label}
-              onPress={() => setInput(suggestion.action)}
-              className="px-2.5 py-0.5 bg-ink-50 rounded-md border border-ink-100"
+              key={sg.label}
+              onPress={() => setInput(sg.action)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              className="flex-row items-center gap-1.5 h-10 px-3.5 rounded-full border border-ink-100"
             >
-              <Text className="text-[11px] text-ink-600 font-medium">{suggestion.label}</Text>
+              <Feather name={sg.icon} size={13} color={T.accent} />
+              <Text className="text-xs font-semibold text-black">{sg.label}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
-      <View className="px-4 py-3 border-t border-ink-100 bg-white">
-        <View className="flex-row gap-1 items-center">
+      <View className="px-3 pt-2 pb-3 bg-white">
+        <View className="flex-row items-center gap-1 min-h-[56px] rounded-[22px] bg-ink-50 pl-1.5 pr-1.5">
           <TouchableOpacity
             onPress={showAttachmentPicker}
             disabled={isProcessing}
             activeOpacity={0.7}
-            className="w-10 h-12 items-center justify-center"
+            accessibilityRole="button"
+            accessibilityLabel="Attach photo or file"
+            className="w-11 h-11 items-center justify-center"
           >
-            <Feather name="paperclip" size={18} color={isProcessing ? T.ink200 : T.ink500} />
+            <Feather name="plus" size={20} color={isProcessing ? T.ink200 : T.ink500} />
           </TouchableOpacity>
           <TextInput
-            className="flex-1 h-12 bg-ink-50 rounded-xl px-4 text-base text-black"
-            placeholder={isProcessing ? "AI is thinking..." : "Type a message..."}
-            placeholderTextColor={T.ink300}
+            className="flex-1 py-3 text-[15px] text-black"
+            placeholder={isProcessing ? "Thinking…" : "Ask about your day…"}
+            placeholderTextColor={T.ink400}
             value={input}
             onChangeText={setInput}
             onSubmitEditing={handleSend}
             editable={!isProcessing}
+            multiline
+            maxLength={4000}
+            accessibilityLabel="Message"
           />
           {isProcessing ? (
             <TouchableOpacity
               onPress={stopAgentLoop}
               activeOpacity={0.7}
-              className="h-12 w-12 items-center justify-center rounded-xl bg-danger"
+              accessibilityRole="button"
+              accessibilityLabel="Stop"
+              className="h-11 w-11 items-center justify-center rounded-2xl bg-danger"
             >
-              <View className="w-4 h-4 bg-white rounded-sm" />
+              <View className="w-3.5 h-3.5 bg-white rounded-sm" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               onPress={handleSend}
               disabled={!input.trim()}
               activeOpacity={0.7}
-              className={`h-12 w-12 items-center justify-center rounded-xl ${input.trim() ? "bg-black" : "bg-ink-300"
-                }`}
+              accessibilityRole="button"
+              accessibilityLabel="Send"
+              className={`h-11 w-11 items-center justify-center rounded-2xl ${input.trim() ? "bg-accent" : "bg-ink-150"}`}
             >
-              <Feather name="arrow-up" size={18} color={T.white} />
+              <Feather name="arrow-up" size={18} color={input.trim() ? T.onAccent : T.ink400} />
             </TouchableOpacity>
           )}
         </View>
