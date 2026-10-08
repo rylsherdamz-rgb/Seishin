@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList } from "react-native";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import { View, Text, TouchableOpacity, FlatList, ScrollView } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
+import { settingsStorage } from "@/stores/mmkv";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useAgentStore, AgentMessage } from "@/stores/agent-store";
@@ -12,21 +13,53 @@ import { SheetModal } from "@/components/ui/SheetModal";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Chip } from "@/components/ui/Chip";
 import { IconButton } from "@/components/ui/IconButton";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import Feather from "@expo/vector-icons/Feather";
 import { uid } from "@/utils/id";
 import { useColors } from "@/theme/ThemeProvider";
 import { NoteCard } from "@/components/notes/NoteCard";
 import { InboxRow } from "@/components/notes/InboxRow";
+import { NotesSearchBar } from "@/components/notes/NotesSearchBar";
+import { NoteActionsSheet } from "@/components/notes/NoteActionsSheet";
 import { Fab } from "@/components/ui/Fab";
 
 const FILTERS = ["all", "notification", "email", "chat"] as const;
-// Only the first screenful animates in; rows mounted later while scrolling
-// (FlatList virtualization) appear instantly instead of replaying animations.
-const ANIMATED_ROWS = 6;
+const LAYOUT_KEY = "settings:notes:layout";
+
+type NoteRow =
+  | { kind: "header"; id: string; label: string }
+  | { kind: "note"; id: string; note: Note };
+
+function readLayout(): "grid" | "list" {
+  try {
+    return settingsStorage.getString(LAYOUT_KEY) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+}
+
+/** Material 3 filter chip: outlined when off, tonal with a check when on. */
+function FilterChip({ label, icon, selected, onPress }: {
+  label: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const T = useColors();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={`flex-row items-center gap-1.5 h-9 px-3.5 rounded-lg border ${selected ? "bg-accent/15 border-transparent" : "border-ink-150"}`}
+    >
+      <Feather name={selected ? "check" : icon} size={14} color={selected ? T.black : T.ink600} />
+      <Text className={`text-[13px] font-semibold ${selected ? "text-black" : "text-ink-700"}`}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function NotesScreen() {
-  const T = useColors();
   const insets = useSafeAreaInsets();
   // Clearance so list content / toolbars never hide behind the FAB, tab bar,
   // or the device home indicator in the safe-area.
@@ -57,6 +90,15 @@ export default function NotesScreen() {
   const [sheetItem, setSheetItem] = useState<InboxItem | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showNewNoteSheet, setShowNewNoteSheet] = useState(false);
+  const [actionNote, setActionNote] = useState<Note | null>(null);
+  const [layout, setLayout] = useState<"grid" | "list">(readLayout);
+  const toggleLayout = useCallback(() => {
+    setLayout((l) => {
+      const next = l === "grid" ? "list" : "grid";
+      try { settingsStorage.set(LAYOUT_KEY, next); } catch { /* view still switches */ }
+      return next;
+    });
+  }, []);
 
   useEffect(() => { loadNotes(); loadItems(); }, [loadNotes, loadItems]);
 
@@ -93,54 +135,25 @@ export default function NotesScreen() {
   // the matching action.
   const onAddPress = useCallback(() => setShowNewNoteSheet(true), []);
 
-  const columns = useCallback((list: Note[]) => {
-    const rows: Note[][] = [];
-    for (let i = 0; i < list.length; i += 2) rows.push(list.slice(i, i + 2));
-    return rows;
-  }, []);
-
   const hasNotes = pinned.length + others.length > 0;
 
-  const noteListData = useMemo(() => {
-    const rows: ({ _header: string } | Note[])[] = [];
-    if (pinned.length > 0) rows.push({ _header: "Pinned" });
-    rows.push(...columns(pinned));
-    if (pinned.length > 0 && others.length > 0) rows.push({ _header: "Others" });
-    rows.push(...columns(others));
+  // One flat list for the masonry grid: section headers span every column.
+  const noteListData = useMemo<NoteRow[]>(() => {
+    const rows: NoteRow[] = [];
+    if (pinned.length > 0) rows.push({ kind: "header", id: "h-pinned", label: "PINNED" });
+    for (const n of pinned) rows.push({ kind: "note", id: n.id, note: n });
+    if (pinned.length > 0 && others.length > 0) rows.push({ kind: "header", id: "h-others", label: "OTHERS" });
+    for (const n of others) rows.push({ kind: "note", id: n.id, note: n });
     return rows;
-  }, [pinned, others, columns]);
+  }, [pinned, others]);
 
-  const renderTagItem = useCallback(({ item: t }: { item: string }) => {
-    const active = t === "all" ? activeTag === null : activeTag === t;
-    return (
-      <TouchableOpacity
-        onPress={() => setActiveTag(t === "all" ? null : t)}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityState={{ selected: active }}
-        className={`h-9 px-4 rounded-full items-center justify-center ${active ? "bg-black" : "bg-ink-50"}`}
-      >
-        <Text className={`text-xs font-bold ${active ? "text-white" : "text-ink-600"}`}>
-          {t === "all" ? "All" : `#${t}`}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [activeTag]);
-
-  const renderNoteItem = useCallback(({ item, index }: { item: { _header: string } | Note[]; index: number }) => {
-    const content = "_header" in item ? (
-      <Text className="text-[11px] font-extrabold text-ink-400 tracking-widest px-2 pt-3 pb-1">
-        {item._header.toUpperCase()}
-      </Text>
+  const compact = layout === "grid";
+  const renderNoteItem = useCallback(({ item }: { item: NoteRow }) =>
+    item.kind === "header" ? (
+      <Text className="text-[11px] font-bold text-ink-600 tracking-widest px-3 pt-4 pb-1.5">{item.label}</Text>
     ) : (
-      <View className="flex-row items-start">
-        {item.map((n) => <NoteCard key={n.id} note={n} onOpen={openNote} />)}
-        {item.length === 1 && <View className="flex-1 m-1.5" />}
-      </View>
-    );
-    if (index >= ANIMATED_ROWS) return content;
-    return <Animated.View entering={FadeInDown.delay(index * 40).duration(260)}>{content}</Animated.View>;
-  }, [openNote]);
+      <NoteCard note={item.note} compact={compact} onOpen={openNote} onLongPress={setActionNote} />
+    ), [compact, openNote]);
 
   const onInboxPress = useCallback((item: InboxItem) => {
     if (useInboxStore.getState().selecting) { toggleSelect(item.id); return; }
@@ -172,95 +185,66 @@ export default function NotesScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <View className="px-5 pt-4 pb-3 flex-row items-end justify-between gap-3">
-        <View className="flex-1">
-          <Text className="text-[30px] font-extrabold tracking-tightest text-black">
-            {tab === "notes" ? "Notes" : "Inbox"}
-          </Text>
-          <Text className="text-[13px] font-semibold text-ink-500 mt-0.5">
-            {tab === "notes"
-              ? `${notes.length} note${notes.length === 1 ? "" : "s"}`
-              : `${unreadCount} unread · ${items.length} total`}
-          </Text>
-        </View>
-        {tab === "inbox" && items.length > 0 ? (
-          selecting ? (
-            <TouchableOpacity onPress={() => setSelecting(false)} className="h-11 px-2 justify-center" accessibilityRole="button">
-              <Text className="text-sm font-bold text-ink-500">Cancel</Text>
-            </TouchableOpacity>
-          ) : (
-            <IconButton icon="check-square" size="md" onPress={() => setSelecting(true)} />
-          )
-        ) : null}
-      </View>
+      <View className="pt-3 pb-2 gap-3">
+        {tab === "notes" ? (
+          <NotesSearchBar value={query} onChange={setQuery} layout={layout} onToggleLayout={toggleLayout} />
+        ) : (
+          <View className="mx-5 h-14 flex-row items-center justify-between">
+            <View>
+              <Text className="text-[22px] font-bold text-black">Inbox</Text>
+              <Text className="text-xs font-medium text-ink-500">{unreadCount} unread · {items.length} total</Text>
+            </View>
+            {items.length > 0 ? (
+              selecting ? (
+                <TouchableOpacity onPress={() => setSelecting(false)} className="h-11 px-2 justify-center" accessibilityRole="button">
+                  <Text className="text-sm font-bold text-ink-600">Cancel</Text>
+                </TouchableOpacity>
+              ) : (
+                <IconButton icon="check-square" size="md" variant="plain" onPress={() => setSelecting(true)} />
+              )
+            ) : null}
+          </View>
+        )}
 
-      <View className="mx-5 mb-3">
-        <SegmentedControl
-          options={[
-            { label: "Notes", value: "notes" },
-            { label: unreadCount > 0 ? `Inbox · ${unreadCount}` : "Inbox", value: "inbox" },
-          ]}
-          value={tab}
-          onChange={(v) => setTab(v)}
-        />
+        {/* Filter chips: section switch first, then the notebook's labels. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="px-4 gap-2 items-center"
+        >
+          <FilterChip label="Notes" icon="file-text" selected={tab === "notes" && !activeTag} onPress={() => { setTab("notes"); setActiveTag(null); }} />
+          <FilterChip label={unreadCount > 0 ? `Inbox  ${unreadCount}` : "Inbox"} icon="inbox" selected={tab === "inbox"} onPress={() => setTab("inbox")} />
+          {tab === "notes" && allTags.length > 0 ? <View className="w-px h-6 bg-ink-150 mx-1" /> : null}
+          {tab === "notes" && allTags.map((t) => (
+            <FilterChip key={t} label={t} icon="tag" selected={activeTag === t} onPress={() => setActiveTag(activeTag === t ? null : t)} />
+          ))}
+        </ScrollView>
       </View>
 
       {tab === "notes" ? (
-        <>
-          <View className="mx-5 mb-3 h-12 bg-ink-50 rounded-2xl px-4 flex-row items-center gap-2.5">
-            <Feather name="search" size={15} color={T.ink300} />
-            <TextInput
-              className="flex-1 text-sm text-black"
-              placeholder="Search notes and tags"
-              accessibilityLabel="Search notes"
-              placeholderTextColor={T.ink300}
-              value={query}
-              onChangeText={setQuery}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery("")}>
-                <Feather name="x-circle" size={15} color={T.ink200} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {allTags.length > 0 && (
-            <View className="mb-2">
-              <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                bounces
-                data={["all", ...allTags]}
-                keyExtractor={(t) => t}
-                contentContainerClassName="px-5 gap-2"
-                removeClippedSubviews
-                maxToRenderPerBatch={10}
-                windowSize={5}
-                renderItem={renderTagItem}
-              />
-            </View>
-          )}
-
-          {hasNotes ? (
-            <FlatList
-              data={noteListData}
-              keyExtractor={(row, i) => ("_header" in row ? `h-${row._header}` : `row-${i}-${row[0]?.id}`)}
-              contentContainerClassName="px-2.5"
-              contentContainerStyle={{ paddingBottom: bottomGap }}
-              alwaysBounceVertical
-              removeClippedSubviews
-              maxToRenderPerBatch={8}
-              windowSize={5}
-              renderItem={renderNoteItem}
-            />
-          ) : (
-            <EmptyState
-              icon="file-text"
-              title={query ? "No matching notes" : "No notes yet"}
-              subtitle={query ? "Try a different search" : "Tap + to create a note — add text, photos, or files"}
-            />
-          )}
-        </>
+        hasNotes ? (
+          <FlashList
+            key={layout}
+            data={noteListData}
+            masonry
+            numColumns={layout === "grid" ? 2 : 1}
+            keyExtractor={(r) => r.id}
+            getItemType={(r) => r.kind}
+            overrideItemLayout={(l, item, _i, maxColumns) => { if (item.kind === "header") l.span = maxColumns; }}
+            renderItem={renderNoteItem}
+            contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: bottomGap }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <EmptyState
+            icon={query || activeTag ? "search" : "file-text"}
+            title={query || activeTag ? "No matching notes" : "Notes you add appear here"}
+            subtitle={query || activeTag ? "Try a different search or label" : "Tap the pencil to write, snap a photo, or summarize a video"}
+          />
+        )
       ) : (
         <>
           <View className="flex-row px-4 gap-2 mb-2">
@@ -337,6 +321,7 @@ export default function NotesScreen() {
 
 
       {tab === "notes" && <Fab label="New note" icon="edit-3" onPress={onAddPress} />}
+      {actionNote && <NoteActionsSheet note={actionNote} onClose={() => setActionNote(null)} />}
 
       <SheetModal
         visible={showItemSheet && sheetItem !== null}
@@ -390,14 +375,14 @@ export default function NotesScreen() {
       <SheetModal
         visible={showNewNoteSheet}
         onClose={() => setShowNewNoteSheet(false)}
-        title="New Note"
-        message="Start a blank note or add an attachment"
+        title="New note"
+        message="Start writing, or begin with a photo, file or video"
         options={[
-          { icon: "file-text", label: "Blank Note", onPress: () => openNote() },
-          { icon: "camera", label: "Take Photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
-          { icon: "image", label: "Choose Photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },
-          { icon: "paperclip", label: "Upload File", onPress: () => router.push({ pathname: "/note", params: { action: "file" } }) },
-          { icon: "youtube", label: "YouTube Summary", onPress: () => router.push({ pathname: "/note", params: { action: "youtube" } }) },
+          { icon: "file-text", label: "Text note", onPress: () => openNote() },
+          { icon: "camera", label: "Take photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
+          { icon: "image", label: "Choose photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },
+          { icon: "paperclip", label: "Attach file", onPress: () => router.push({ pathname: "/note", params: { action: "file" } }) },
+          { icon: "youtube", label: "Summarize a YouTube video", onPress: () => router.push({ pathname: "/note", params: { action: "youtube" } }) },
         ]}
       />
     </View>

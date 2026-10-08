@@ -107,3 +107,20 @@ describe("themes", () => {
     expect(Object.values(vars).every((v) => /^\d+ \d+ \d+$/.test(v))).toBe(true);
   });
 });
+
+describe("note colors", () => {
+  const { NOTE_COLORS, noteBackground, isNoteColorId } = require("@/theme/note-colors");
+  it("uses the theme surface for default/unknown colors", () => {
+    expect(noteBackground(undefined, false)).toBeNull();
+    expect(noteBackground("default", true)).toBeNull();
+    expect(noteBackground("not-a-color", false)).toBeNull();
+  });
+  it("has a distinct light and dark tone for every color", () => {
+    for (const c of NOTE_COLORS.filter((x: { id: string }) => x.id !== "default")) {
+      expect(isNoteColorId(c.id)).toBe(true);
+      expect(noteBackground(c.id, false)).toBe(c.light);
+      expect(noteBackground(c.id, true)).toBe(c.dark);
+      expect(c.light).not.toBe(c.dark);
+    }
+  });
+});

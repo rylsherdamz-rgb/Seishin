@@ -3,71 +3,95 @@ import { View, Text, TouchableOpacity } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import type { Note } from "@/stores/notes-store";
 import { Photo } from "@/components/ui/Photo";
-import { useColors } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme/ThemeProvider";
+import { noteBackground } from "@/theme/note-colors";
 
 interface Props {
   note: Note;
+  /** Grid cards clamp text harder than full-width list cards. */
+  compact: boolean;
   onOpen: (id: string) => void;
+  onLongPress: (note: Note) => void;
 }
 
-const dateFmt: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-
-/** Grid card for one note. Memoized so unrelated store updates skip it. */
-export const NoteCard = memo(function NoteCard({ note, onOpen }: Props) {
-  const C = useColors();
+/**
+ * Note card in the Material 3 / Keep idiom: outlined when uncolored, tonal
+ * fill when colored, photos edge-to-edge on top, labels as small chips.
+ * Memoized — only re-renders when its own note object changes.
+ */
+export const NoteCard = memo(function NoteCard({ note, compact, onOpen, onLongPress }: Props) {
+  const { colors: C, dark } = useTheme();
+  const fill = noteBackground(note.color, dark);
   const attachments = note.attachments ?? [];
+  const images = attachments.filter((a) => a.type === "image");
+  const fileCount = attachments.length - images.length;
   const tags = note.tags ?? [];
-  const firstImage = attachments.find((a) => a.type === "image");
-  const fileCount = attachments.filter((a) => a.type === "file").length;
+  const empty = !note.title && !note.body;
 
   return (
     <TouchableOpacity
       onPress={() => onOpen(note.id)}
-      activeOpacity={0.75}
+      onLongPress={() => onLongPress(note)}
+      delayLongPress={300}
+      activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={note.title || "Untitled note"}
-      className={`flex-1 m-1.5 rounded-[20px] overflow-hidden ${note.pinned ? "bg-accent" : "bg-ink-50"}`}
+      accessibilityLabel={`${note.pinned ? "Pinned. " : ""}${note.title || note.body.slice(0, 60) || "Untitled note"}`}
+      accessibilityHint="Long press for options"
+      className="m-1.5 rounded-2xl overflow-hidden"
+      style={{
+        backgroundColor: fill ?? C.white,
+        borderWidth: fill ? 0 : 1,
+        borderColor: C.ink150,
+      }}
     >
-      {firstImage ? <Photo uri={firstImage.uri} width="100%" height={96} radius={0} /> : null}
-      <View className="p-3.5 gap-1.5">
-        <View className="flex-row items-start gap-2">
-          <Text
-            className={`text-[15px] font-bold flex-1 ${note.pinned ? "text-accent-on" : note.title ? "text-black" : "text-ink-400"}`}
-            numberOfLines={2}
-          >
-            {note.title || "Untitled"}
+      {images.length > 0 ? <CardImages uris={images.slice(0, 3).map((i) => i.uri)} compact={compact} /> : null}
+
+      <View className="px-4 pt-3 pb-3.5 gap-1.5">
+        {note.title ? (
+          <Text className="text-base font-semibold text-black leading-[22px]" numberOfLines={compact ? 3 : 2}>
+            {note.title}
           </Text>
-          {note.pinned ? <Feather name="bookmark" size={13} color={C.onAccent} /> : null}
-        </View>
+        ) : null}
         {note.body ? (
-          <Text
-            className={`text-xs leading-[18px] ${note.pinned ? "text-accent-on opacity-85" : "text-ink-600"}`}
-            numberOfLines={firstImage ? 3 : 7}
-          >
+          <Text className="text-sm text-ink-800 leading-5" numberOfLines={compact ? (images.length ? 5 : 10) : 4}>
             {note.body}
           </Text>
         ) : null}
+        {empty && images.length === 0 ? <Text className="text-sm text-ink-400">Empty note</Text> : null}
+
         {tags.length > 0 || note.eventId || fileCount > 0 ? (
-          <View className="flex-row flex-wrap items-center gap-1 mt-0.5">
-            {note.eventId ? <Badge icon="calendar" label="event" pinned={note.pinned} /> : null}
-            {fileCount > 0 ? <Badge icon="paperclip" label={String(fileCount)} pinned={note.pinned} /> : null}
-            {tags.slice(0, 3).map((t) => <Badge key={t} label={`#${t}`} pinned={note.pinned} />)}
+          <View className="flex-row flex-wrap gap-1.5 mt-1">
+            {note.eventId ? <Chip icon="calendar" label="Event" /> : null}
+            {fileCount > 0 ? <Chip icon="paperclip" label={String(fileCount)} /> : null}
+            {tags.slice(0, compact ? 2 : 4).map((t) => <Chip key={t} label={t} />)}
+            {tags.length > (compact ? 2 : 4) ? <Chip label={`+${tags.length - (compact ? 2 : 4)}`} /> : null}
           </View>
         ) : null}
-        <Text className={`text-[11px] font-semibold ${note.pinned ? "text-accent-on opacity-70" : "text-ink-400"}`}>
-          {new Date(note.updatedAt).toLocaleDateString(undefined, dateFmt)}
-        </Text>
       </View>
     </TouchableOpacity>
   );
 });
 
-function Badge({ icon, label, pinned }: { icon?: React.ComponentProps<typeof Feather>["name"]; label: string; pinned?: boolean }) {
-  const C = useColors();
+function CardImages({ uris, compact }: { uris: string[]; compact: boolean }) {
+  const h = compact ? 120 : 160;
+  if (uris.length === 1) return <Photo uri={uris[0]} width="100%" height={h} radius={0} />;
   return (
-    <View className={`flex-row items-center gap-1 px-2 py-0.5 rounded-full ${pinned ? "bg-accent-on/20" : "bg-white"}`}>
-      {icon ? <Feather name={icon} size={9} color={pinned ? C.onAccent : C.ink500} /> : null}
-      <Text className={`text-[10px] font-semibold ${pinned ? "text-accent-on" : "text-ink-600"}`}>{label}</Text>
+    <View className="flex-row" style={{ gap: 2 }}>
+      {uris.map((u) => (
+        <View key={u} className="flex-1">
+          <Photo uri={u} width="100%" height={compact ? 90 : 120} radius={0} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function Chip({ icon, label }: { icon?: React.ComponentProps<typeof Feather>["name"]; label: string }) {
+  const { colors: C } = useTheme();
+  return (
+    <View className="flex-row items-center gap-1 h-6 px-2 rounded-md bg-black/5">
+      {icon ? <Feather name={icon} size={11} color={C.ink700} /> : null}
+      <Text className="text-[11px] font-medium text-ink-800" numberOfLines={1}>{label}</Text>
     </View>
   );
 }

@@ -100,28 +100,26 @@ jest.mock("@expo/vector-icons/Feather", () => {
 
 import NoteEditorScreen from "../../app/note";
 import { useNotesStore } from "@/stores/notes-store";
-import Feather from "@expo/vector-icons/Feather";
 
 function findBodyInput(tree: ReturnType<typeof create>) {
-  const inputs = tree.root.findAllByType(TextInput);
-  const body = inputs.find((i) =>
-    String(i.props.placeholder ?? "").includes("Start writing"),
-  );
+  const body = tree.root.findAllByType(TextInput).find((i) => i.props.accessibilityLabel === "Note");
   if (!body) throw new Error("body input not found");
   return body;
 }
 
 function findPinButton(tree: ReturnType<typeof create>) {
-  const buttons = tree.root.findAllByType(TouchableOpacity);
-  const pin = buttons.find((b) =>
-    b.findAllByType(Feather).some((f) => f.props.name === "bookmark"),
-  );
+  const pin = tree.root
+    .findAllByType(TouchableOpacity)
+    .find((b) => String(b.props.accessibilityLabel ?? "").endsWith("in note"));
   if (!pin) throw new Error("pin button not found");
   return pin;
 }
 
 describe("NoteEditorScreen", () => {
-  test("typing a new memo creates it; pin + back keeps it in the store", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  test("typing a new memo creates it after the autosave debounce; pin + back keeps it", () => {
     let tree: ReturnType<typeof create> | undefined;
     act(() => {
       tree = create(<NoteEditorScreen />);
@@ -130,6 +128,9 @@ describe("NoteEditorScreen", () => {
     act(() => {
       findBodyInput(tree as unknown as ReturnType<typeof create>).props.onChangeText("hello world");
     });
+    // Debounced: nothing written mid-typing…
+    expect(useNotesStore.getState().notes).toHaveLength(0);
+    act(() => { jest.advanceTimersByTime(450); });
 
     let notes = useNotesStore.getState().notes;
     expect(notes).toHaveLength(1);
@@ -149,5 +150,15 @@ describe("NoteEditorScreen", () => {
     expect(notes).toHaveLength(1);
     expect(notes[0].body).toBe("hello world");
     expect(notes[0].pinned).toBe(true);
+  });
+
+  test("edits pending at unmount are flushed (system back)", () => {
+    let tree: ReturnType<typeof create> | undefined;
+    act(() => { tree = create(<NoteEditorScreen />); });
+    act(() => {
+      findBodyInput(tree as unknown as ReturnType<typeof create>).props.onChangeText("draft");
+    });
+    act(() => { tree?.unmount(); });
+    expect(useNotesStore.getState().notes.some((n) => n.body === "draft")).toBe(true);
   });
 });
