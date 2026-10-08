@@ -23,14 +23,14 @@ export function ScreenHeader({
   className = "",
 }: ScreenHeaderProps) {
   return (
-    <View className={`px-4 pt-3 pb-2 flex-row items-center gap-3 ${className}`}>
+    <View className={`px-5 pt-4 pb-3 flex-row items-center gap-3 ${className}`}>
       {leading}
       <View className="flex-1">
-        <Text className="text-2xl font-semibold tracking-tightest text-black">
+        <Text className="text-[30px] font-extrabold tracking-tightest text-black">
           {title}
         </Text>
         {subtitle ? (
-          <Text className="text-sm text-ink-500 mt-0.5">{subtitle}</Text>
+          <Text className="text-[13px] font-semibold text-ink-500 mt-0.5">{subtitle}</Text>
         ) : null}
       </View>
       {actions ? <View className="flex-row items-center gap-2">{actions}</View> : null}

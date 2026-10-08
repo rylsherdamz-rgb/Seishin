@@ -36,7 +36,7 @@ const storageCategories = [
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Text className="text-xs font-medium text-ink-300 uppercase tracking-widest mb-3 mt-8 first:mt-0">
+    <Text className="text-[11px] font-extrabold text-ink-500 uppercase tracking-widest mb-2.5 mt-7 first:mt-0">
       {title}
     </Text>
   );
@@ -53,12 +53,12 @@ function MenuRow({
 }) {
   const T = useColors();
   return (
-    <TouchableOpacity disabled={!onPress} onPress={onPress} className="flex-row items-center gap-3 py-3.5 border-b border-ink-100 active:opacity-60">
-      <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-        <Feather name={icon} size={14} color={T.black} />
+    <TouchableOpacity disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? "button" : undefined} className="flex-row items-center gap-3 min-h-[56px] px-4 border-b border-ink-75 active:opacity-60">
+      <View className="w-9 h-9 bg-white rounded-xl items-center justify-center">
+        <Feather name={icon} size={16} color={T.black} />
       </View>
       <View className="flex-1">
-        <Text className="text-sm font-medium text-black">{label}</Text>
+        <Text className="text-[15px] font-semibold text-black">{label}</Text>
         {subtitle && <Text className="text-xs text-ink-400 mt-0.5">{subtitle}</Text>}
       </View>
       {right || (onPress && <Feather name="chevron-right" size={16} color={T.ink150} />)}
@@ -288,11 +288,11 @@ export default function SettingsScreen() {
   return (
     <View className="flex-1 bg-white">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} alwaysBounceVertical contentContainerStyle={{ paddingBottom: keyboardPadding }}>
-        <View className="px-4 pb-12">
+        <View className="px-5 pb-12">
           <View className="flex-row items-center gap-3 mb-6 pt-3">
             <Logo size={32} />
             <View>
-              <Text className="text-2xl font-semibold tracking-tightest text-black">Settings</Text>
+              <Text className="text-[30px] font-extrabold tracking-tightest text-black">Settings</Text>
               <Text className="text-sm text-ink-400">App configuration</Text>
             </View>
           </View>

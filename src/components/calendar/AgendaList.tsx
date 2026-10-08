@@ -24,20 +24,22 @@ interface AgendaListProps {
 
 export function AgendaList({ rows, today, emptyTitle, emptySubtitle, onOpen, onToggleTodo, onShowDay }: AgendaListProps) {
   const renderItem = useCallback(
-    ({ item, index }: { item: AgendaRow; index: number }) => (
-      <Animated.View entering={FadeInDown.delay(Math.min(index * 30, 180)).duration(260)}>
-        {"kind" in item ? (
-          <TouchableOpacity onPress={() => onShowDay(item.date)} activeOpacity={0.7} accessibilityRole="header" className="flex-row items-center gap-2 pt-5 pb-2">
-            <Text className={`text-xs font-bold tracking-wider uppercase ${item.date === today ? "text-accent" : "text-ink-400"}`}>
-              {item.label}
-            </Text>
-            <View className="flex-1 h-px bg-ink-75" />
-          </TouchableOpacity>
-        ) : (
-          <AgendaCard item={item} past={item.date < today} onOpen={onOpen} onToggleTodo={onToggleTodo} />
-        )}
-      </Animated.View>
-    ),
+    ({ item, index }: { item: AgendaRow; index: number }) => {
+      const content = "kind" in item ? (
+        <TouchableOpacity onPress={() => onShowDay(item.date)} activeOpacity={0.7} accessibilityRole="header" className="flex-row items-center gap-2 pt-5 pb-2">
+          <Text className={`text-xs font-bold tracking-wider uppercase ${item.date === today ? "text-accent" : "text-ink-400"}`}>
+            {item.label}
+          </Text>
+          <View className="flex-1 h-px bg-ink-75" />
+        </TouchableOpacity>
+      ) : (
+        <AgendaCard item={item} past={item.date < today} onOpen={onOpen} onToggleTodo={onToggleTodo} />
+      );
+      // Animate only the first screenful; rows virtualized in while scrolling
+      // render immediately rather than replaying an entrance animation.
+      if (index >= 8) return content;
+      return <Animated.View entering={FadeInDown.delay(index * 30).duration(240)}>{content}</Animated.View>;
+    },
     [today, onOpen, onToggleTodo, onShowDay],
   );
 

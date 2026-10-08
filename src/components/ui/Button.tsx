@@ -19,7 +19,7 @@ interface ButtonProps {
 
 const variantStyles: Record<Variant, string> = {
   primary: "bg-accent shadow-raised",
-  secondary: "bg-white border border-ink-200 shadow-subtle",
+  secondary: "bg-ink-50 border border-ink-50",
   ghost: "bg-transparent",
   destructive: "bg-black shadow-raised",
 };
@@ -33,8 +33,8 @@ const textStyles: Record<Variant, string> = {
 
 const sizeStyles: Record<Size, string> = {
   sm: "h-9 px-4 rounded-lg",
-  md: "h-12 px-6 rounded-xl",
-  lg: "h-14 px-7 rounded-xl",
+  md: "h-12 px-6 rounded-2xl",
+  lg: "h-14 px-7 rounded-2xl",
 };
 
 const textSizeStyles: Record<Size, string> = {

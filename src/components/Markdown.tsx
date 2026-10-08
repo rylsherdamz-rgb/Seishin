@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { View, Text } from "react-native";
 
 /**
@@ -61,7 +62,8 @@ function splitRow(line: string): string[] {
   return s.split("|").map((c) => c.trim());
 }
 
-export function Markdown({ content }: { content: string }) {
+/** Memoized: re-parses only when `content` changes. */
+export const Markdown = memo(function Markdown({ content }: { content: string }) {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: Block[] = [];
   let i = 0;
@@ -217,4 +219,4 @@ export function Markdown({ content }: { content: string }) {
   }
 
   return <View className="gap-0.5">{blocks.map((b) => <View key={b.key}>{b.render()}</View>)}</View>;
-}
+});

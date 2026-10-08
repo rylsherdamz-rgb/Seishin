@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { View, useColorScheme } from "react-native";
 import { vars } from "nativewind";
 import { useThemeStore } from "@/stores/theme-store";
-import { ACCENTS, THEMES, buildPalette, paletteToVars, type Palette, type ThemeDef, type ThemeId } from "./themes";
+import { ACCENTS, THEMES, buildPalette, paletteToVars, type Palette, type ThemeDef, type ThemeId, type AccentId } from "./themes";
 
 export interface ResolvedTheme {
   theme: ThemeDef;
@@ -10,16 +10,28 @@ export interface ResolvedTheme {
   dark: boolean;
 }
 
+// Palettes are pure functions of (theme, accent): build each once and share
+// the same object everywhere, so hundreds of list rows calling useColors()
+// don't each allocate a palette, and memoized children see stable references.
+const cache = new Map<string, ResolvedTheme>();
+function resolve(id: ThemeId, accent: AccentId): ResolvedTheme {
+  const key = `${id}:${accent}`;
+  let hit = cache.get(key);
+  if (!hit) {
+    const theme = THEMES[id];
+    hit = { theme, colors: buildPalette(theme, ACCENTS[accent]), dark: theme.dark };
+    cache.set(key, hit);
+  }
+  return hit;
+}
+
 /** Live theme: hex palette for props that can't take a className. */
 export function useTheme(): ResolvedTheme {
   const mode = useThemeStore((s) => s.mode);
   const accentId = useThemeStore((s) => s.accent);
   const scheme = useColorScheme();
-  return useMemo(() => {
-    const id = mode === "system" ? (scheme === "dark" ? "dark" : "light") : mode;
-    const theme = THEMES[id];
-    return { theme, colors: buildPalette(theme, ACCENTS[accentId]), dark: theme.dark };
-  }, [mode, accentId, scheme]);
+  const id: ThemeId = mode === "system" ? (scheme === "dark" ? "dark" : "light") : mode;
+  return resolve(id, accentId);
 }
 
 /** Shorthand for the hex palette. */

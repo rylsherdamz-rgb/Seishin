@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
-import Animated, { FadeIn, ZoomIn } from "react-native-reanimated";
+import { View, Text, ActivityIndicator, Alert } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { router } from "expo-router";
-import Feather from "@expo/vector-icons/Feather";
 
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
@@ -11,6 +10,7 @@ import { COPY } from "@/constants/copy";
 import { atMinutes, nextSlotMinutes, relativeDayLabel, shiftMonth, addDays, type CalendarItem, type QuickParse } from "@/components/calendar/calendar-utils";
 import { pickAndReadText, quickCreate, type CreateKind } from "@/components/calendar/actions";
 import { CalendarItemSheet } from "@/components/calendar/CalendarItemSheet";
+import { Fab } from "@/components/ui/Fab";
 import { CalendarHeader, DaySummary, ViewSwitcher, type CalendarView } from "@/components/calendar/CalendarHeader";
 import { MonthGrid } from "@/components/calendar/MonthGrid";
 import { WeekStrip } from "@/components/calendar/WeekStrip";
@@ -89,6 +89,11 @@ export default function CalendarScreen() {
     }
   }, [openForm, selected]);
 
+  // Stable handlers: inline lambdas here would defeat the memoized day cells.
+  const openDay = useCallback((key: string) => openForm(key), [openForm]);
+  const createAt = useCallback((m: number) => openForm(selected, m), [openForm, selected]);
+  const openCreate = useCallback(() => setCreateOpen(true), []);
+
   const shiftWeek = useCallback((d: 1 | -1) => select(addDays(selected, d * 7)), [select, selected]);
   const shiftMonthBy = useCallback((d: 1 | -1) => setViewMonth((m) => shiftMonth(m, d)), []);
 
@@ -110,11 +115,11 @@ export default function CalendarScreen() {
           today={today}
           marks={marks}
           onSelect={select}
-          onLongPress={(k) => openForm(k)}
+          onLongPress={openDay}
           onSwipe={shiftMonthBy}
         />
       ) : (
-        <WeekStrip selected={selected} today={today} marks={marks} onSelect={select} onLongPress={(k) => openForm(k)} onSwipe={shiftWeek} />
+        <WeekStrip selected={selected} today={today} marks={marks} onSelect={select} onLongPress={openDay} onSwipe={shiftWeek} />
       )}
 
       <View className="h-3" />
@@ -140,7 +145,7 @@ export default function CalendarScreen() {
               items={dayItems}
               onOpen={setSheetItem}
               onToggleTodo={toggleTodo}
-              onCreateAt={(m) => openForm(selected, m)}
+              onCreateAt={createAt}
             />
           ) : (
             <AgendaList
@@ -156,17 +161,7 @@ export default function CalendarScreen() {
         </Animated.View>
       )}
 
-      <Animated.View entering={ZoomIn.delay(150).duration(250)} className="absolute right-5 bottom-5">
-        <TouchableOpacity
-          onPress={() => setCreateOpen(true)}
-          activeOpacity={0.85}
-          className="w-14 h-14 rounded-2xl bg-accent items-center justify-center shadow-float"
-          accessibilityRole="button"
-          accessibilityLabel={COPY.calendar.createFab}
-        >
-          <Feather name="plus" size={26} color={C.onAccent} />
-        </TouchableOpacity>
-      </Animated.View>
+      <Fab label={COPY.calendar.createFab} onPress={openCreate} />
 
       {scanning && (
         <View className="absolute inset-0 items-center justify-center bg-white/80">

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, Image, Alert } from "react-native";
-import Animated, { FadeInDown, FadeIn } from "react-native-reanimated";
+import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react";
+import { View, Text, TextInput, TouchableOpacity, FlatList } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { useNotesStore, Note } from "@/stores/notes-store";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { useCalendarStore } from "@/stores/calendar-store";
@@ -10,18 +10,20 @@ import { useAgentStore, AgentMessage } from "@/stores/agent-store";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SheetModal } from "@/components/ui/SheetModal";
 import { AlertDialog } from "@/components/ui/AlertDialog";
-import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { IconButton } from "@/components/ui/IconButton";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import Feather from "@expo/vector-icons/Feather";
 import { uid } from "@/utils/id";
 import { useColors } from "@/theme/ThemeProvider";
+import { NoteCard } from "@/components/notes/NoteCard";
+import { InboxRow } from "@/components/notes/InboxRow";
+import { Fab } from "@/components/ui/Fab";
 
 const FILTERS = ["all", "notification", "email", "chat"] as const;
-const typeIcons: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
-  notification: "bell", email: "mail", chat: "message-circle",
-};
+// Only the first screenful animates in; rows mounted later while scrolling
+// (FlatList virtualization) appear instantly instead of replaying animations.
+const ANIMATED_ROWS = 6;
 
 export default function NotesScreen() {
   const T = useColors();
@@ -33,13 +35,11 @@ export default function NotesScreen() {
   const query = useNotesStore((s) => s.query);
   const loadNotes = useNotesStore((s) => s.loadNotes);
   const setQuery = useNotesStore((s) => s.setQuery);
-  const getFilteredNotes = useNotesStore((s) => s.getFilteredNotes);
   const items = useInboxStore((s) => s.items);
   const loadItems = useInboxStore((s) => s.loadItems);
   const markRead = useInboxStore((s) => s.markRead);
   const deleteItem = useInboxStore((s) => s.deleteItem);
   const clearAll = useInboxStore((s) => s.clearAll);
-  const getUnreadCount = useInboxStore((s) => s.getUnreadCount);
   const selectedIds = useInboxStore((s) => s.selectedIds);
   const selecting = useInboxStore((s) => s.selecting);
   const toggleSelect = useInboxStore((s) => s.toggleSelect);
@@ -59,11 +59,18 @@ export default function NotesScreen() {
   const [showNewNoteSheet, setShowNewNoteSheet] = useState(false);
 
   useEffect(() => { loadNotes(); loadItems(); }, [loadNotes, loadItems]);
-  useFocusEffect(useCallback(() => { loadNotes(); }, [loadNotes]));
 
+  // Typing updates `query` immediately; filtering follows on a deferred value
+  // so the input never waits on a large notebook re-filter.
+  const deferredQuery = useDeferredValue(query);
   const filteredNotes = useMemo(() => {
-    return getFilteredNotes().filter((n) => !activeTag || n.tags.includes(activeTag));
-  }, [notes, activeTag, getFilteredNotes]);
+    const q = deferredQuery.trim().toLowerCase();
+    return notes.filter((n) => {
+      if (activeTag && !n.tags.includes(activeTag)) return false;
+      if (!q) return true;
+      return n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q) || n.tags.some((t) => t.toLowerCase().includes(q));
+    });
+  }, [notes, activeTag, deferredQuery]);
 
   const pinned = useMemo(() => filteredNotes.filter((n) => n.pinned), [filteredNotes]);
   const others = useMemo(() => filteredNotes.filter((n) => !n.pinned), [filteredNotes]);
@@ -85,64 +92,6 @@ export default function NotesScreen() {
   // shortcut (camera / photo / file / YouTube), each launching the editor with
   // the matching action.
   const onAddPress = useCallback(() => setShowNewNoteSheet(true), []);
-
-  const renderCard = useCallback((item: Note) => {
-    const attachments = item.attachments ?? [];
-    const tags = item.tags ?? [];
-    const firstImage = attachments.find((a) => a.type === "image");
-    const fileCount = attachments.filter((a) => a.type === "file").length;
-    return (
-      <TouchableOpacity
-        key={item.id}
-        onPress={() => openNote(item.id)}
-        activeOpacity={0.7}
-        className="flex-1 m-1.5 bg-white rounded-card border border-ink-100 shadow-card overflow-hidden"
-      >
-        {firstImage && (
-          <Image source={{ uri: firstImage.uri }} className="w-full h-24 bg-ink-100" resizeMode="cover" />
-        )}
-        <View className="p-3.5">
-          <View className="flex-row items-start justify-between">
-            {item.title ? (
-              <Text className="text-sm font-semibold text-black flex-1" numberOfLines={2}>{item.title}</Text>
-            ) : (
-              <Text className="text-sm font-semibold text-ink-300 flex-1">Untitled</Text>
-            )}
-            {item.pinned && <Feather name="bookmark" size={13} color={T.black} />}
-          </View>
-          {item.body ? (
-            <Text className="text-xs text-ink-600 mt-1.5 leading-5" numberOfLines={firstImage ? 4 : 8}>
-              {item.body}
-            </Text>
-          ) : null}
-          {(tags.length > 0 || item.eventId || fileCount > 0) && (
-            <View className="flex-row flex-wrap items-center gap-1 mt-2.5">
-              {item.eventId && (
-                <View className="flex-row items-center gap-1 px-2 py-0.5 bg-black rounded-full">
-                  <Feather name="calendar" size={9} color={T.white} />
-                  <Text className="text-[9px] font-semibold text-white">event</Text>
-                </View>
-              )}
-              {fileCount > 0 && (
-                <View className="flex-row items-center gap-1 px-2 py-0.5 bg-ink-100 rounded-full">
-                  <Feather name="paperclip" size={9} color={T.ink500} />
-                  <Text className="text-[9px] font-semibold text-ink-600">{fileCount}</Text>
-                </View>
-              )}
-              {tags.map((t) => (
-                <View key={t} className="px-2 py-0.5 bg-ink-100 rounded-full">
-                  <Text className="text-[9px] font-semibold text-ink-600">#{t}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          <Text className="text-[10px] text-ink-300 mt-2">
-            {new Date(item.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }, [openNote]);
 
   const columns = useCallback((list: Note[]) => {
     const rows: Note[][] = [];
@@ -167,9 +116,11 @@ export default function NotesScreen() {
       <TouchableOpacity
         onPress={() => setActiveTag(t === "all" ? null : t)}
         activeOpacity={0.7}
-        className={`px-3.5 py-2 rounded-full border ${active ? "bg-black border-black" : "bg-white border-ink-200"}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+        className={`h-9 px-4 rounded-full items-center justify-center ${active ? "bg-black" : "bg-ink-50"}`}
       >
-        <Text className={`text-xs font-semibold ${active ? "text-white" : "text-ink-500"}`}>
+        <Text className={`text-xs font-bold ${active ? "text-white" : "text-ink-600"}`}>
           {t === "all" ? "All" : `#${t}`}
         </Text>
       </TouchableOpacity>
@@ -177,78 +128,42 @@ export default function NotesScreen() {
   }, [activeTag]);
 
   const renderNoteItem = useCallback(({ item, index }: { item: { _header: string } | Note[]; index: number }) => {
-    if ("_header" in item) {
-      return (
-        <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
-          <Text className="text-[11px] font-bold text-ink-400 tracking-widest px-2 pt-3 pb-1">
-            {item._header.toUpperCase()}
-          </Text>
-        </Animated.View>
-      );
-    }
-    return (
-      <Animated.View entering={FadeInDown.delay(Math.min(index * 40, 200)).duration(300)}>
-        <View className="flex-row items-start">
-          {item.map(renderCard)}
-          {item.length === 1 && <View className="flex-1 m-1.5" />}
-        </View>
-      </Animated.View>
+    const content = "_header" in item ? (
+      <Text className="text-[11px] font-extrabold text-ink-400 tracking-widest px-2 pt-3 pb-1">
+        {item._header.toUpperCase()}
+      </Text>
+    ) : (
+      <View className="flex-row items-start">
+        {item.map((n) => <NoteCard key={n.id} note={n} onOpen={openNote} />)}
+        {item.length === 1 && <View className="flex-1 m-1.5" />}
+      </View>
     );
-  }, [renderCard]);
+    if (index >= ANIMATED_ROWS) return content;
+    return <Animated.View entering={FadeInDown.delay(index * 40).duration(260)}>{content}</Animated.View>;
+  }, [openNote]);
 
-  const renderInboxItem = useCallback(({ item }: { item: InboxItem }) => {
-    const checked = selectedIds.has(item.id);
-    return (
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onLongPress={() => {
-          if (selecting) return;
-          setSheetItem(item); setShowItemSheet(true);
-        }}
-        onPress={() => {
-          if (selecting) { toggleSelect(item.id); return; }
-          if (!item.read) markRead(item.id);
-        }}
-      >
-        <Card variant="elevated" className={`mb-2.5 ${!item.read ? "border-l-[3px] border-l-black" : ""}`}>
-          <View className="flex-row items-start gap-3">
-            {selecting && (
-              <View className={`w-6 h-6 rounded-md border-2 items-center justify-center mt-1.5 ${checked ? "bg-black border-black" : "border-ink-300"}`}>
-                {checked && <Feather name="check" size={14} color={T.white} />}
-              </View>
-            )}
-            <View className={`w-9 h-9 rounded-full items-center justify-center ${item.read ? "bg-ink-100" : "bg-black"}`}>
-              <Feather
-                name={typeIcons[item.type] || "bell"}
-                size={14}
-                color={item.read ? T.ink300 : T.white}
-              />
-            </View>
-            <View className="flex-1">
-              <View className="flex-row items-center gap-2">
-                <Text
-                  className={`text-sm flex-1 ${item.read ? "text-ink-500" : "text-black font-medium"}`}
-                  numberOfLines={1}
-                >
-                  {item.title}
-                </Text>
-                <Text className="text-xs text-ink-300">
-                  {new Date(item.timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </Text>
-              </View>
-              <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={2}>
-                {item.body}
-              </Text>
-              <View className="flex-row items-center gap-1 mt-1.5">
-                <Feather name="at-sign" size={10} color={T.ink200} />
-                <Text className="text-xs text-ink-200">{item.source}</Text>
-              </View>
-            </View>
-          </View>
-        </Card>
-      </TouchableOpacity>
-    );
-  }, [markRead, selecting, selectedIds, toggleSelect]);
+  const onInboxPress = useCallback((item: InboxItem) => {
+    if (useInboxStore.getState().selecting) { toggleSelect(item.id); return; }
+    if (!item.read) markRead(item.id);
+  }, [toggleSelect, markRead]);
+
+  const onInboxLongPress = useCallback((item: InboxItem) => {
+    if (useInboxStore.getState().selecting) return;
+    setSheetItem(item);
+    setShowItemSheet(true);
+  }, []);
+
+  const renderInboxItem = useCallback(({ item }: { item: InboxItem }) => (
+    <InboxRow
+      item={item}
+      selecting={selecting}
+      checked={selectedIds.has(item.id)}
+      onPress={onInboxPress}
+      onLongPress={onInboxLongPress}
+    />
+  ), [selecting, selectedIds, onInboxPress, onInboxLongPress]);
+
+  const unreadCount = useMemo(() => items.reduce((n, i) => n + (i.read ? 0 : 1), 0), [items]);
 
   const handleClearConfirm = useCallback(() => setShowClearConfirm(true), []);
 
@@ -257,44 +172,33 @@ export default function NotesScreen() {
 
   return (
     <View className="flex-1 bg-white">
-      <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
-        <View>
-          <Text className="text-2xl font-semibold tracking-tightest text-black">
+      <View className="px-5 pt-4 pb-3 flex-row items-end justify-between gap-3">
+        <View className="flex-1">
+          <Text className="text-[30px] font-extrabold tracking-tightest text-black">
             {tab === "notes" ? "Notes" : "Inbox"}
           </Text>
-          <Text className="text-sm text-ink-500 mt-1">
+          <Text className="text-[13px] font-semibold text-ink-500 mt-0.5">
             {tab === "notes"
               ? `${notes.length} note${notes.length === 1 ? "" : "s"}`
-              : `${getUnreadCount()} unread · ${items.length} total`
-            }
+              : `${unreadCount} unread · ${items.length} total`}
           </Text>
         </View>
-        <View className="flex-row gap-2 items-center">
-          {tab === "notes" ? (
-            <TouchableOpacity
-              onPress={onAddPress}
-              activeOpacity={0.85}
-              className="w-9 h-9 bg-black rounded-full items-center justify-center shadow-raised"
-            >
-              <Feather name="plus" size={20} color={T.white} />
-            </TouchableOpacity>
-          ) : selecting ? (
-            <TouchableOpacity onPress={() => setSelecting(false)}>
-              <Text className="text-sm font-medium text-ink-500">Cancel</Text>
+        {tab === "inbox" && items.length > 0 ? (
+          selecting ? (
+            <TouchableOpacity onPress={() => setSelecting(false)} className="h-11 px-2 justify-center" accessibilityRole="button">
+              <Text className="text-sm font-bold text-ink-500">Cancel</Text>
             </TouchableOpacity>
           ) : (
-            items.length > 0 && (
-              <IconButton icon="check-square" onPress={() => setSelecting(true)} />
-            )
-          )}
-        </View>
+            <IconButton icon="check-square" size="md" onPress={() => setSelecting(true)} />
+          )
+        ) : null}
       </View>
 
-      <View className="mx-4 mb-3">
+      <View className="mx-5 mb-3">
         <SegmentedControl
           options={[
             { label: "Notes", value: "notes" },
-            { label: "Inbox", value: "inbox" },
+            { label: unreadCount > 0 ? `Inbox · ${unreadCount}` : "Inbox", value: "inbox" },
           ]}
           value={tab}
           onChange={(v) => setTab(v)}
@@ -303,11 +207,12 @@ export default function NotesScreen() {
 
       {tab === "notes" ? (
         <>
-          <View className="mx-4 mb-3 h-11 bg-ink-50 rounded-xl px-4 flex-row items-center gap-2">
+          <View className="mx-5 mb-3 h-12 bg-ink-50 rounded-2xl px-4 flex-row items-center gap-2.5">
             <Feather name="search" size={15} color={T.ink300} />
             <TextInput
               className="flex-1 text-sm text-black"
-              placeholder="Search notes"
+              placeholder="Search notes and tags"
+              accessibilityLabel="Search notes"
               placeholderTextColor={T.ink300}
               value={query}
               onChangeText={setQuery}
@@ -327,7 +232,7 @@ export default function NotesScreen() {
                 bounces
                 data={["all", ...allTags]}
                 keyExtractor={(t) => t}
-                contentContainerClassName="px-4 gap-2"
+                contentContainerClassName="px-5 gap-2"
                 removeClippedSubviews
                 maxToRenderPerBatch={10}
                 windowSize={5}
@@ -415,7 +320,7 @@ export default function NotesScreen() {
           <FlatList
             data={inboxFiltered}
             keyExtractor={(item) => item.id}
-            contentContainerClassName="px-4"
+            contentContainerClassName="px-5"
             contentContainerStyle={{ paddingBottom: bottomGap }}
             alwaysBounceVertical
             removeClippedSubviews
@@ -430,6 +335,8 @@ export default function NotesScreen() {
       )}
 
 
+
+      {tab === "notes" && <Fab label="New note" icon="edit-3" onPress={onAddPress} />}
 
       <SheetModal
         visible={showItemSheet && sheetItem !== null}

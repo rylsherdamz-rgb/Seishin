@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { FadeIn } from "react-native-reanimated";
@@ -16,7 +16,7 @@ interface WeekStripProps {
 }
 
 /** Compact one-week scroller shown when the month grid is collapsed. */
-export function WeekStrip({ selected, today, marks, onSelect, onLongPress, onSwipe }: WeekStripProps) {
+export const WeekStrip = memo(function WeekStrip({ selected, today, marks, onSelect, onLongPress, onSwipe }: WeekStripProps) {
   const days = useMemo(() => weekOf(selected), [selected]);
   const swipe = useMemo(
     () =>
@@ -68,4 +68,4 @@ export function WeekStrip({ selected, today, marks, onSelect, onLongPress, onSwi
       </Animated.View>
     </GestureDetector>
   );
-}
+});

@@ -15,12 +15,12 @@ export function SegmentedControl<T extends string>({
   size = "medium",
 }: SegmentedControlProps<T>) {
   const C = useColors();
-  const height = size === "small" ? 32 : 38;
-  const pillHeight = height - 4;
+  const height = size === "small" ? 36 : 44;
+  const pillHeight = height - 8;
 
   return (
     <View
-      className="flex-row bg-ink-100 rounded-xl p-0.5"
+      className="flex-row bg-ink-50 rounded-2xl p-1"
       style={{ height }}
     >
       {options.map((option) => {
@@ -30,7 +30,9 @@ export function SegmentedControl<T extends string>({
             key={option.value}
             onPress={() => onChange(option.value)}
             activeOpacity={0.8}
-            className="flex-1 items-center justify-center rounded-lg"
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            className="flex-1 items-center justify-center rounded-xl"
             style={{
               height: pillHeight,
               backgroundColor: active ? C.white : "transparent",
@@ -42,7 +44,7 @@ export function SegmentedControl<T extends string>({
             }}
           >
             <Text
-              className={`text-sm font-semibold ${active ? "text-black" : "text-ink-400"}`}
+              className={`text-[13px] font-bold ${active ? "text-black" : "text-ink-500"}`}
             >
               {option.label}
             </Text>

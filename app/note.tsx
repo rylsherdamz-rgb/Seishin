@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
 import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet"; import { Stack, router, useLocalSearchParams } from "expo-router"; import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker"; import { getDocumentAsync } from "expo-document-picker"; import { useNotesStore, NoteAttachment } from "@/stores/notes-store"; import { useKeyboardPadding } from "@/hooks/useKeyboardPadding"; import { recognizeText } from "@/services/ocr"; import { AlertDialog } from "@/components/ui/AlertDialog"; import { uid } from "@/utils/id"; import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import Feather from "@expo/vector-icons/Feather";
+import { Photo } from "@/components/ui/Photo";
 import { useColors } from "@/theme/ThemeProvider";
 
 function fmtSize(bytes?: number) {
@@ -68,12 +69,16 @@ export default function NoteEditorScreen() {
     else if (action === "youtube") setShowYoutubeInput(true);
   }, [action]);
 
+  // True while there are edits not yet written; the exit flush only saves
+  // then, so merely viewing a note never bumps its updatedAt.
+  const dirtyRef = useRef(false);
   const persist = useCallback((next?: Partial<{ title: string; body: string; tags: string[]; pinned: boolean; attachments: NoteAttachment[] }>) => {
     const t = next?.title ?? title;
     const b = next?.body ?? body;
     const tg = next?.tags ?? tags;
     const p = next?.pinned ?? pinned;
     const at = next?.attachments ?? attachments;
+    dirtyRef.current = false;
     // Don't create empty notes (no text, tags, or attachments).
     if (!t.trim() && !b.trim() && tg.length === 0 && at.length === 0) return;
 
@@ -98,12 +103,16 @@ export default function NoteEditorScreen() {
     setSavedAt(Date.now());
   }, [title, body, tags, pinned, attachments, eventId]);
 
-  // Autosave on every edit (skip the initial mount so opening an existing
-  // note doesn't bump its updatedAt). Saves instantly per keystroke.
+  // Autosave edits (skip the initial mount so opening an existing note doesn't
+  // bump its updatedAt). Debounced: a save re-sorts and serializes every note,
+  // so doing it per keystroke made typing lag on large notebooks. Unmount
+  // flushes whatever is still pending.
   const mountedOnceRef = useRef(false);
   useEffect(() => {
     if (!mountedOnceRef.current) { mountedOnceRef.current = true; return; }
-    persist();
+    dirtyRef.current = true;
+    const t = setTimeout(persist, 400);
+    return () => clearTimeout(t);
   }, [title, body, tags, pinned, attachments, persist]);
 
   // Flash the "Saved" indicator after each write.
@@ -118,11 +127,11 @@ export default function NoteEditorScreen() {
   const lastPersistRef = useRef<() => void>(() => { });
   lastPersistRef.current = persist;
   useEffect(() => {
-    return () => { lastPersistRef.current(); };
+    return () => { if (dirtyRef.current) lastPersistRef.current(); };
   }, []);
 
   const handleBack = useCallback(() => {
-    persist();
+    if (dirtyRef.current) persist();
     router.back();
   }, [persist]);
 
@@ -278,7 +287,7 @@ export default function NoteEditorScreen() {
     <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
-        <TouchableOpacity onPress={handleBack} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+        <TouchableOpacity onPress={handleBack} hitSlop={6} className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
           <Feather name="arrow-left" size={16} color={T.black} />
         </TouchableOpacity>
         <View className="flex-row items-center gap-2">
@@ -295,7 +304,7 @@ export default function NoteEditorScreen() {
           >
             <Feather name="bookmark" size={15} color={pinned ? T.white : T.black} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} hitSlop={6} className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
+          <TouchableOpacity onPress={handleDelete} hitSlop={6} className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
             <Feather name="trash-2" size={15} color={T.danger} />
           </TouchableOpacity>
         </View>
@@ -328,7 +337,7 @@ export default function NoteEditorScreen() {
           <View className="flex-row flex-wrap gap-2 mb-3">
             {imageAtts.map((a) => (
               <View key={a.id} className="relative">
-                <Image source={{ uri: a.uri }} className="w-24 h-24 rounded-card bg-ink-100" resizeMode="cover" />
+                <Photo uri={a.uri} width={96} height={96} />
                 <TouchableOpacity
                   onPress={() => removeAttachment(a.id)}
                   hitSlop={10}
