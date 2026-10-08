@@ -21,6 +21,12 @@ Themes: Mono Light (default), Paper, Mono Dark, Midnight, AMOLED, or System.
 Accent (`bg-accent` / `text-accent-on`): Ink (default, = black), Blue, Green,
 Violet, Orange, Rose. Use classes or `useColors()` — never raw hex.
 
+## Note colors
+Notes may carry a tonal background (`src/theme/note-colors.ts`): Rose, Apricot,
+Lemon, Mint, Teal, Sky, Slate, Lavender, Blush, Sand, Stone. Each has a pale
+light-theme tone and a deep dark-theme tone so ink keeps contrast. Uncolored
+notes are outlined cards on the page surface.
+
 ## Typography
 ```
 Body:      16px, #000, system font

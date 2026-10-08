@@ -1,61 +1,106 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
-import Animated, { FadeInDown, FadeIn, FadeOut } from "react-native-reanimated";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet"; import { Stack, router, useLocalSearchParams } from "expo-router"; import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker"; import { getDocumentAsync } from "expo-document-picker"; import { useNotesStore, NoteAttachment } from "@/stores/notes-store"; import { useKeyboardPadding } from "@/hooks/useKeyboardPadding"; import { recognizeText } from "@/services/ocr"; import { AlertDialog } from "@/components/ui/AlertDialog"; import { uid } from "@/utils/id"; import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
+import { Stack, router, useLocalSearchParams } from "expo-router";
+import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
+import { getDocumentAsync } from "expo-document-picker";
 import Feather from "@expo/vector-icons/Feather";
-import { Photo } from "@/components/ui/Photo";
-import { useColors } from "@/theme/ThemeProvider";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
+import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { recognizeText } from "@/services/ocr";
+import { AlertDialog } from "@/components/ui/AlertDialog";
+import { SheetModal } from "@/components/ui/SheetModal";
+import { EditorBottomBar } from "@/components/notes/EditorBottomBar";
+import { EditorImages, EditorFiles } from "@/components/notes/EditorAttachments";
+import { NoteColorPicker } from "@/components/notes/NoteColorPicker";
+import { uid } from "@/utils/id";
+import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
+import { useTheme } from "@/theme/ThemeProvider";
+import { isNoteColorId, noteBackground, type NoteColorId } from "@/theme/note-colors";
 
-function fmtSize(bytes?: number) {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+/** Height of the bottom app bar (excluding the safe-area inset). */
+const BAR_H = 56;
+
+function editedLabel(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return `Edited ${sameDay
+    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
+type Draft = { title: string; body: string; tags: string[]; pinned: boolean; attachments: NoteAttachment[]; color: NoteColorId };
+
 export default function NoteEditorScreen() {
-  const T = useColors();
+  const { colors: T, dark } = useTheme();
   const { id, eventId, action } = useLocalSearchParams<{ id?: string; eventId?: string; action?: string }>();
-  const notes = useNotesStore((s) => s.notes);
   const addNote = useNotesStore((s) => s.addNote);
   const updateNote = useNotesStore((s) => s.updateNote);
   const deleteNote = useNotesStore((s) => s.deleteNote);
-  const existing = id ? notes.find((n) => n.id === id) : undefined;
+  // Read once: subscribing to the whole notes array would re-render the editor
+  // on every save of this very note.
+  const [existing] = useState(() => {
+    if (!id) return undefined;
+    const store = useNotesStore.getState();
+    // Opened from elsewhere (e.g. a calendar event) before the Notes tab ever
+    // loaded the notebook: hydrate it first.
+    if (store.notes.length === 0) store.loadNotes();
+    return useNotesStore.getState().notes.find((n) => n.id === id);
+  });
 
   const [title, setTitle] = useState(existing?.title ?? "");
   const [body, setBody] = useState(existing?.body ?? "");
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const [pinned, setPinned] = useState(existing?.pinned ?? false);
   const [attachments, setAttachments] = useState<NoteAttachment[]>(existing?.attachments ?? []);
+  const [color, setColor] = useState<NoteColorId>(isNoteColorId(existing?.color) ? existing.color : "default");
+  const [lastEdited, setLastEdited] = useState<string | null>(existing?.updatedAt ?? null);
   const [tagInput, setTagInput] = useState("");
+  const [labelEditing, setLabelEditing] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [addSheet, setAddSheet] = useState(false);
+  const [moreSheet, setMoreSheet] = useState(false);
   const [ocrBusy, setOcrBusy] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFileError, setShowFileError] = useState(false);
   const [showYoutubeInput, setShowYoutubeInput] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeBusy, setYoutubeBusy] = useState(false);
-  const [savedAt, setSavedAt] = useState(0);
-  const [savedVisible, setSavedVisible] = useState(false);
-  // Floating, collapsible tool/tag box anchored bottom-center of the editor.
-  const [toolboxOpen, setToolboxOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const keyboardPadding = useKeyboardPadding();
+  const { inset: kb, top: kbTop } = useKeyboardInset();
   const youtubeSnapPoints = useMemo(() => ["40%"], []);
   const noteIdRef = useRef<string | undefined>(existing?.id);
   // Ensures a launch "action" (from the Notes "+" menu) fires its picker only once.
   const actionFired = useRef(false);
+  const background = noteBackground(color, dark) ?? T.white;
+
+  // — Keyboard-aware scrolling ———————————————————————————————————————
+  // The layout itself ends at the keyboard (spacer below the bottom bar), so
+  // nothing is ever drawn underneath it. These refs keep the caret visible:
+  // the line you tapped scrolls above the keyboard when it opens, and text
+  // typed at the end of the note keeps following the caret.
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const touchY = useRef<number | null>(null);
+  const followEnd = useRef(false);
+
+  const onEditorTouch = useCallback((e: GestureResponderEvent) => { touchY.current = e.nativeEvent.pageY; }, []);
 
   useEffect(() => {
-    if (existing) {
-      setTitle(existing.title);
-      setBody(existing.body);
-      setTags(existing.tags);
-      setPinned(existing.pinned);
-      setAttachments(existing.attachments ?? []);
-      noteIdRef.current = existing.id;
-    }
-  }, [existing?.id]);
+    if (kb === 0 || touchY.current === null) return;
+    const visibleBottom = kbTop - BAR_H - 40;
+    const overflow = touchY.current - visibleBottom;
+    if (overflow <= 0) return;
+    const raf = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: scrollY.current + overflow, animated: true }));
+    return () => cancelAnimationFrame(raf);
+  }, [kb, kbTop]);
+
+  const onContentSizeChange = useCallback(() => {
+    if (followEnd.current && kb > 0) scrollRef.current?.scrollToEnd({ animated: false });
+  }, [kb]);
 
   // When opened from the Notes "+" menu with an action, immediately launch the
   // matching picker (camera / gallery / file) once for this fresh note.
@@ -72,36 +117,34 @@ export default function NoteEditorScreen() {
   // True while there are edits not yet written; the exit flush only saves
   // then, so merely viewing a note never bumps its updatedAt.
   const dirtyRef = useRef(false);
-  const persist = useCallback((next?: Partial<{ title: string; body: string; tags: string[]; pinned: boolean; attachments: NoteAttachment[] }>) => {
+  const persist = useCallback((next?: Partial<Draft>) => {
     const t = next?.title ?? title;
     const b = next?.body ?? body;
     const tg = next?.tags ?? tags;
     const p = next?.pinned ?? pinned;
     const at = next?.attachments ?? attachments;
+    const c = next?.color ?? color;
     dirtyRef.current = false;
     // Don't create empty notes (no text, tags, or attachments).
     if (!t.trim() && !b.trim() && tg.length === 0 && at.length === 0) return;
+    const fields = { title: t, body: b, tags: tg, pinned: p, attachments: at, color: c === "default" ? undefined : c };
 
     if (noteIdRef.current) {
-      updateNote(noteIdRef.current, { title: t, body: b, tags: tg, pinned: p, attachments: at });
+      updateNote(noteIdRef.current, fields);
     } else {
       const newId = uid("note");
       noteIdRef.current = newId;
       const now = new Date().toISOString();
       addNote({
         id: newId,
-        title: t,
-        body: b,
-        tags: tg,
-        pinned: p,
-        attachments: at,
+        ...fields,
         eventId: typeof eventId === "string" ? eventId : undefined,
         createdAt: now,
         updatedAt: now,
       });
     }
-    setSavedAt(Date.now());
-  }, [title, body, tags, pinned, attachments, eventId]);
+    setLastEdited(new Date().toISOString());
+  }, [title, body, tags, pinned, attachments, color, eventId]);
 
   // Autosave edits (skip the initial mount so opening an existing note doesn't
   // bump its updatedAt). Debounced: a save re-sorts and serializes every note,
@@ -113,15 +156,7 @@ export default function NoteEditorScreen() {
     dirtyRef.current = true;
     const t = setTimeout(persist, 400);
     return () => clearTimeout(t);
-  }, [title, body, tags, pinned, attachments, persist]);
-
-  // Flash the "Saved" indicator after each write.
-  useEffect(() => {
-    if (!savedAt) return;
-    setSavedVisible(true);
-    const timer = setTimeout(() => setSavedVisible(false), 2000);
-    return () => clearTimeout(timer);
-  }, [savedAt]);
+  }, [title, body, tags, pinned, attachments, color, persist]);
 
   // Flush pending edits on unmount — gesture/system back bypass handleBack.
   const lastPersistRef = useRef<() => void>(() => { });
@@ -141,8 +176,13 @@ export default function NoteEditorScreen() {
     persist({ pinned: next });
   }, [pinned, persist]);
 
+  const changeColor = useCallback((c: NoteColorId) => {
+    setColor(c);
+    persist({ color: c });
+  }, [persist]);
+
   const addTag = useCallback(() => {
-    const t = tagInput.trim().replace(/^#/, "").toLowerCase();
+    const t = tagInput.trim().replace(/^#/, "").toLowerCase().slice(0, 40);
     if (!t || tags.includes(t)) { setTagInput(""); return; }
     const next = [...tags, t];
     setTags(next);
@@ -161,6 +201,16 @@ export default function NoteEditorScreen() {
     setAttachments(next);
     persist({ attachments: next });
   }, [attachments, persist]);
+
+  const makeCopy = useCallback(() => {
+    const now = new Date().toISOString();
+    const copyId = uid("note");
+    addNote({
+      id: copyId, title: title ? `${title} (copy)` : "", body, tags, pinned: false, attachments,
+      color: color === "default" ? undefined : color, createdAt: now, updatedAt: now,
+    });
+    router.replace({ pathname: "/note", params: { id: copyId } });
+  }, [title, body, tags, attachments, color, addNote]);
 
   // Append OCR-extracted text to the note body under a labeled divider so
   // scanned content becomes part of the note (the "highlighted note").
@@ -276,245 +326,158 @@ export default function NoteEditorScreen() {
     }
   }, [attachments, persist]);
 
-  const handleDelete = useCallback(() => {
-    setShowDeleteConfirm(true);
-  }, []);
-
   const imageAtts = useMemo(() => attachments.filter((a) => a.type === "image"), [attachments]);
   const fileAtts = useMemo(() => attachments.filter((a) => a.type === "file"), [attachments]);
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1" style={{ backgroundColor: background }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
-        <TouchableOpacity onPress={handleBack} hitSlop={6} className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
-          <Feather name="arrow-left" size={16} color={T.black} />
+
+      {/* Top app bar — plain icon buttons, Material 3 style. */}
+      <View className="flex-row items-center justify-between px-1 h-14">
+        <TouchableOpacity onPress={handleBack} accessibilityRole="button" accessibilityLabel="Back" className="w-12 h-12 rounded-full items-center justify-center">
+          <Feather name="arrow-left" size={22} color={T.ink800} />
         </TouchableOpacity>
-        <View className="flex-row items-center gap-2">
-          {savedVisible && (
-            <View className="flex-row items-center gap-1 px-2.5 py-1 bg-ink-50 border border-ink-100 rounded-full">
-              <Feather name="check" size={10} color="#2fbf71" />
-              <Text className="text-[11px] font-medium text-ink-500">Saved</Text>
-            </View>
-          )}
+        <View className="flex-row items-center">
+          {ocrBusy && <ActivityIndicator size="small" color={T.ink500} style={{ marginRight: 8 }} />}
           <TouchableOpacity
             onPress={togglePin}
-            hitSlop={6}
-            className={`w-9 h-9 rounded-full items-center justify-center ${pinned ? "bg-black" : "bg-ink-100"}`}
+            accessibilityRole="button"
+            accessibilityLabel={pinned ? "Unpin note" : "Pin note"}
+            accessibilityState={{ selected: pinned }}
+            className="w-12 h-12 rounded-full items-center justify-center"
           >
-            <Feather name="bookmark" size={15} color={pinned ? T.white : T.black} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} hitSlop={6} className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
-            <Feather name="trash-2" size={15} color={T.danger} />
+            <Ionicons name={pinned ? "pin" : "pin-outline"} size={22} color={T.ink800} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: keyboardPadding + insets.bottom + 180 }}
+        contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
-        alwaysBounceVertical
+        keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={32}
+        onContentSizeChange={onContentSizeChange}
+        onTouchStart={onEditorTouch}
       >
-        {eventId && (
-          <View className="flex-row items-center gap-1.5 mb-2 self-start px-2.5 py-1 bg-black rounded-full">
-            <Feather name="calendar" size={11} color={T.white} />
-            <Text className="text-[11px] font-semibold text-white">Linked to event</Text>
-          </View>
-        )}
-        <TextInput
-          className="text-2xl font-semibold tracking-tight text-black py-2"
-          placeholder="Title"
-          placeholderTextColor={T.ink200}
-          value={title}
-          onChangeText={setTitle}
-          multiline
-        />
+        <EditorImages images={imageAtts} onRemove={removeAttachment} />
 
-        {/* Image attachments */}
-        {imageAtts.length > 0 && (
-          <View className="flex-row flex-wrap gap-2 mb-3">
-            {imageAtts.map((a) => (
-              <View key={a.id} className="relative">
-                <Photo uri={a.uri} width={96} height={96} />
+        <View className="px-5 pt-2 flex-1">
+          {eventId ? (
+            <View className="flex-row items-center gap-1.5 self-start mb-2 px-3 h-8 rounded-full border border-ink-150">
+              <Feather name="calendar" size={12} color={T.ink700} />
+              <Text className="text-xs font-semibold text-ink-700">Linked to event</Text>
+            </View>
+          ) : null}
+          <TextInput
+            className="text-[22px] font-semibold text-black py-2"
+            placeholder="Title"
+            placeholderTextColor={T.ink400}
+            value={title}
+            onChangeText={setTitle}
+            onFocus={() => { followEnd.current = false; }}
+            multiline
+            maxLength={200}
+            accessibilityLabel="Title"
+          />
+          <TextInput
+            className="text-base leading-6 text-ink-900 pt-1 flex-1 min-h-[200px]"
+            placeholder="Note"
+            placeholderTextColor={T.ink400}
+            value={body}
+            onChangeText={setBody}
+            onSelectionChange={(e) => { followEnd.current = e.nativeEvent.selection.end >= body.length - 1; }}
+            onBlur={() => { followEnd.current = false; }}
+            multiline
+            scrollEnabled={false}
+            textAlignVertical="top"
+            autoFocus={!existing && !action}
+            accessibilityLabel="Note"
+          />
+
+          <EditorFiles files={fileAtts} onRemove={removeAttachment} />
+
+          {tags.length > 0 || labelEditing ? (
+            <View className="flex-row flex-wrap items-center gap-2 mt-4">
+              {tags.map((t) => (
                 <TouchableOpacity
-                  onPress={() => removeAttachment(a.id)}
-                  hitSlop={10}
-                  className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-black rounded-full items-center justify-center border-2 border-white"
+                  key={t}
+                  onPress={() => removeTag(t)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove label ${t}`}
+                  className="flex-row items-center gap-1 h-8 pl-3 pr-2 rounded-lg bg-black/5"
                 >
-                  <Feather name="x" size={11} color={T.white} />
+                  <Text className="text-[13px] font-medium text-ink-800">{t}</Text>
+                  <Feather name="x" size={13} color={T.ink500} />
                 </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-        {/* File attachments */}
-        {fileAtts.length > 0 && (
-          <View className="gap-2 mb-3">
-            {fileAtts.map((a) => (
-              <View key={a.id} className="flex-row items-center gap-3 bg-white border border-ink-100 rounded-card p-3 shadow-subtle">
-                <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name="file-text" size={16} color={T.black} />
+              ))}
+              {labelEditing ? (
+                <View className="flex-row items-center h-8 px-3 rounded-lg border border-ink-200 min-w-[140px]">
+                  <Feather name="tag" size={13} color={T.ink500} />
+                  <TextInput
+                    className="flex-1 text-[13px] text-black ml-1.5 py-0"
+                    placeholder="Label name"
+                    placeholderTextColor={T.ink400}
+                    value={tagInput}
+                    onChangeText={setTagInput}
+                    onSubmitEditing={addTag}
+                    onFocus={() => { followEnd.current = true; }}
+                    onBlur={() => { addTag(); setLabelEditing(false); }}
+                    autoFocus
+                    autoCapitalize="none"
+                    returnKeyType="done"
+                    blurOnSubmit={false}
+                    accessibilityLabel="New label"
+                  />
                 </View>
-                <View className="flex-1">
-                  <Text className="text-sm text-black font-medium" numberOfLines={1}>{a.name || "File"}</Text>
-                  <Text className="text-xs text-ink-300">{[a.mimeType, fmtSize(a.size)].filter(Boolean).join(" · ")}</Text>
-                </View>
-                <TouchableOpacity onPress={() => removeAttachment(a.id)} hitSlop={6} className="w-8 h-8 items-center justify-center">
-                  <Feather name="x" size={15} color={T.ink300} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-
-
-        <TextInput
-          className="text-base text-ink-800 leading-6 py-2 pb-20 min-h-[320px]"
-          placeholder="Start writing, or tap the + button below to add photos, files, tags…"
-          placeholderTextColor={T.ink200}
-          value={body}
-          onChangeText={setBody}
-          multiline
-          scrollEnabled={false}
-          textAlignVertical="top"
-        />
-
-
-        {ocrBusy && (
-          <View className="flex-row items-center gap-2 mb-3">
-            <ActivityIndicator size="small" color={T.black} />
-            <Text className="text-xs text-ink-500">Reading text from image…</Text>
-          </View>
-        )}
-
-
-
-
-        {/* Tags preview (managed from the floating toolbox) */}
-        {tags.length > 0 && (
-          <View className="flex-row flex-wrap items-center gap-2 mb-2 mt-1">
-            {tags.map((t) => (
-              <TouchableOpacity
-                key={t}
-                onPress={() => removeTag(t)}
-                className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
-              >
-                <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
-                <Feather name="x" size={11} color={T.ink300} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+              ) : null}
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
 
-      {/* Floating, collapsible tool + tag box — anchored bottom-center. */}
-      {toolboxOpen && (
-        <Animated.View
-          entering={FadeIn.duration(150)}
-          exiting={FadeOut.duration(120)}
-          style={{ position: "absolute", left: 0, right: 0, top: 0, bottom: 0 }}
-        >
-          {/* Tap-outside scrim to collapse. */}
-          <TouchableOpacity activeOpacity={1} onPress={() => setToolboxOpen(false)} style={{ flex: 1 }} />
-        </Animated.View>
-      )}
+      {paletteOpen ? (
+        <View className="border-t border-ink-75" style={{ backgroundColor: background }}>
+          <NoteColorPicker value={color} onChange={changeColor} />
+        </View>
+      ) : null}
 
-      <View
-        pointerEvents="box-none"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          // Lift the whole toolbox above the keyboard while typing a tag;
-          // otherwise rest just above the safe-area at the bottom.
-          bottom: keyboardPadding > 0 ? keyboardPadding + 12 : insets.bottom + 16,
-          alignItems: "center",
-        }}
-      >
-        {toolboxOpen && (
-          <Animated.View
-            entering={FadeInDown.duration(180)}
-            exiting={FadeOut.duration(120)}
-            className="w-full px-4 mb-3"
-          >
-            <View className="bg-white rounded-sheet border border-ink-100 shadow-float p-3 gap-2.5">
-              {/* Tool tiles */}
-              <View className="flex-row gap-2.5">
-                <TouchableOpacity onPress={() => { setToolboxOpen(false); addPhoto(true); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="camera" size={16} color={T.black} />
-                  <Text className="text-[13px] font-semibold text-black">Camera</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setToolboxOpen(false); addPhoto(false); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="image" size={16} color={T.black} />
-                  <Text className="text-[13px] font-semibold text-black">Photo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setToolboxOpen(false); scanOnly(); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="maximize" size={16} color={T.black} />
-                  <Text className="text-[13px] font-semibold text-black">OCR</Text>
-                </TouchableOpacity>
-              </View>
-              <View className="flex-row gap-2.5">
-                <TouchableOpacity onPress={() => { setToolboxOpen(false); addFile(); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="paperclip" size={16} color={T.black} />
-                  <Text className="text-[13px] font-semibold text-black">File</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => { setToolboxOpen(false); setShowYoutubeInput(true); }} className="flex-1 h-12 bg-ink-50 rounded-xl items-center justify-center flex-row gap-2" activeOpacity={0.7}>
-                  <Feather name="youtube" size={16} color={T.black} />
-                  <Text className="text-[13px] font-semibold text-black">YouTube</Text>
-                </TouchableOpacity>
-              </View>
+      <EditorBottomBar
+        editedLabel={editedLabel(lastEdited)}
+        paletteOpen={paletteOpen}
+        onAdd={() => setAddSheet(true)}
+        onTogglePalette={() => setPaletteOpen((v) => !v)}
+        onMore={() => setMoreSheet(true)}
+        background={background}
+        bottomInset={kb > 0 ? 0 : insets.bottom}
+      />
+      {/* Occupies exactly the keyboard's area so the bar sits on top of it. */}
+      <View style={{ height: kb }} />
 
-              {/* Existing tags (tap to remove) */}
-              {tags.length > 0 && (
-                <View className="flex-row flex-wrap items-center gap-2 pt-1">
-                  {tags.map((t) => (
-                    <TouchableOpacity
-                      key={t}
-                      onPress={() => removeTag(t)}
-                      className="flex-row items-center gap-1 px-3 py-1.5 bg-ink-100 rounded-full"
-                    >
-                      <Text className="text-xs font-semibold text-ink-600">#{t}</Text>
-                      <Feather name="x" size={11} color={T.ink300} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {/* Tag input */}
-              <View className="flex-row items-center gap-2 h-11 bg-ink-50 rounded-xl px-4">
-                <Feather name="tag" size={14} color={T.ink300} />
-                <TextInput
-                  className="flex-1 text-sm text-black"
-                  placeholder="Add a tag"
-                  placeholderTextColor={T.ink300}
-                  value={tagInput}
-                  onChangeText={setTagInput}
-                  onSubmitEditing={addTag}
-                  autoCapitalize="none"
-                  returnKeyType="done"
-                  blurOnSubmit={false}
-                />
-                {tagInput.length > 0 && (
-                  <TouchableOpacity onPress={addTag}>
-                    <Feather name="plus-circle" size={16} color={T.black} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* The toggle FAB */}
-        <TouchableOpacity
-          onPress={() => setToolboxOpen((v) => !v)}
-          activeOpacity={0.85}
-          className="w-14 h-14 bg-black rounded-full items-center justify-center shadow-float"
-        >
-          <Feather name={toolboxOpen ? "x" : "plus"} size={26} color={T.white} />
-        </TouchableOpacity>
-      </View>
+      <SheetModal
+        visible={addSheet}
+        onClose={() => setAddSheet(false)}
+        options={[
+          { icon: "camera", label: "Take photo", onPress: () => addPhoto(true) },
+          { icon: "image", label: "Add image", onPress: () => addPhoto(false) },
+          { icon: "maximize", label: "Scan text from image", onPress: scanOnly },
+          { icon: "paperclip", label: "Attach file", onPress: addFile },
+          { icon: "youtube", label: "Summarize a YouTube video", onPress: () => setShowYoutubeInput(true) },
+        ]}
+      />
+      <SheetModal
+        visible={moreSheet}
+        onClose={() => setMoreSheet(false)}
+        options={[
+          { icon: "tag", label: "Add label", onPress: () => setLabelEditing(true) },
+          { icon: "copy", label: "Make a copy", onPress: makeCopy },
+          { icon: "trash-2", label: "Delete", destructive: true, onPress: () => setShowDeleteConfirm(true) },
+        ]}
+      />
       <BottomSheet
         index={showYoutubeInput || youtubeBusy ? 0 : -1}
         snapPoints={youtubeSnapPoints}

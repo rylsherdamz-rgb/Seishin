@@ -59,7 +59,7 @@ import NotesScreen from "../../app/(tabs)/notes";
 import { useNotesStore } from "@/stores/notes-store";
 import { notesStorage } from "@/stores/mmkv";
 import { useInboxStore } from "@/stores/inbox-store";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { TouchableOpacity, Text } from "react-native";
 
 function seedData() {
   const now = new Date().toISOString();
@@ -115,13 +115,18 @@ describe("NotesScreen render", () => {
     act(() => {
       tree = create(<NotesScreen />);
     });
-    const segmented = tree?.root.findByType(SegmentedControl);
-    expect(segmented).toBeTruthy();
+    // The Inbox filter chip is the section switch now.
+    const inboxChip = tree?.root
+      .findAllByType(TouchableOpacity)
+      .find((b) => b.findAllByType(Text).some((t) => String(t.props.children).startsWith("Inbox")));
+    expect(inboxChip).toBeTruthy();
     expect(() => {
       act(() => {
-        segmented?.props.onChange("inbox");
+        inboxChip?.props.onPress();
       });
     }).not.toThrow();
+    // Inbox header renders once switched.
+    expect(tree?.root.findAllByType(Text).some((t) => t.props.children === "Inbox")).toBe(true);
     tree?.unmount();
   });
 
