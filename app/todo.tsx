@@ -97,7 +97,7 @@ export default function TodoScreen() {
     const overdue = !!dueStr && dueStr < todayStr && !item.completed;
     const dueToday = !!dueStr && dueStr === todayStr && !item.completed;
     return (
-    <TouchableOpacity onPress={() => setSheetItem(item)} activeOpacity={0.7}>
+    <TouchableOpacity onPress={() => router.push({ pathname: "/task", params: { id: item.id } })} activeOpacity={0.7}>
       <Card variant="elevated" className="flex-row items-center gap-3 mb-2.5">
         <TouchableOpacity
           onPress={(e) => { e.stopPropagation(); toggleTodo(item.id); }}

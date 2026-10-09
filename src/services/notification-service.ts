@@ -117,6 +117,16 @@ export function useNotifications() {
         await ensureAlarmChannel();
         if (granted) {
           try { await scheduleTodayReminders(); } catch {}
+          // Rolling top-up of task reminders (persistent ones never run dry).
+          try {
+            const { useTodoStore } = await import("@/stores/todo-store");
+            const { refreshAllTaskReminders } = await import("./task-reminders");
+            const store = useTodoStore.getState();
+            if (store.todos.length === 0) store.loadTodos();
+            await refreshAllTaskReminders(useTodoStore.getState().todos);
+          } catch (e) {
+            log.warn("task reminder refresh failed", e);
+          }
         }
       } catch (e) {
         log.error("init failed:", e);
@@ -170,8 +180,8 @@ export function useNotifications() {
 
     const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
-      if (data?.type === "event-reminder") {
-        // Navigate to calendar if we get an event reminder tap
+      if (data?.type === "task-nag" && typeof data.todoId === "string") {
+        handleTaskResponse(data.todoId, response.actionIdentifier).catch(() => {});
       }
     });
     responseListenerRef.current = responseSub;
@@ -506,11 +516,27 @@ export async function scheduleTodayReminders() {
       count++;
     } catch {}
   }
-  for (const todo of todayTodos) {
-    try {
-      await scheduleTodoReminder(todo);
-      count++;
-    } catch {}
-  }
+  // Task reminders (incl. due-today) are owned by task-reminders.ts now.
+  void todayTodos;
   return count;
+}
+
+/** Notification tap / action on a task reminder. */
+async function handleTaskResponse(todoId: string, action: string) {
+  const { useTodoStore } = await import("@/stores/todo-store");
+  const { ACTION_DONE, ACTION_SNOOZE, snoozeTask } = await import("./task-reminders");
+  const store = useTodoStore.getState();
+  if (store.todos.length === 0) store.loadTodos();
+  const todo = useTodoStore.getState().todos.find((t) => t.id === todoId);
+  if (!todo) return;
+  if (action === ACTION_DONE) {
+    if (!todo.completed) useTodoStore.getState().toggleTodo(todoId);
+    return;
+  }
+  if (action === ACTION_SNOOZE) {
+    await snoozeTask(todo, 60);
+    return;
+  }
+  const { router } = await import("expo-router");
+  router.push({ pathname: "/task", params: { id: todoId } });
 }
