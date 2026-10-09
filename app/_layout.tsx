@@ -14,7 +14,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
 import { Host } from "@expo/ui";
 import { useNotifications } from "@/services/notification-service";
-import { useCalendarAutoSync } from "@/hooks/useCalendarAutoSync";
+import { useAutoSync } from "@/hooks/useAutoSync";
+// Defines the background sync task at module load (required by the OS scheduler).
+import "@/services/background-sync";
 import { ThemeProvider, ThemeScope, useColors, useTheme } from "@/theme/ThemeProvider";
 
 ExpoSplashScreen.preventAutoHideAsync();
@@ -148,7 +150,7 @@ function AppShell() {
   const [phase, setPhase] = useState<"splash" | "loading" | "onboarding" | "app">("splash");
   const router = useRouter();
   useNotifications();
-  useCalendarAutoSync();
+  useAutoSync();
 
   useEffect(() => {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");

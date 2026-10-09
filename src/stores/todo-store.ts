@@ -23,6 +23,8 @@ export interface Todo {
   /** Note holding the source photos + scanned text. */
   noteId?: string;
   subject?: string;
+  /** Imported from a connected service (Todoist, Notion, a course feed…). */
+  external?: { provider: string; id: string; url?: string };
 }
 
 export interface TodoItem {
@@ -47,6 +49,8 @@ interface TodoState {
   getStats: () => { total: number; active: number; completed: number };
   getTodosForEvent: (eventId: string) => Todo[];
   toggleItem: (todoId: string, itemId: string) => boolean;
+  /** Bulk changes from a connector sync — one write. */
+  applySync: (create: Todo[], update: { id: string; changes: Partial<Todo> }[], completeIds: string[]) => boolean;
   clearAll: () => void;
   getStorageSize: () => number;
 }
@@ -128,6 +132,28 @@ export const useTodoStore = create<TodoState>((set, get) => {
     deleteTodo: (id) => {
       const ok = commit(get().todos.filter((t) => t.id !== id));
       if (ok) cancelReminders(id);
+      return ok;
+    },
+
+    applySync: (create, update, completeIds) => {
+      if (!create.length && !update.length && !completeIds.length) return true;
+      const done = new Set(completeIds);
+      const patch = new Map(update.map((u) => [u.id, u.changes]));
+      const stamp = new Date().toISOString();
+      const existing = new Set(get().todos.map((t) => t.id));
+      const next = [
+        ...create.filter((t) => !existing.has(t.id)),
+        ...get().todos.map((t) => {
+          let n = patch.has(t.id) ? { ...t, ...patch.get(t.id), id: t.id } : t;
+          if (done.has(t.id) && !n.completed) n = { ...n, completed: true, completedAt: stamp };
+          return n;
+        }),
+      ];
+      const ok = commit(next);
+      if (ok) {
+        const touched = new Set([...create.map((t) => t.id), ...patch.keys(), ...done]);
+        for (const t of get().todos) if (touched.has(t.id)) syncReminders(t);
+      }
       return ok;
     },
 

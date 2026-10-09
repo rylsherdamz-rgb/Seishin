@@ -26,8 +26,8 @@ export interface CalendarEvent {
   startDate: string;
   endDate: string;
   allDay?: boolean;
-  source: "manual" | "ocr" | "email" | "notification" | "chat" | "ai" | "calendar";
-  /** For source "calendar": the device calendar it was imported from (read-only in Seishin). */
+  source: "manual" | "ocr" | "email" | "notification" | "chat" | "ai" | "calendar" | "feed";
+  /** For source "calendar"/"feed": the device calendar or feed it came from (read-only in Seishin). */
   externalCalendarId?: string;
   reminder?: number;
   /** Optional repeating schedule. */
@@ -52,7 +52,7 @@ interface CalendarState {
 // Storage key predates the `{domain}:{subdomain}:{id}` convention; kept so
 // existing installs don't lose data.
 const EVENTS_KEY = "events";
-const SOURCES: CalendarEvent["source"][] = ["manual", "ocr", "email", "notification", "chat", "ai", "calendar"];
+const SOURCES: CalendarEvent["source"][] = ["manual", "ocr", "email", "notification", "chat", "ai", "calendar", "feed"];
 const isISODate = (x: unknown): x is string => typeof x === "string" && !isNaN(Date.parse(x));
 
 /** Runtime guard for persisted events — anything malformed is dropped on load. */

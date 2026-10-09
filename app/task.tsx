@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
@@ -127,6 +127,19 @@ export default function TaskScreen() {
             );
           })}
         </View>
+
+        {todo.external?.url ? (
+          <TouchableOpacity
+            onPress={() => Linking.openURL(todo.external!.url!).catch(() => Alert.alert("Couldn't open link"))}
+            accessibilityRole="link"
+            className="mt-6 h-12 rounded-2xl bg-ink-50 flex-row items-center justify-center gap-2"
+          >
+            <Feather name="external-link" size={16} color={C.black} />
+            <Text className="text-sm font-semibold text-black">
+              Open in {todo.external.provider === "todoist" ? "Todoist" : todo.external.provider === "notion" ? "Notion" : "course page"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         {note ? (
           <TouchableOpacity

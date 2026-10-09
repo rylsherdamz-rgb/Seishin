@@ -7,6 +7,10 @@ import NotificationListener from "expo-android-notification-listener-service";
 import { useColors } from "@/theme/ThemeProvider";
 import { useSettingsStore } from "@/stores/settings-store";
 import { CalendarConnector } from "@/components/connectors/CalendarConnector";
+import { TodoistConnector } from "@/components/connectors/TodoistConnector";
+import { NotionConnector } from "@/components/connectors/NotionConnector";
+import { FeedsConnector } from "@/components/connectors/FeedsConnector";
+import { AutoSyncCard } from "@/components/connectors/AutoSyncCard";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
 
@@ -39,12 +43,28 @@ export default function ConnectorsScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: insets.bottom + 24, gap: 12 }}>
         <Text className="text-sm text-ink-600 px-1 leading-5">
-          Connect the places your schedule and schoolwork live. Everything stays on this phone.
+          Connect the places your schedule and work live. Data syncs directly between this phone and each service — no Seishin server.
         </Text>
 
-        <Card icon="calendar" title="Calendars" subtitle="Google · Outlook · Samsung — two-way">
+        <AutoSyncCard />
+
+        <Section title="Calendars" />
+        <Card icon="calendar" title="Phone calendars" subtitle="Google · Outlook · Samsung — two-way">
           <CalendarConnector />
         </Card>
+        <Card icon="rss" title="School & subscribed calendars" subtitle="Canvas · Classroom · Moodle · Outlook · any .ics link">
+          <FeedsConnector />
+        </Card>
+
+        <Section title="Productivity" />
+        <Card icon="check-circle" title="Todoist" subtitle="Tasks, due dates and completion — two-way">
+          <TodoistConnector />
+        </Card>
+        <Card icon="database" title="Notion" subtitle="A tasks / homework database — two-way">
+          <NotionConnector />
+        </Card>
+
+        <Section title="Capture & inbox" />
 
         <Card icon="hard-drive" title="Google Drive & files" subtitle="OneDrive, Dropbox and any file app too">
           <Text className="text-sm text-ink-600 leading-5">
@@ -85,6 +105,10 @@ export default function ConnectorsScreen() {
       </ScrollView>
     </View>
   );
+}
+
+function Section({ title }: { title: string }) {
+  return <Text className="text-xs font-bold tracking-widest text-ink-500 px-1 mt-3">{title.toUpperCase()}</Text>;
 }
 
 function Card({ icon, title, subtitle, ok, children }: { icon: IconName; title: string; subtitle: string; ok?: boolean; children: React.ReactNode }) {
