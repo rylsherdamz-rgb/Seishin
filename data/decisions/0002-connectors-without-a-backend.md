@@ -26,3 +26,17 @@ Connect through what the phone already syncs, not through Google's APIs:
   and is out of scope until a sign-in story exists.
 - Calendar sync runs on launch, on foreground (10 min gap) and 8 s after
   edits — not while the app is closed.
+
+## Addendum — productivity connectors & background sync (2026-10-09)
+- **Token connectors (direct device → service, no relay):** Todoist (personal API
+  token, unified API v1) and Notion (internal integration secret, API version
+  2025-09-03 data sources). Tokens live in `expo-secure-store` (Keystore/Keychain).
+- **Calendar feeds (.ics):** Canvas, Google Classroom, Moodle, Outlook, any
+  subscription link. Deadline-looking entries become tasks with reminders.
+- **Reconciliation rules** (`task-sync-plan.ts`): completion syncs both ways;
+  vanished upstream ⇒ completed locally, never deleted. Imported calendar/feed
+  events are read-only and never exported back.
+- **Background:** `expo-background-task` (WorkManager / BGTask) ~every 30 min,
+  plus launch, foreground and post-edit syncs, through one `syncEverything`.
+- **Not done:** Google Tasks, Microsoft To Do, Slack, Gmail — they require OAuth
+  app registration; revisit if a sign-in story is added.

@@ -113,7 +113,8 @@ export function taskDeadlineEvents(todos: Todo[]): CalendarEvent[] {
 }
 
 export function planExport(local: CalendarEvent[], records: Record<string, ExportRecord>): ExportPlan {
-  const exportable = local.filter((e) => e.source !== "calendar");
+  // Never export what was imported (phone calendars or subscribed feeds).
+  const exportable = local.filter((e) => e.source !== "calendar" && e.source !== "feed");
   const ids = new Set(exportable.map((e) => e.id));
   const plan: ExportPlan = { create: [], update: [], remove: [] };
   for (const e of exportable) {

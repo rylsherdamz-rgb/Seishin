@@ -24,15 +24,20 @@ export function CalendarItemSheet({ item, onClose, onEdit }: Props) {
 
   // Synced from the phone's calendar: changes here would be undone next sync.
   const readOnly = () =>
-    Alert.alert("From your phone calendar", "This event syncs from your Google / phone calendar. Edit or delete it there and it updates here automatically.");
+    Alert.alert(
+      item.source === "feed" ? "From a subscribed calendar" : "From your phone calendar",
+      item.source === "feed"
+        ? "This event comes from a calendar feed (e.g. your school's). It updates automatically; manage the feed in Connectors."
+        : "This event syncs from your Google / phone calendar. Edit or delete it there and it updates here automatically.",
+    );
 
   if (item.type === "event") {
     const id = item.eventId || item.id;
     return (
       <ItemSheet
         event={{ ...item, id, eventId: id }}
-        onEventDelete={(eid) => (item.source === "calendar" ? readOnly() : remove(deleteEvent(eid)))}
-        onEventEdit={(ev) => (item.source === "calendar" ? readOnly() : (onClose(), onEdit(ev.id)))}
+        onEventDelete={(eid) => (item.source === "calendar" || item.source === "feed" ? readOnly() : remove(deleteEvent(eid)))}
+        onEventEdit={(ev) => (item.source === "calendar" || item.source === "feed" ? readOnly() : (onClose(), onEdit(ev.id)))}
         onClose={onClose}
       />
     );
