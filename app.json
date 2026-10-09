@@ -60,7 +60,13 @@
       ],
       "llama.rn",
       "expo-image",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Allow Seishin to sync your schedule with the calendars on this phone (Google, Outlook, Samsung)."
+        }
+      ]
     ]
   }
 }

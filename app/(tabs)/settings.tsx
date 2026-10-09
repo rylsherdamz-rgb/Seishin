@@ -304,6 +304,8 @@ export default function SettingsScreen() {
 
           <SectionHeader title="Quick Access" />
           <Card className="mb-4 p-0 overflow-hidden">
+            <MenuRow icon="link" label="Connectors" subtitle="Google Calendar, Drive, notifications" onPress={() => router.push("/connectors")} />
+            <MenuRow icon="zap" label="Smart capture" subtitle="Dump assignment photos → tasks + reminders" onPress={() => router.push("/capture")} />
             <MenuRow icon="check-square" label="Tasks" subtitle="Your task list and due dates" onPress={() => router.push("/todo")} />
             <MenuRow icon="send" label="Invites" subtitle="Invitation cards and P2P codes" onPress={() => router.push("/invites")} />
           </Card>

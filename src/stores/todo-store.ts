@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { todosStorage } from "./mmkv";
 import { isNonEmptyString, isRecord, readList, sizeOf, writeJSON } from "./persist";
+import type { ReminderLevel } from "@/services/reminder-plan";
 
 export interface Todo {
   id: string;
@@ -15,6 +16,19 @@ export interface Todo {
   completedAt?: string;
   inviteId?: string;
   eventId?: string;
+  /** Questions / parts to answer (from Smart capture), checked off one by one. */
+  items?: TodoItem[];
+  /** How hard to remind: "persistent" keeps nudging until done. */
+  reminder?: ReminderLevel;
+  /** Note holding the source photos + scanned text. */
+  noteId?: string;
+  subject?: string;
+}
+
+export interface TodoItem {
+  id: string;
+  text: string;
+  done: boolean;
 }
 
 type TodoFilter = "all" | "active" | "completed";
@@ -32,6 +46,7 @@ interface TodoState {
   getFilteredTodos: () => Todo[];
   getStats: () => { total: number; active: number; completed: number };
   getTodosForEvent: (eventId: string) => Todo[];
+  toggleItem: (todoId: string, itemId: string) => boolean;
   clearAll: () => void;
   getStorageSize: () => number;
 }
@@ -52,6 +67,24 @@ export function isTodo(x: unknown): x is Todo {
   return true;
 }
 
+// Reminders are scheduled lazily (native module) so the store stays usable in
+// tests and never blocks a save on notification work.
+type ReminderService = typeof import("@/services/task-reminders");
+function reminders(): ReminderService | null {
+  try {
+    // Lazy require (not import()): works under Metro and Jest alike.
+    return require("@/services/task-reminders") as ReminderService;
+  } catch {
+    return null;
+  }
+}
+function syncReminders(t: Todo) {
+  reminders()?.scheduleTaskReminders(t).catch(() => {});
+}
+function cancelReminders(id: string) {
+  reminders()?.cancelTaskReminders(id).catch(() => {});
+}
+
 export const useTodoStore = create<TodoState>((set, get) => {
   /** Persist first, then publish — the UI never shows unsaved state. */
   const commit = (todos: Todo[]): boolean => {
@@ -66,22 +99,53 @@ export const useTodoStore = create<TodoState>((set, get) => {
 
     loadTodos: () => set({ todos: readList(todosStorage, TODOS_KEY, isTodo) }),
 
-    addTodo: (todo) => commit([todo, ...get().todos]),
+    addTodo: (todo) => {
+      const ok = commit([todo, ...get().todos]);
+      if (ok) syncReminders(todo);
+      return ok;
+    },
 
-    toggleTodo: (id) =>
-      commit(
+    toggleTodo: (id) => {
+      const ok = commit(
         get().todos.map((t) =>
           t.id === id
             ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : undefined }
             : t,
         ),
+      );
+      const t = get().todos.find((x) => x.id === id);
+      if (ok && t) syncReminders(t);
+      return ok;
+    },
+
+    updateTodo: (id, changes) => {
+      const ok = commit(get().todos.map((t) => (t.id === id ? { ...t, ...changes, id } : t)));
+      const t = get().todos.find((x) => x.id === id);
+      if (ok && t && ("dueDate" in changes || "reminder" in changes || "completed" in changes || "title" in changes)) syncReminders(t);
+      return ok;
+    },
+
+    deleteTodo: (id) => {
+      const ok = commit(get().todos.filter((t) => t.id !== id));
+      if (ok) cancelReminders(id);
+      return ok;
+    },
+
+    toggleItem: (todoId, itemId) =>
+      commit(
+        get().todos.map((t) =>
+          t.id === todoId && t.items
+            ? { ...t, items: t.items.map((i) => (i.id === itemId ? { ...i, done: !i.done } : i)) }
+            : t,
+        ),
       ),
 
-    updateTodo: (id, changes) => commit(get().todos.map((t) => (t.id === id ? { ...t, ...changes, id } : t))),
-
-    deleteTodo: (id) => commit(get().todos.filter((t) => t.id !== id)),
-
-    clearCompleted: () => commit(get().todos.filter((t) => !t.completed)),
+    clearCompleted: () => {
+      const done = get().todos.filter((t) => t.completed);
+      const ok = commit(get().todos.filter((t) => !t.completed));
+      if (ok) done.forEach((t) => cancelReminders(t.id));
+      return ok;
+    },
 
     setFilter: (filter) => set({ filter }),
 
@@ -101,6 +165,7 @@ export const useTodoStore = create<TodoState>((set, get) => {
     getTodosForEvent: (eventId) => get().todos.filter((t) => t.eventId === eventId),
 
     clearAll: () => {
+      get().todos.forEach((t) => cancelReminders(t.id));
       todosStorage.remove(TODOS_KEY);
       set({ todos: [] });
     },

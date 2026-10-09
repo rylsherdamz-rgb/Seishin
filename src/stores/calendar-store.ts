@@ -26,7 +26,9 @@ export interface CalendarEvent {
   startDate: string;
   endDate: string;
   allDay?: boolean;
-  source: "manual" | "ocr" | "email" | "notification" | "chat" | "ai";
+  source: "manual" | "ocr" | "email" | "notification" | "chat" | "ai" | "calendar";
+  /** For source "calendar": the device calendar it was imported from (read-only in Seishin). */
+  externalCalendarId?: string;
   reminder?: number;
   /** Optional repeating schedule. */
   recurrence?: Recurrence;
@@ -41,6 +43,8 @@ interface CalendarState {
   deleteEvent: (id: string) => boolean;
   setSelectedDate: (date: string) => void;
   getEventsForDate: (date: string) => CalendarEvent[];
+  /** Bulk upsert/remove for calendar sync — one write, no reminder churn. */
+  applyImport: (upserts: CalendarEvent[], removeIds: string[]) => boolean;
   clearAll: () => void;
   getStorageSize: () => number;
 }
@@ -48,7 +52,7 @@ interface CalendarState {
 // Storage key predates the `{domain}:{subdomain}:{id}` convention; kept so
 // existing installs don't lose data.
 const EVENTS_KEY = "events";
-const SOURCES: CalendarEvent["source"][] = ["manual", "ocr", "email", "notification", "chat", "ai"];
+const SOURCES: CalendarEvent["source"][] = ["manual", "ocr", "email", "notification", "chat", "ai", "calendar"];
 const isISODate = (x: unknown): x is string => typeof x === "string" && !isNaN(Date.parse(x));
 
 /** Runtime guard for persisted events — anything malformed is dropped on load. */
@@ -103,6 +107,14 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   setSelectedDate: (date) => set({ selectedDate: date }),
 
   getEventsForDate: (date) => get().events.filter((e) => occursOnDate(e, date)),
+
+  applyImport: (upserts, removeIds) => {
+    if (upserts.length === 0 && removeIds.length === 0) return true;
+    const drop = new Set(removeIds);
+    const byId = new Map(get().events.filter((e) => !drop.has(e.id)).map((e) => [e.id, e]));
+    for (const e of upserts) if (isCalendarEvent(e)) byId.set(e.id, e);
+    return commit(set, [...byId.values()]);
+  },
 
   clearAll: () => {
     get().events.forEach((e) => cancelEventReminder(e.id));

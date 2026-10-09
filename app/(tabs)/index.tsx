@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, ActivityIndicator, Alert } from "react-native";
+import { View, Alert } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { router } from "expo-router";
 
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
-import { useColors } from "@/theme/ThemeProvider";
 import { COPY } from "@/constants/copy";
 import { atMinutes, nextSlotMinutes, relativeDayLabel, shiftMonth, addDays, type CalendarItem, type QuickParse } from "@/components/calendar/calendar-utils";
-import { pickAndReadText, quickCreate, type CreateKind } from "@/components/calendar/actions";
+import { quickCreate, type CreateKind } from "@/components/calendar/actions";
 import { CalendarItemSheet } from "@/components/calendar/CalendarItemSheet";
 import { Fab } from "@/components/ui/Fab";
 import { CalendarHeader, DaySummary, ViewSwitcher, type CalendarView } from "@/components/calendar/CalendarHeader";
@@ -27,7 +26,6 @@ function defaultStart(key: string, today: string): Date {
 }
 
 export default function CalendarScreen() {
-  const C = useColors();
   const today = useToday();
   const selected = useCalendarStore((s) => s.selectedDate);
   const setSelected = useCalendarStore((s) => s.setSelectedDate);
@@ -38,10 +36,14 @@ export default function CalendarScreen() {
   const [view, setView] = useState<CalendarView>("day");
   const [expanded, setExpanded] = useState(false);
   const [viewMonth, setViewMonth] = useState(selected);
-  const [sheetItem, setSheetItem] = useState<CalendarItem | null>(null);
+  const [sheetItem, setSheetItemRaw] = useState<CalendarItem | null>(null);
+  // Tasks open their full screen (checklist, reminders, source photos); events use the sheet.
+  const setSheetItem = useCallback((item: CalendarItem | null) => {
+    if (item?.type === "todo" && item.todoId) router.push({ pathname: "/task", params: { id: item.todoId } });
+    else setSheetItemRaw(item);
+  }, []);
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<EventPrefill | null>(null);
-  const [scanning, setScanning] = useState(false);
   const { events, marks, dayItems, upcomingRows, summary } = useCalendarData(selected, viewMonth, today);
 
   useEffect(() => {
@@ -78,16 +80,6 @@ export default function CalendarScreen() {
     select(p.date);
   }, [today, select]);
 
-  const scanToEvent = useCallback(async () => {
-    try {
-      const res = await pickAndReadText(() => setScanning(true));
-      if (res) openForm(selected, undefined, { title: res.title, notes: res.text });
-    } catch {
-      Alert.alert(COPY.errors.scanFailedTitle, COPY.errors.scanFailed);
-    } finally {
-      setScanning(false);
-    }
-  }, [openForm, selected]);
 
   // Stable handlers: inline lambdas here would defeat the memoized day cells.
   const openDay = useCallback((key: string) => openForm(key), [openForm]);
@@ -163,12 +155,6 @@ export default function CalendarScreen() {
 
       <Fab label={COPY.calendar.createFab} onPress={openCreate} />
 
-      {scanning && (
-        <View className="absolute inset-0 items-center justify-center bg-white/80">
-          <ActivityIndicator size="large" color={C.accent} />
-          <Text className="text-sm font-semibold text-ink-600 mt-3">{COPY.calendar.scanning}</Text>
-        </View>
-      )}
 
       {createOpen && (
         <CreateSheet
@@ -182,7 +168,7 @@ export default function CalendarScreen() {
           }}
           onNewTodo={() => router.push("/todo")}
           onNewNote={() => router.push("/note")}
-          onScan={scanToEvent}
+          onScan={() => router.push("/capture")}
         />
       )}
 

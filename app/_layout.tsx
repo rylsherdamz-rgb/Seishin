@@ -14,6 +14,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
 import { Host } from "@expo/ui";
 import { useNotifications } from "@/services/notification-service";
+import { useCalendarAutoSync } from "@/hooks/useCalendarAutoSync";
 import { ThemeProvider, ThemeScope, useColors, useTheme } from "@/theme/ThemeProvider";
 
 ExpoSplashScreen.preventAutoHideAsync();
@@ -147,6 +148,7 @@ function AppShell() {
   const [phase, setPhase] = useState<"splash" | "loading" | "onboarding" | "app">("splash");
   const router = useRouter();
   useNotifications();
+  useCalendarAutoSync();
 
   useEffect(() => {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");
@@ -198,6 +200,9 @@ function AppShell() {
               <Stack.Screen name="todo" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="invites" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="note" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="capture" options={{ animation: "slide_from_bottom" }} />
+              <Stack.Screen name="task" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="connectors" options={{ animation: "slide_from_right" }} />
             </Stack>
             {/* The alarm screen is designed dark-on-light-ink; pin it to the base palette. */}
             <ThemeScope theme="light">

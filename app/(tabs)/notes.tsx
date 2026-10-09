@@ -378,6 +378,7 @@ export default function NotesScreen() {
         title="New note"
         message="Start writing, or begin with a photo, file or video"
         options={[
+          { icon: "zap", label: "Smart capture (assignment, notice…)", onPress: () => router.push("/capture") },
           { icon: "file-text", label: "Text note", onPress: () => openNote() },
           { icon: "camera", label: "Take photo", onPress: () => router.push({ pathname: "/note", params: { action: "camera" } }) },
           { icon: "image", label: "Choose photo", onPress: () => router.push({ pathname: "/note", params: { action: "photo" } }) },

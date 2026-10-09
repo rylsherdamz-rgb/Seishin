@@ -9,7 +9,7 @@ import { formatDuration, minutesOf, type AgendaRow, type CalendarItem } from "./
 
 const SOURCE_ICONS: Record<string, React.ComponentProps<typeof Feather>["name"]> = {
   manual: "edit-2", ocr: "camera", email: "mail",
-  notification: "bell", chat: "message-circle", ai: "cpu",
+  notification: "bell", chat: "message-circle", ai: "cpu", calendar: "refresh-cw",
 };
 
 interface AgendaListProps {
