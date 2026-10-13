@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Platform } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
+import { Sheet } from "@/components/ui/Sheet";
 
 import { router } from "expo-router";
 import * as DocumentPicker from "expo-document-picker";
@@ -104,7 +104,6 @@ export default function SettingsScreen() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
   const keyboardPadding = useKeyboardPadding();
-  const modelSheetRef = useRef<BottomSheet>(null);
   const modelSnapPoints = useMemo(() => ["40%", "50%"], []);
 
   const [ggufFileName, setGgufFileName] = useState("");
@@ -210,8 +209,8 @@ export default function SettingsScreen() {
       setModelPath(dest);
       setGgufPath(dest);
       setModalConfig({ title: "Saved", message: `Model copied and ready. (${ggufFileName})` });
-    } catch (e: any) {
-      setModalConfig({ title: "Copy Failed", message: e.message || "Could not copy the model file. Try picking from a different location." });
+    } catch (e) {
+      setModalConfig({ title: "Copy Failed", message: (e instanceof Error && e.message) || "Could not copy the model file. Try picking from a different location." });
     } finally {
       setGgufCopying(false);
       setGgufCopyProgress("");
@@ -318,10 +317,10 @@ export default function SettingsScreen() {
                   <Feather name="cpu" size={16} color={T.black} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-medium text-black">AI Provider</Text>
-                  <Text className="text-xs text-ink-400 mt-0.5">
-                    {apiKeys.nim ? "NVIDIA NIM ready" : "No key set"}
-                    {modelPath ? " · GGUF set" : ""}
+                  <Text className="text-sm font-medium text-black">AI · on-device first</Text>
+                  <Text className="text-xs text-ink-400 mt-0.5" numberOfLines={2}>
+                    {modelPath ? `On-device: ${modelPath.split("/").pop()}` : "On-device: no model yet"}
+                    {apiKeys.nim ? " · NVIDIA NIM ready" : " · NVIDIA NIM optional"}
                   </Text>
                 </View>
               </View>
@@ -331,6 +330,55 @@ export default function SettingsScreen() {
 
           {showAiConfig && (
             <Card className="mb-4">
+              <Text className="text-sm font-semibold text-black">On-device model</Text>
+              <Text className="text-xs text-ink-400 mt-0.5 mb-3">
+                A .gguf file that runs on this phone — offline and private. It can add and change your events, tasks and notes.
+              </Text>
+              <TouchableOpacity
+                onPress={pickGgufFile}
+                disabled={ggufPicking}
+                className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center gap-3 mb-2"
+              >
+                {ggufPicking ? (
+                  <ActivityIndicator size="small" color={T.ink300} />
+                ) : (
+                  <Feather name="folder" size={16} color={T.ink300} />
+                )}
+                <Text className={`text-sm flex-1 ${ggufFileName ? "text-black" : "text-ink-300"}`}>
+                  {ggufFileName || (ggufPicking ? "Reading large file…" : "Tap to select a .gguf file")}
+                </Text>
+                {!!ggufFileName && (
+                  <TouchableOpacity onPress={() => { setGgufPath(""); setGgufFileName(""); }}>
+                    <Feather name="x-circle" size={14} color={T.ink200} />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+              {ggufCopying && (
+                <View className="bg-ink-50 rounded-lg p-3 mb-2">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <ActivityIndicator size="small" color={T.ink500} />
+                    <Text className="text-xs text-ink-600 flex-1">
+                      Copying{ggufFileSize > 0 ? ` ${formatBytes(ggufFileSize)}` : ""}…
+                    </Text>
+                  </View>
+                  <View className="w-full bg-ink-200 rounded-full h-1.5 overflow-hidden">
+                    <View className="bg-black h-full rounded-full" style={{ width: "30%" }} />
+                  </View>
+                  <Text className="text-xs text-ink-400 mt-2">
+                    You can continue browsing Settings while this runs in the background.
+                  </Text>
+                </View>
+              )}
+              <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
+                <Text className="text-white text-sm font-semibold">Save</Text>
+              </TouchableOpacity>
+
+              <View className="h-px bg-ink-100 my-4" />
+
+              <Text className="text-sm font-semibold text-black">NVIDIA NIM · optional cloud</Text>
+              <Text className="text-xs text-ink-400 mt-0.5 mb-3">
+                Bigger models over the internet with every tool. Only used when you pick NVIDIA NIM in the agent.
+              </Text>
               <Text className="text-xs font-semibold text-ink-400 mb-2">NVIDIA NIM API Key</Text>
               <TextInput
                 className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
@@ -360,7 +408,7 @@ export default function SettingsScreen() {
                 <Text className={`text-sm flex-1 ${nimMd ? "text-black" : "text-ink-300"}`} numberOfLines={1}>
                   {nimMd || "Select a model..."}
                 </Text>
-                {nimMd && (
+                {!!nimMd && (
                   <View className={`px-2 py-0.5 rounded-full mr-2 ${
                     categorizeModel(nimMd).tier === "fast" ? "bg-green-100" :
                     categorizeModel(nimMd).tier === "balanced" ? "bg-yellow-100" :
@@ -402,47 +450,6 @@ export default function SettingsScreen() {
                 <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
 
-              <View className="h-px bg-ink-100 my-4" />
-
-              <Text className="text-xs font-semibold text-ink-400 mb-2">Local GGUF Model</Text>
-              <TouchableOpacity
-                onPress={pickGgufFile}
-                disabled={ggufPicking}
-                className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center gap-3 mb-2"
-              >
-                {ggufPicking ? (
-                  <ActivityIndicator size="small" color={T.ink300} />
-                ) : (
-                  <Feather name="folder" size={16} color={T.ink300} />
-                )}
-                <Text className={`text-sm flex-1 ${ggufFileName ? "text-black" : "text-ink-300"}`}>
-                  {ggufFileName || (ggufPicking ? "Reading large file…" : "Tap to select a .gguf file")}
-                </Text>
-                {ggufFileName && (
-                  <TouchableOpacity onPress={() => { setGgufPath(""); setGgufFileName(""); }}>
-                    <Feather name="x-circle" size={14} color={T.ink200} />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-              {ggufCopying && (
-                <View className="bg-ink-50 rounded-lg p-3 mb-2">
-                  <View className="flex-row items-center gap-2 mb-2">
-                    <ActivityIndicator size="small" color={T.ink500} />
-                    <Text className="text-xs text-ink-600 flex-1">
-                      Copying{ggufFileSize > 0 ? ` ${formatBytes(ggufFileSize)}` : ""}…
-                    </Text>
-                  </View>
-                  <View className="w-full bg-ink-200 rounded-full h-1.5 overflow-hidden">
-                    <View className="bg-black h-full rounded-full" style={{ width: "30%" }} />
-                  </View>
-                  <Text className="text-xs text-ink-400 mt-2">
-                    You can continue browsing Settings while this runs in the background.
-                  </Text>
-                </View>
-              )}
-              <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
-                <Text className="text-white text-sm font-semibold">Save</Text>
-              </TouchableOpacity>
             </Card>
           )}
 
@@ -578,15 +585,12 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-        <BottomSheet
-          ref={modelSheetRef}
+        <Sheet
+          open={showModelPicker}
+          onClose={() => setShowModelPicker(false)}
           snapPoints={modelSnapPoints}
-          enablePanDownToClose
-          index={showModelPicker ? 0 : -1}
-          backgroundStyle={{ backgroundColor: T.white }}
-          onChange={(index: number) => { if (index === -1) setShowModelPicker(false); }}
+          contentStyle={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}
         >
-          <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}>
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold tracking-tightest text-black">Select Model</Text>
               <TouchableOpacity onPress={() => setShowModelPicker(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
@@ -623,8 +627,7 @@ export default function SettingsScreen() {
                 renderItem={renderModelItem}
               />
             )}
-          </BottomSheetView>
-        </BottomSheet>
+        </Sheet>
       <AlertDialog
         visible={modalConfig !== null}
         onClose={() => setModalConfig(null)}

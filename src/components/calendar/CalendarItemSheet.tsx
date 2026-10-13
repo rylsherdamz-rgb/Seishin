@@ -19,7 +19,6 @@ export function CalendarItemSheet({ item, onClose, onEdit }: Props) {
 
   const remove = (ok: boolean) => {
     if (!ok) Alert.alert(COPY.errors.saveFailedTitle, COPY.errors.deleteFailed);
-    else onClose();
   };
 
   // Synced from the phone's calendar: changes here would be undone next sync.
@@ -37,7 +36,7 @@ export function CalendarItemSheet({ item, onClose, onEdit }: Props) {
       <ItemSheet
         event={{ ...item, id, eventId: id }}
         onEventDelete={(eid) => (item.source === "calendar" || item.source === "feed" ? readOnly() : remove(deleteEvent(eid)))}
-        onEventEdit={(ev) => (item.source === "calendar" || item.source === "feed" ? readOnly() : (onClose(), onEdit(ev.id)))}
+        onEventEdit={(ev) => (item.source === "calendar" || item.source === "feed" ? readOnly() : onEdit(ev.id))}
         onClose={onClose}
       />
     );

@@ -24,6 +24,10 @@ export interface AgentMessage {
   toolCallId?: string;
   toolCalls?: ToolCallData[];
   attachments?: AgentAttachment[];
+  /** Which brain wrote an assistant reply: on-device GGUF or NVIDIA NIM. */
+  provider?: "local" | "nim";
+  /** Model id (NIM) or GGUF file name (local). */
+  model?: string;
 }
 
 type Provider = "nim" | "local";

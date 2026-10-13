@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
+import { Sheet, type SheetHandle } from "@/components/ui/Sheet";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import { COPY, LIMITS } from "@/constants/copy";
@@ -34,32 +34,26 @@ interface CreateSheetProps {
 /** The "+" menu: natural-language quick add, shortcuts and templates. */
 export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate, onNewTodo, onNewNote, onScan }: CreateSheetProps) {
   const C = useColors();
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<SheetHandle>(null);
   const [text, setText] = useState("");
   const [kind, setKind] = useState<CreateKind>("event");
   const keyboardPad = useKeyboardPadding();
   const parsed = useMemo(() => parseQuickAdd(text, date), [text, date]);
 
-  const done = (fn: () => void) => {
-    sheetRef.current?.close();
-    onClose();
-    // Let this sheet finish dismissing before presenting the next screen/sheet.
-    setTimeout(fn, 250);
-  };
+  // Let this sheet finish dismissing before presenting the next screen/sheet.
+  const done = (fn: () => void) => sheetRef.current?.close(fn);
   const submitQuick = () => {
     if (!parsed.title) return;
     done(() => onQuickAdd(kind, parsed));
   };
 
   return (
-    <BottomSheet
+    <Sheet
       ref={sheetRef}
-      index={0}
-      enablePanDownToClose
-      backgroundStyle={{ backgroundColor: C.white }}
-      onChange={(i: number) => { if (i === -1) onClose(); }}
+      open
+      onClose={onClose}
+      contentStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28 + (Platform.OS === "android" ? keyboardPad : 0) }}
     >
-      <BottomSheetView style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28 + (Platform.OS === "android" ? keyboardPad : 0) }}>
         <Text className="text-xl font-bold tracking-tightest text-black">{COPY.create.title}</Text>
         <Text className="text-xs text-ink-400 mt-0.5 mb-4">{COPY.create.subtitle(relativeDayLabel(date))}</Text>
 
@@ -130,8 +124,7 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </BottomSheetView>
-    </BottomSheet>
+    </Sheet>
   );
 }
 

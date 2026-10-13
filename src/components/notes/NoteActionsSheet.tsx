@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNotesStore, type Note } from "@/stores/notes-store";
 import { AlertDialog } from "@/components/ui/AlertDialog";
+import { Sheet, type SheetHandle } from "@/components/ui/Sheet";
 import { useColors } from "@/theme/ThemeProvider";
 import type { NoteColorId } from "@/theme/note-colors";
 import { uid } from "@/utils/id";
@@ -18,7 +18,7 @@ interface Props {
 /** Long-press menu for a note card: pin, recolor, copy, delete. Mount to open. */
 export function NoteActionsSheet({ note, onClose }: Props) {
   const C = useColors();
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<SheetHandle>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const togglePin = useNotesStore((s) => s.togglePin);
   const updateNote = useNotesStore((s) => s.updateNote);
@@ -27,10 +27,7 @@ export function NoteActionsSheet({ note, onClose }: Props) {
   // Live copy so the color check mark follows taps while the sheet is open.
   const live = useNotesStore((s) => s.notes.find((n) => n.id === note.id)) ?? note;
 
-  const close = () => {
-    sheetRef.current?.close();
-    onClose();
-  };
+  const close = (then?: () => void) => sheetRef.current?.close(then);
   const setColor = (c: NoteColorId) => updateNote(note.id, { color: c === "default" ? undefined : c });
   const copy = () => {
     const now = new Date().toISOString();
@@ -40,14 +37,7 @@ export function NoteActionsSheet({ note, onClose }: Props) {
 
   return (
     <>
-      <BottomSheet
-        ref={sheetRef}
-        index={0}
-        enablePanDownToClose
-        backgroundStyle={{ backgroundColor: C.white }}
-        onChange={(i: number) => { if (i === -1 && !confirmDelete) onClose(); }}
-      >
-        <BottomSheetView style={{ paddingTop: 4, paddingBottom: 28 }}>
+      <Sheet ref={sheetRef} open onClose={onClose} contentStyle={{ paddingTop: 4, paddingBottom: 28 }}>
           <Text className="px-5 text-base font-semibold text-black" numberOfLines={1}>
             {live.title || live.body.split("\n")[0] || "Untitled note"}
           </Text>
@@ -66,8 +56,7 @@ export function NoteActionsSheet({ note, onClose }: Props) {
             destructive
             onPress={() => setConfirmDelete(true)}
           />
-        </BottomSheetView>
-      </BottomSheet>
+      </Sheet>
       <AlertDialog
         visible={confirmDelete}
         onClose={() => setConfirmDelete(false)}
@@ -75,7 +64,7 @@ export function NoteActionsSheet({ note, onClose }: Props) {
         message="This note will be permanently removed. This can't be undone."
         confirmLabel="Delete"
         confirmDestructive
-        onConfirm={() => { deleteNote(note.id); close(); }}
+        onConfirm={() => close(() => deleteNote(note.id))}
       />
     </>
   );

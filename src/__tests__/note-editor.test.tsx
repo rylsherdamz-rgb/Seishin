@@ -81,8 +81,11 @@ jest.mock("@expo/ui/community/bottom-sheet", () => {
   const { View } = require("react-native");
   return {
     __esModule: true,
-    default: (props: Record<string, unknown>) =>
-      ReactMod.createElement(View, props),
+    // Native sheet stand-in: renders inline; close() reports dismissal like the real one.
+    default: ({ ref, onChange, children }: { ref?: unknown; onChange?: (i: number) => void; children?: unknown }) => {
+      ReactMod.useImperativeHandle(ref, () => ({ present: () => {}, close: () => onChange?.(-1) }));
+      return ReactMod.createElement(View, null, children);
+    },
     BottomSheetView: (props: Record<string, unknown>) =>
       ReactMod.createElement(View, props),
   };

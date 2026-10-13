@@ -6,6 +6,13 @@ import { Markdown } from "@/components/Markdown";
 import { Photo } from "@/components/ui/Photo";
 import { useColors } from "@/theme/ThemeProvider";
 
+/** "On-device · qwen2.5-1.5b" / "NVIDIA NIM · llama-3.1-8b-instruct". */
+function providerLabel(m: AgentMessage): string {
+  const name = m.model?.split("/").pop();
+  const brain = m.provider === "local" ? "On-device" : "NVIDIA NIM";
+  return name ? `${brain} · ${name}` : brain;
+}
+
 interface Props {
   item: AgentMessage;
   copied: boolean;
@@ -62,6 +69,12 @@ export const MessageBubble = memo(function MessageBubble({ item, copied, onCopy 
       </View>
       <View className="flex-row items-center gap-3 mt-1 px-1">
         <Text className="text-[11px] text-ink-400">{time}</Text>
+        {item.role === "assistant" && item.provider ? (
+          <View className="flex-row items-center gap-1 shrink" accessibilityLabel={`Answered by ${providerLabel(item)}`}>
+            <Feather name={item.provider === "local" ? "smartphone" : "cloud"} size={11} color={C.ink400} />
+            <Text className="text-[11px] text-ink-400 shrink" numberOfLines={1}>{providerLabel(item)}</Text>
+          </View>
+        ) : null}
         {!isUser ? (
           <TouchableOpacity
             onPress={() => onCopy(item.content, item.id)}

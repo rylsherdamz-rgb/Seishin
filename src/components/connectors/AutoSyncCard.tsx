@@ -31,7 +31,7 @@ export function AutoSyncCard({ onSynced }: { onSynced?: () => void }) {
         <View className="flex-1">
           <Text className="text-base font-bold text-black">Auto-sync is on</Text>
           <Text className="text-xs text-ink-600">
-            {bg === false ? "Syncs when you open the app (background limited by this phone)" : "Every ~30 min in the background, on open, and after edits"}
+            {bg === false ? "Syncs when you open the app (background limited by this phone)" : "Live while open, right after edits, and every ~15 min in the background"}
           </Text>
         </View>
       </View>
