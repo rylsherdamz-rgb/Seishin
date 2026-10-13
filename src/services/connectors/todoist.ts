@@ -3,6 +3,9 @@ import { http } from "./http";
 import { getToken } from "./secrets";
 import { todoistState } from "./state";
 import { normalizeDue, planTaskSync, type ExternalTask } from "./task-sync-plan";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("todoist");
 
 const API = "https://api.todoist.com/api/v1";
 const PROVIDER = "todoist";
@@ -56,7 +59,8 @@ export async function syncTodoist(): Promise<number> {
     const store = useTodoStore.getState();
     const plan = planTaskSync(remote, store.todos, PROVIDER, { reminder: state.reminder, canCompleteRemote: true });
     for (const id of plan.completeRemote) {
-      await http(`${API}/tasks/${id}/close`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+      await http(`${API}/tasks/${id}/close`, { method: "POST", headers: { Authorization: `Bearer ${token}` } })
+        .catch((e) => log.warn("close failed; retrying next sync", id, e));
     }
     store.applySync(plan.create, plan.update, plan.completeLocal);
     todoistState.set({ lastSync: new Date().toISOString(), lastError: null });

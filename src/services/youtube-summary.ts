@@ -3,7 +3,7 @@ import { setupPlatformEvaluator } from "./evaluator";
 import { getDocumentAsync } from "expo-document-picker";
 import { Paths, File } from "expo-file-system";
 import OpenAI from "openai";
-import { useSettingsStore } from "@/stores/settings-store";
+import { getNimKey, useSettingsStore } from "@/stores/settings-store";
 import { isModelLoaded, generateResponse } from "./local-llama";
 import { createLogger } from "@/utils/logger";
 
@@ -128,11 +128,12 @@ export async function getTranscript(videoId: string): Promise<{ segments: Transc
     throw new Error("No captions available for this video");
   }
 
-  const track = info.captions.caption_tracks.find((t: any) => t.language_code === "en" && !t.kind)
-    || info.captions.caption_tracks.find((t: any) => t.language_code === "en")
-    || info.captions.caption_tracks[0];
+  const tracks = info.captions.caption_tracks;
+  const track = tracks.find((t) => t.language_code === "en" && !t.kind)
+    || tracks.find((t) => t.language_code === "en")
+    || tracks[0];
 
-  const url = (track as any).base_url;
+  const url = track?.base_url;
   if (!url) throw new Error("Caption track has no URL");
 
   const resp = await fetch(url, {
@@ -200,13 +201,14 @@ export async function summarizeTranscript(
 ): Promise<string> {
   const transcript = buildTranscriptForAI(videoInfo, segments);
 
-  const { apiKeys, nimEndpoint, nimModel } = useSettingsStore.getState();
+  const nimKey = await getNimKey();
+  const { nimEndpoint, nimModel } = useSettingsStore.getState();
 
-  if (apiKeys.nim) {
+  if (nimKey) {
     try {
       const client = new OpenAI({
         baseURL: (nimEndpoint || "https://integrate.api.nvidia.com/v1").replace(/\/+$/, ""),
-        apiKey: apiKeys.nim,
+        apiKey: nimKey,
       });
       const res = await client.chat.completions.create({
         model: nimModel || "meta/llama-3.2-1b-instruct",

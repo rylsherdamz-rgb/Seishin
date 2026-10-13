@@ -5,10 +5,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "splash": {
-      "backgroundColor": "#FFFFFF",
-      "image": "./assets/splash-icon.png"
-    },
     "userInterfaceStyle": "light",
     "scheme": "seishin",
     "ios": {
@@ -21,7 +17,11 @@
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "package": "com.seishin.app",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -32,15 +32,11 @@
       "expo-dev-client",
       "expo-mlkit-ocr",
       [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow Seishin to access your camera to scan schedules."
-        }
-      ],
-      [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Seishin to access your photos for OCR scanning."
+          "photosPermission": "Allow Seishin to access your photos so you can attach them and scan schedules.",
+          "cameraPermission": "Allow Seishin to use your camera to scan schedules and attach photos.",
+          "microphonePermission": false
         }
       ],
       [
@@ -52,15 +48,16 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-font",
-      [
-        "expo-audio",
-        {
-          "enableBackgroundPlayback": true
-        }
-      ],
       "llama.rn",
       "expo-image",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#FFFFFF",
+          "imageWidth": 200
+        }
+      ],
       [
         "expo-calendar",
         {

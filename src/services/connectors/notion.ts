@@ -3,6 +3,9 @@ import { http } from "./http";
 import { getToken } from "./secrets";
 import { notionState, type NotionState } from "./state";
 import { normalizeDue, planTaskSync, type ExternalTask } from "./task-sync-plan";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("notion");
 
 const API = "https://api.notion.com/v1";
 const VERSION = "2025-09-03";
@@ -99,7 +102,8 @@ export async function syncNotion(): Promise<number> {
     const plan = planTaskSync(remote, store.todos, PROVIDER, { reminder: s.reminder, canCompleteRemote: !!s.doneProp });
     for (const pageId of plan.completeRemote) {
       const value = s.doneType === "checkbox" ? { checkbox: true } : { status: { name: s.doneNames[0] ?? "Done" } };
-      await http(`${API}/pages/${pageId}`, { method: "PATCH", headers: headers(token), body: JSON.stringify({ properties: { [s.doneProp!]: value } }) }).catch(() => {});
+      await http(`${API}/pages/${pageId}`, { method: "PATCH", headers: headers(token), body: JSON.stringify({ properties: { [s.doneProp!]: value } }) })
+        .catch((e) => log.warn("mark done failed; retrying next sync", pageId, e));
     }
     store.applySync(plan.create, plan.update, plan.completeLocal);
     notionState.set({ lastSync: new Date().toISOString(), lastError: null });

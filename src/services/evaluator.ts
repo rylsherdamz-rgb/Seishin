@@ -10,7 +10,10 @@ function supportsFunctionEval(): boolean {
   } catch { return false; }
 }
 
-function runViaFunction(data: any, env: any) {
+interface EvalData { output: string }
+type EvalEnv = Record<string, unknown>;
+
+function runViaFunction(data: EvalData, env: EvalEnv): unknown {
   const keys = Object.keys(env);
   const vals = Object.values(env);
   const fn = new Function(...keys, data.output);
@@ -24,8 +27,10 @@ export function setupPlatformEvaluator(): boolean {
   }
 
   try {
-    const s = (Platform as any).shim;
-    s.eval = (data: any, env: any) => {
+    // youtubei.js asks the host to run YouTube's player script to decode stream
+    // URLs; its shim type isn't exported, so narrow it here.
+    const s = (Platform as unknown as { shim: { eval: (data: EvalData, env: EvalEnv) => unknown } }).shim;
+    s.eval = (data, env) => {
       try {
         const r = runViaFunction(data, env);
         if (typeof r !== "object" || r === null) {
