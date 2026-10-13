@@ -3,14 +3,17 @@ import { AppState } from "react-native";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 
-const FOREGROUND_GAP = 10 * 60000;
-const EDIT_DEBOUNCE = 8000;
+/** While Seishin is on screen, pull from every connector this often. */
+export const LIVE_INTERVAL = 60000;
+/** Coalesces an app-switch burst (inactive → active → …) into one sync. */
+const FOREGROUND_GAP = 15000;
+const EDIT_DEBOUNCE = 1500;
 
 /**
  * Keeps every connector in sync without the user thinking about it:
- * full sync on launch (and registers the ~30-min background task), again when
- * the app returns after 10+ minutes, and a light push shortly after edits —
- * so completing a task updates Google Calendar / Todoist / Notion quickly.
+ * full sync on launch and every time the app comes back, every minute while
+ * it stays open, a light push ~1.5 s after any edit, and the OS background
+ * task (Android's 15-min floor) while it is closed.
  */
 export function useAutoSync() {
   const last = useRef(0);
@@ -24,8 +27,20 @@ export function useAutoSync() {
     import("@/services/background-sync").then((m) => m.registerBackgroundSync()).catch(() => {});
     sync("launch");
 
+    let live: ReturnType<typeof setInterval> | null = null;
+    const startLive = () => {
+      if (!live) live = setInterval(() => sync("live"), LIVE_INTERVAL);
+    };
+    const stopLive = () => {
+      if (live) clearInterval(live);
+      live = null;
+    };
+    startLive();
+
     const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active" && Date.now() - last.current > FOREGROUND_GAP) sync("foreground");
+      if (s !== "active") return stopLive();
+      if (Date.now() - last.current > FOREGROUND_GAP) sync("foreground");
+      startLive();
     });
 
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -47,6 +62,7 @@ export function useAutoSync() {
 
     return () => {
       sub.remove();
+      stopLive();
       unsubEvents();
       unsubTodos();
       if (timer) clearTimeout(timer);

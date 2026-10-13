@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
+import { Sheet, type SheetHandle } from "@/components/ui/Sheet";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
@@ -25,23 +25,24 @@ interface EventFormSheetProps {
 export function EventFormSheet({ prefill, onClose }: EventFormSheetProps) {
   const C = useColors();
   const f = useEventForm(prefill);
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<SheetHandle>(null);
+  const saved = useRef(false);
   const [picker, setPicker] = useState<PickerTarget>(null);
   const [notesOpen, setNotesOpen] = useState(!!(f.notes || f.attachments.length));
   const keyboardPad = useKeyboardPadding();
   const androidPad = Platform.OS === "android" ? keyboardPad : 0;
   const canSave = f.title.trim().length > 0;
 
-  const close = () => {
-    f.flushDraft();
-    sheetRef.current?.close();
-    onClose();
-  };
+  const close = () => sheetRef.current?.close();
   const submit = () => {
-    if (f.save()) {
-      sheetRef.current?.close();
-      onClose();
-    }
+    if (!f.save()) return;
+    saved.current = true;
+    sheetRef.current?.close();
+  };
+  // Runs once the sheet has animated away (button, swipe or back press).
+  const dismissed = () => {
+    if (!saved.current) f.flushDraft();
+    onClose();
   };
 
   const key = dateKey(f.date);
@@ -54,15 +55,13 @@ export function EventFormSheet({ prefill, onClose }: EventFormSheetProps) {
 
   return (
     <>
-      <BottomSheet
+      <Sheet
         ref={sheetRef}
-        index={0}
+        open
+        onClose={dismissed}
         snapPoints={["92%"]}
-        enablePanDownToClose
-        backgroundStyle={{ backgroundColor: C.white }}
-        onChange={(i: number) => { if (i === -1) { f.flushDraft(); onClose(); } }}
+        contentStyle={{ flex: 1, paddingHorizontal: 20, paddingTop: 4 }}
       >
-        <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingTop: 4 }}>
           <View className="flex-row items-center justify-between mb-3">
             <TouchableOpacity
               onPress={close}
@@ -176,8 +175,7 @@ export function EventFormSheet({ prefill, onClose }: EventFormSheetProps) {
               </Text>
             </TouchableOpacity>
           </ScrollView>
-        </BottomSheetView>
-      </BottomSheet>
+      </Sheet>
 
       {Platform.OS === "android" && picker && (
         <DateTimePicker

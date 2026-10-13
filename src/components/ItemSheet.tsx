@@ -1,6 +1,5 @@
-import { useCallback, useRef, useMemo, useState } from "react";
+import { useRef, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import { router } from "expo-router";
 import { useNotesStore } from "@/stores/notes-store";
 import { useTodoStore } from "@/stores/todo-store";
@@ -8,6 +7,7 @@ import { NoteAttachment } from "@/stores/notes-store";
 import { Recurrence } from "@/stores/calendar-store";
 import { recurrenceLabel } from "@/utils/recurrence";
 import { AlertDialog } from "@/components/ui/AlertDialog";
+import { Sheet, type SheetHandle } from "@/components/ui/Sheet";
 import Feather from "@expo/vector-icons/Feather";
 import { Photo } from "@/components/ui/Photo";
 import { useColors } from "@/theme/ThemeProvider";
@@ -51,7 +51,7 @@ interface ItemSheetProps {
 
 export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggle, onTodoDelete, onClose }: ItemSheetProps) {
   const T = useColors();
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<SheetHandle>(null);
   const snapPoints = useMemo(() => ["35%", "50%"], []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   // Subscribe reactively so toggling a todo updates the checkbox in-sheet.
@@ -67,26 +67,21 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
     return todos.filter((t) => t.eventId === event.id);
   }, [todos, event?.id]);
 
-  const handleClose = useCallback(() => {
-    sheetRef.current?.close();
-    onClose?.();
-  }, [onClose]);
-
-  const handleDelete = useCallback(() => {
-    setShowDeleteConfirm(true);
-  }, []);
+  // Every exit animates the sheet away first; `then` runs once it is gone, so
+  // navigation or the next sheet never lands under a still-open sheet.
+  const closeThen = (then?: () => void) => sheetRef.current?.close(then);
+  const go = (href: Parameters<typeof router.push>[0]) => closeThen(() => router.push(href));
+  const handleDelete = () => setShowDeleteConfirm(true);
 
   return (
     <>
-    <BottomSheet
+    <Sheet
       ref={sheetRef}
+      open
+      onClose={() => onClose?.()}
       snapPoints={snapPoints}
-      enablePanDownToClose
-      index={0}
-      backgroundStyle={{ backgroundColor: T.white }}
-      onChange={(index: number) => { if (index === -1) onClose?.(); }}
+      contentStyle={{ flex: 1, paddingHorizontal: 20, paddingBottom: 24 }}
     >
-      <BottomSheetView style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 24 }}>
         {event ? (
           <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
             <View className="flex-row items-center gap-3 mb-5">
@@ -95,12 +90,12 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
               </View>
               <View className="flex-1">
                 <Text className="text-lg font-semibold tracking-tightest text-black">{event.title}</Text>
-                {event.source && (
+                {!!event.source && (
                   <Text className="text-xs text-ink-400 capitalize">Source: {event.source}</Text>
                 )}
               </View>
               <TouchableOpacity
-                onPress={() => router.push(`/note?eventId=${event.id}`)}
+                onPress={() => go(`/note?eventId=${event.id}`)}
                 className="flex-row items-center gap-1.5 h-9 px-3.5 bg-black rounded-full"
                 activeOpacity={0.8}
               >
@@ -118,7 +113,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                   })}
                 </Text>
               </View>
-              {event.time && (
+              {!!event.time && (
                 <View className="flex-row items-center gap-3">
                   <Feather name="clock" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
@@ -127,7 +122,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                   </Text>
                 </View>
               )}
-              {event.recurrence && (
+              {!!event.recurrence && (
                 <View className="flex-row items-center gap-3 mt-2">
                   <Feather name="repeat" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
@@ -135,7 +130,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                   </Text>
                 </View>
               )}
-              {event.reminder && (
+              {!!event.reminder && (
                 <View className="flex-row items-center gap-3 mt-2">
                   <Feather name="bell" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
@@ -145,7 +140,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
               )}
             </View>
 
-            {event.description && (
+            {!!event.description && (
               <View className="mb-4">
                 <Text className="text-xs font-medium text-ink-400 mb-1">Description</Text>
                 <Text className="text-sm text-black leading-5">{event.description}</Text>
@@ -169,7 +164,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 {eventNotes.map((n) => (
                   <TouchableOpacity
                     key={n.id}
-                    onPress={() => router.push(`/note?id=${n.id}`)}
+                    onPress={() => go(`/note?id=${n.id}`)}
                     className="flex-row items-center gap-3 bg-ink-50 rounded-xl px-4 py-3 mb-1.5"
                     activeOpacity={0.7}
                   >
@@ -178,7 +173,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                     </View>
                     <View className="flex-1">
                       <Text className="text-sm font-medium text-black">{n.title || "Untitled"}</Text>
-                      {n.body && <Text className="text-xs text-ink-400 mt-0.5" numberOfLines={1}>{n.body}</Text>}
+                      {!!n.body && <Text className="text-xs text-ink-400 mt-0.5" numberOfLines={1}>{n.body}</Text>}
                     </View>
                     <Feather name="chevron-right" size={14} color={T.ink200} />
                   </TouchableOpacity>
@@ -203,7 +198,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                       <Text className={`text-sm ${t.completed ? "line-through text-ink-300" : "text-black"}`}>
                         {t.title}
                       </Text>
-                      {t.dueDate && (
+                      {!!t.dueDate && (
                         <Text className="text-xs text-ink-400 mt-0.5">
                           Due {new Date(t.dueDate).toLocaleDateString()}
                         </Text>
@@ -225,7 +220,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
             <View className="flex-row gap-2 mb-4">
               {onEventEdit && (
                 <TouchableOpacity
-                  onPress={() => onEventEdit(event)}
+                  onPress={() => closeThen(() => onEventEdit(event))}
                   className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"
                   activeOpacity={0.7}
                 >
@@ -234,7 +229,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 </TouchableOpacity>
               )}
               <TouchableOpacity
-                onPress={() => router.push(`/todo?eventId=${event.id}`)}
+                onPress={() => go(`/todo?eventId=${event.id}`)}
                 className="flex-1 h-11 bg-ink-100 rounded-xl items-center justify-center flex-row gap-2"
                 activeOpacity={0.7}
               >
@@ -252,7 +247,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
           <>
             <View className="flex-row items-center gap-3 mb-5">
               <TouchableOpacity
-                onPress={() => { onTodoToggle?.(todo.todoId || todo.id); handleClose(); }}
+                onPress={() => { onTodoToggle?.(todo.todoId || todo.id); closeThen(); }}
                 className={`w-10 h-10 rounded-full items-center justify-center ${todo.completed ? "bg-black" : "bg-ink-100"}`}
               >
                 <Feather name="check" size={16} color={todo.completed ? T.white : T.ink500} />
@@ -266,7 +261,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
             </View>
 
             <View className="bg-ink-50 border border-ink-100 rounded-card p-4 mb-4">
-              {todo.date && (
+              {!!todo.date && (
                 <View className="flex-row items-center gap-3 mb-2">
                   <Feather name="calendar" size={14} color={T.ink500} />
                   <Text className="text-sm text-black">
@@ -288,7 +283,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
 
             <View className="flex-row gap-3 mt-auto">
               <TouchableOpacity
-                onPress={() => { onTodoToggle?.(todo.todoId || todo.id); handleClose(); }}
+                onPress={() => { onTodoToggle?.(todo.todoId || todo.id); closeThen(); }}
                 className={`flex-1 h-12 rounded-xl items-center justify-center flex-row gap-2 ${
                   todo.completed ? "border border-ink-200" : "bg-black"
                 }`}
@@ -305,8 +300,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
             </View>
           </>
         ) : null}
-      </BottomSheetView>
-      </BottomSheet>
+    </Sheet>
       <AlertDialog
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -314,11 +308,10 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
         message={`Delete "${event?.title || todo?.title || ""}"? This can't be undone.`}
         confirmLabel="Delete"
         confirmDestructive
-        onConfirm={() => {
+        onConfirm={() => closeThen(() => {
           if (event && onEventDelete) onEventDelete(event.id);
           if (todo && onTodoDelete) onTodoDelete(todo.id);
-          handleClose();
-        }}
+        })}
       />
     </>
   );

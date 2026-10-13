@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
 } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Animated, { FadeInDown, useAnimatedStyle, withRepeat, withTiming, withSequence, useSharedValue } from "react-native-reanimated";
 
 import { router } from "expo-router";
@@ -14,24 +13,17 @@ import { runAgentLoop, stopAgentLoop } from "@/services/agent-engine";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { recognizeText } from "@/services/ocr";
 import { uid } from "@/utils/id";
-import { categorizeModel, getTierLabel } from "@/services/nim-models";
 import * as Clipboard from "expo-clipboard";
 import { MessageBubble } from "@/components/agent/MessageBubble";
+import { AgentHeader } from "@/components/agent/AgentHeader";
 import { AlertDialog } from "@/components/ui/AlertDialog";
+import { SheetModal } from "@/components/ui/SheetModal";
 import Feather from "@expo/vector-icons/Feather";
 import { Photo } from "@/components/ui/Photo";
 import {
   onModelStateChange, getModelState, loadModel, unloadModel, isModelLoaded,
 } from "@/services/local-llama";
 import { useColors } from "@/theme/ThemeProvider";
-
-// Static class names: NativeWind only generates classes it can see verbatim,
-// so tier colors can't be assembled with template strings.
-const TIER_STYLE: Record<string, { bg: string; text: string }> = {
-  fast: { bg: "bg-green-100", text: "text-green-700" },
-  balanced: { bg: "bg-yellow-100", text: "text-yellow-700" },
-  smart: { bg: "bg-red-100", text: "text-red-700" },
-};
 
 const SUGGESTIONS = [
   { icon: "list" as const, label: "Plan my day", action: "What's on my calendar today?" },
@@ -70,16 +62,9 @@ export default function AgentScreen() {
   const currentProvider = useAgentStore((s) => s.currentProvider);
   const isProcessing = useAgentStore((s) => s.isProcessing);
   const load = useAgentStore((s) => s.load);
-  const setProvider = useAgentStore((s) => s.setProvider);
   const clearConversation = useAgentStore((s) => s.clearConversation);
-  const modelState = useAgentStore((s) => s.modelState);
-  const modelProgress = useAgentStore((s) => s.modelProgress);
-  const modelError = useAgentStore((s) => s.modelError);
   const setModelState = useAgentStore((s) => s.setModelState);
   const apiKeys = useSettingsStore((s) => s.apiKeys);
-  const nimModel = useSettingsStore((s) => s.nimModel);
-  const nimLargeModel = useSettingsStore((s) => s.nimLargeModel);
-  const nimEndpoint = useSettingsStore((s) => s.nimEndpoint);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const modelPath = useSettingsStore((s) => s.modelPath);
   const [input, setInput] = useState("");
@@ -87,7 +72,6 @@ export default function AgentScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const keyboardPadding = useKeyboardPadding();
-  const pickerSnapPoints = useMemo(() => ["35%"], []);
   const flatListRef = useRef<FlatList>(null);
   const loadingRef = useRef(false);
 
@@ -110,12 +94,6 @@ export default function AgentScreen() {
       unloadModel().catch(() => { });
     }
   }, [currentProvider, modelPath]);
-
-  useEffect(() => {
-    if (apiKeys.nim && currentProvider === "local") {
-      setProvider("nim");
-    }
-  }, [apiKeys.nim]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -198,115 +176,7 @@ export default function AgentScreen() {
 
   return (
     <View className="flex-1 bg-white" style={{ paddingBottom: keyboardPadding - 75 }}>
-      <View className="px-4 pt-3 pb-2">
-        <View className="flex-row items-center justify-between mb-3">
-          <View>
-            <Text className="text-[30px] font-extrabold tracking-tightest text-black">AI Agent</Text>
-            <Text className="text-sm text-ink-500 mt-0.5">
-              {currentProvider === "nim"
-                ? `NVIDIA NIM${nimLargeModel ? ` · auto-routes ${getTierLabel(categorizeModel(nimModel).tier)}→${getTierLabel(categorizeModel(nimLargeModel).tier)}` : ""}`
-                : modelState === "loading"
-                  ? "Loading model..."
-                  : modelState === "ready"
-                    ? "Local (offline) · Ready"
-                    : modelState === "error"
-                      ? "Local · Error"
-                      : "Local (offline)"}
-              {isProcessing && " · Thinking..."}
-            </Text>
-          </View>
-          <View className="flex-row gap-2">
-            <TouchableOpacity
-              onPress={() => router.push("/settings")}
-              className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center"
-            >
-              <Feather name="settings" size={14} color={T.ink500} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setShowClearConfirm(true)}
-              className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center"
-            >
-              <Feather name="trash-2" size={14} color={T.ink500} />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View className="flex-row gap-2 items-center">
-          {(["local", "nim"] as const).map((p) => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => setProvider(p)}
-              disabled={p === "nim" && !hasKey}
-              className={`px-3 py-1.5 rounded-full ${currentProvider === p ? "bg-black" : "bg-ink-100"
-                } ${p === "nim" && !hasKey ? "opacity-40" : ""}`}
-            >
-              <Text className={`text-xs font-medium ${currentProvider === p ? "text-white" : "text-ink-500"
-                }`}>
-                {p === "nim" ? "NVIDIA NIM" : "Local GGUF"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          {currentProvider === "nim" && (
-            <TouchableOpacity
-              key="nim-model-pill"
-              onPress={() => router.push("/settings")}
-              className="px-2.5 py-1 rounded-full bg-ink-100 flex-row items-center gap-1.5"
-            >
-              <Text className="text-xs text-ink-500 font-mono" numberOfLines={1}>
-                {nimModel.split("/").pop() || "model"}
-              </Text>
-              <View className={`px-1.5 py-0.5 rounded-full ${TIER_STYLE[categorizeModel(nimModel).tier]?.bg ?? "bg-ink-200"}`}>
-                <Text className={`text-[9px] font-semibold ${TIER_STYLE[categorizeModel(nimModel).tier]?.text ?? "text-ink-500"}`}>
-                  {getTierLabel(categorizeModel(nimModel).tier)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-
-        </View>
-      </View>
-
-      {!hasKey && currentProvider === "nim" && (
-        <View key="agent-nim-nokey-banner" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3 flex-row items-center gap-2">
-          <Feather name="alert-circle" size={14} color={T.danger} />
-          <Text className="text-xs text-danger flex-1">No NIM API key set. Go to Settings to add one.</Text>
-        </View>
-      )}
-      {currentProvider === "local" && modelState === "loading" && (
-        <View key="agent-local-loading" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3">
-          <View className="flex-row items-center gap-2 mb-2">
-            <ActivityIndicator size="small" color={T.ink500} />
-            <Text className="text-xs text-ink-600 flex-1">Loading local model... {modelProgress}%</Text>
-          </View>
-          <View className="h-1.5 bg-ink-200 rounded-full overflow-hidden">
-            <View className="h-full bg-black rounded-full" style={{ width: `${modelProgress}%` }} />
-          </View>
-        </View>
-      )}
-      {currentProvider === "local" && modelState === "ready" && (
-        <View key="agent-local-ready" className="mx-4 mb-3 bg-green-50 rounded-xl p-3 flex-row items-center gap-2">
-          <Feather name="check-circle" size={14} color="#22c55e" />
-          <Text className="text-xs text-green-700 flex-1">Local model ready</Text>
-        </View>
-      )}
-      {currentProvider === "local" && modelState === "error" && (
-        <View key="agent-local-error" className="mx-4 mb-3 bg-danger-soft rounded-xl p-3">
-          <View className="flex-row items-center gap-2 mb-1">
-            <Feather name="alert-circle" size={14} color={T.danger} />
-            <Text className="text-xs text-danger flex-1">Failed to load model</Text>
-            <TouchableOpacity onPress={() => { if (modelPath) loadModel(modelPath).catch(() => { }); }}>
-              <Text className="text-xs text-danger font-medium">Retry</Text>
-            </TouchableOpacity>
-          </View>
-          {modelError && <Text className="text-xs text-danger/70 ml-6">{modelError}</Text>}
-        </View>
-      )}
-      {currentProvider === "local" && modelState === "unloaded" && !modelPath && (
-        <View key="agent-local-nopath" className="mx-4 mb-3 bg-ink-100 rounded-xl p-3 flex-row items-center gap-2">
-          <Feather name="info" size={14} color={T.ink500} />
-          <Text className="text-xs text-ink-600 flex-1">No GGUF model selected. Go to Settings to pick one.</Text>
-        </View>
-      )}
+      <AgentHeader onClear={() => setShowClearConfirm(true)} />
 
       <FlatList
         ref={flatListRef}
@@ -322,13 +192,15 @@ export default function AgentScreen() {
         ListEmptyComponent={
           <View className="items-center justify-center py-24 px-8">
             <View className="w-16 h-16 bg-ink-50 border border-ink-100 rounded-full items-center justify-center mb-4 shadow-subtle">
-              <Feather name="cpu" size={24} color={T.ink200} />
+              <Feather name={currentProvider === "local" ? "smartphone" : "cloud"} size={24} color={T.ink400} />
             </View>
-            <Text className="text-base font-medium text-ink-400 text-center">Ask me anything</Text>
-            <Text className="text-sm text-ink-200 mt-1 text-center max-w-[260px]">
-              {hasKey
-                ? "I can manage your schedule, tasks, and more"
-                : "Add an API key in Settings to use the AI agent"}
+            <Text className="text-base font-medium text-ink-500 text-center">Ask me anything</Text>
+            <Text className="text-sm text-ink-400 mt-1 text-center max-w-[280px]">
+              {currentProvider === "local"
+                ? "Runs on your phone, offline and private. I can add and change events, tasks and notes for you."
+                : hasKey
+                  ? "Using NVIDIA NIM in the cloud, with every tool. Switch to On-device any time."
+                  : "Add an NVIDIA NIM key in Settings, or switch to On-device to work offline."}
             </Text>
           </View>
         }
@@ -425,46 +297,15 @@ export default function AgentScreen() {
           )}
         </View>
       </View>
-      <BottomSheet
-        snapPoints={pickerSnapPoints}
-        enableDynamicSizing
-        enablePanDownToClose
-        index={showPicker ? 0 : -1}
-        backgroundStyle={{ backgroundColor: T.white }}
-        onChange={(index: number) => { if (index === -1) setShowPicker(false); }}
-      >
-        <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
-          <TouchableOpacity
-            className="flex-row items-center gap-3 py-3.5"
-            onPress={() => { setShowPicker(false); addPhoto(true); }}
-          >
-            <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-              <Feather name="camera" size={16} color={T.black} />
-            </View>
-            <Text className="text-base text-black">Take Photo</Text>
-          </TouchableOpacity>
-          <View className="h-px bg-ink-100" />
-          <TouchableOpacity
-            className="flex-row items-center gap-3 py-3.5"
-            onPress={() => { setShowPicker(false); addPhoto(false); }}
-          >
-            <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-              <Feather name="image" size={16} color={T.black} />
-            </View>
-            <Text className="text-base text-black">Choose from Library</Text>
-          </TouchableOpacity>
-          <View className="h-px bg-ink-100" />
-          <TouchableOpacity
-            className="flex-row items-center gap-3 py-3.5"
-            onPress={() => { setShowPicker(false); addFile(); }}
-          >
-            <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
-              <Feather name="file" size={14} color={T.black} />
-            </View>
-            <Text className="text-base text-black">Pick File</Text>
-          </TouchableOpacity>
-        </BottomSheetView>
-      </BottomSheet>
+      <SheetModal
+        visible={showPicker}
+        onClose={() => setShowPicker(false)}
+        options={[
+          { icon: "camera", label: "Take photo", onPress: () => addPhoto(true) },
+          { icon: "image", label: "Choose from library", onPress: () => addPhoto(false) },
+          { icon: "file", label: "Pick file", onPress: addFile },
+        ]}
+      />
       <AlertDialog
         visible={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}

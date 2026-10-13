@@ -2,12 +2,12 @@ import { AppState } from "react-native";
 import OpenAI from "openai";
 import { fetch as expoFetch } from "expo/fetch";
 import * as Notifications from "expo-notifications";
-import { useAgentStore, AgentMessage, AgentAttachment } from "@/stores/agent-store";
-import { generateResponse, isModelLoaded, getModelState, abortGeneration } from "./local-llama";
+import { useAgentStore, AgentMessage, AgentAttachment, type ToolCallData } from "@/stores/agent-store";
+import { isModelLoaded, getModelState, abortGeneration } from "./local-llama";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
-import { useSettingsStore } from "@/stores/settings-store";
+import { getNimKey, useSettingsStore } from "@/stores/settings-store";
 import { useInvitesStore } from "@/stores/invites-store";
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { BaseTool, ToolCollection, ToolResult } from "./tool-system";
@@ -638,6 +638,49 @@ export function createDefaultTools(): ToolCollection {
   );
 }
 
+/**
+ * Runs the model's tool calls (cloud or on-device alike), shows each result in
+ * the chat, and returns the results in call order for the follow-up turn.
+ */
+export async function executeToolCalls(toolCalls: ToolCallData[]): Promise<string[]> {
+  const agentStore = useAgentStore.getState();
+  const tools = createDefaultTools();
+  const results: string[] = [];
+  for (const call of toolCalls) {
+    const tool = tools.getTool(call.name);
+    let result: string;
+    if (!tool) {
+      result = `Tool ${call.name} does not exist.`;
+    } else {
+      try {
+        const args = JSON.parse(call.arguments || "{}");
+        log.debug(`Executing tool: ${call.name}`, args);
+        result = await tool.executeWithString(args);
+      } catch (e) {
+        result = `Tool ${call.name} error: ${e instanceof Error ? e.message : "Unknown"}`;
+      }
+    }
+    results.push(result);
+    agentStore.addMessage({
+      id: uid("tool"),
+      role: "tool",
+      content: result,
+      timestamp: new Date().toISOString(),
+      toolName: call.name,
+      toolCallId: call.id,
+    });
+  }
+  return results;
+}
+
+/** Tools offered to the on-device model — the everyday set, to fit its small context. */
+export const LOCAL_TOOL_NAMES = [
+  "add_event", "list_events", "update_event", "delete_event",
+  "add_todo", "list_todos", "complete_todo", "update_todo", "delete_todo",
+  "add_note", "list_notes", "update_note",
+  "list_inbox", "remember_entity", "recall_memory",
+];
+
 export function createSystemPrompt(): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -711,7 +754,7 @@ Current date and time: ${dateStr} at ${timeStr}
 - **Code**: only when explicitly asked. Never use code instead of tools.`;
 }
 
-function buildConversation(messages: AgentMessage[]): OpenAI.ChatCompletionMessageParam[] {
+export function buildConversation(messages: AgentMessage[]): OpenAI.ChatCompletionMessageParam[] {
   const result: OpenAI.ChatCompletionMessageParam[] = [];
   for (const m of messages) {
     if (m.role === "user") {
@@ -801,40 +844,7 @@ async function streamResponse(
   if (toolCalls.length > 0) {
     agentStore.updateAssistantMessage(msgId, fullContent, toolCalls);
 
-    const tools = createDefaultTools();
-    const summary: string[] = [];
-    for (const call of toolCalls) {
-      const tool = tools.getTool(call.name);
-      if (!tool) continue;
-      try {
-        const args = JSON.parse(call.arguments);
-        log.debug(`Executing tool: ${call.name}`, args);
-        const result = await tool.executeWithString(args);
-        summary.push(result);
-        agentStore.addMessage({
-          id: uid("tool"),
-          role: "tool",
-          content: result,
-          timestamp: new Date().toISOString(),
-          toolName: call.name,
-          toolCallId: call.id,
-        });
-      } catch (e) {
-        const errMsg = `Tool ${call.name} error: ${e instanceof Error ? e.message : "Unknown"}`;
-        summary.push(errMsg);
-        agentStore.addMessage({
-          id: uid("tool-err"),
-          role: "tool",
-          content: errMsg,
-          timestamp: new Date().toISOString(),
-          toolName: call.name,
-          toolCallId: call.id,
-        });
-      }
-    }
-
-    const resultContent = summary.join("\n");
-
+    const summary = await executeToolCalls(toolCalls);
     // Make a second LLM call with tool results so the assistant can
     // produce a natural-language summary of what was done.
     const toolCallMsg: OpenAI.ChatCompletionMessageParam = {
@@ -886,7 +896,8 @@ export async function runAgentLoop(
   opts?: { attachments?: AgentAttachment[]; extractedContext?: string },
 ) {
   const agentStore = useAgentStore.getState();
-  const { apiKeys, nimEndpoint, nimModel, nimLargeModel } = useSettingsStore.getState();
+  const nimKey = await getNimKey();
+  const { nimEndpoint, nimModel, nimLargeModel } = useSettingsStore.getState();
   const { currentProvider } = agentStore;
   const attachments = opts?.attachments;
   const extractedContext = opts?.extractedContext?.trim();
@@ -920,44 +931,15 @@ export async function runAgentLoop(
     });
     agentStore.setProcessing(true);
     currentAbort = new AbortController();
-
-    const msgId = `msg-${Date.now()}-local`;
-    agentStore.addMessage({
-      id: msgId,
-      role: "assistant",
-      content: "",
-      timestamp: new Date().toISOString(),
-    });
-
+    let reply = "";
     try {
-      const ragContext = retrieveRelevantContext(userInput);
-      const ragMemory = retrieveRelevantMemory(userInput);
-      const ragBlock = [ragContext, ragMemory].filter(Boolean).join("\n\n");
-      const contextParts = [extractedContext, ragBlock].filter(Boolean);
-      const fullPrompt = contextParts.length > 0
-        ? `Context:\n${contextParts.join("\n\n")}\n\nUser: ${userInput}\n\nAssistant:`
-        : `User: ${userInput}\n\nAssistant:`;
-
-      let accumulated = "";
-      let lastFlush = Date.now();
-      const flushInterval = 50;
-      const flushBuffer = () => {
-        agentStore.updateAssistantMessage(msgId, accumulated);
-        lastFlush = Date.now();
-      };
-      const result = await generateResponse(fullPrompt, (token) => {
-        accumulated += token;
-        if (Date.now() - lastFlush >= flushInterval) {
-          flushBuffer();
-        }
-      });
-      flushBuffer();
-      agentStore.updateAssistantMessage(msgId, result);
-      appendToSessionLog(userInput, result);
-    } catch (e: any) {
-      agentStore.updateAssistantMessage(msgId, `Error: ${e.message}`);
-      appendToSessionLog(userInput, `Error: ${e.message}`);
+      const { runLocalAgent } = require("./local-agent") as typeof import("./local-agent");
+      reply = await runLocalAgent(userInput, extractedContext);
+    } catch (e) {
+      reply = `Error: ${e instanceof Error ? e.message : "Unknown error"}`;
+      agentStore.addMessage({ id: `msg-${Date.now()}-err`, role: "assistant", content: reply, timestamp: new Date().toISOString(), provider: "local" });
     } finally {
+      appendToSessionLog(userInput, reply);
       agentStore.setProcessing(false);
       currentAbort = null;
     }
@@ -979,13 +961,13 @@ export async function runAgentLoop(
   const timeoutId = setTimeout(() => currentAbort?.abort(), 180000);
 
   try {
-    if (!apiKeys.nim) {
+    if (!nimKey) {
       throw new Error("No API key configured. Add your NVIDIA NIM API key in Settings.");
     }
 
     const openai = new OpenAI({
       baseURL: nimEndpoint,
-      apiKey: apiKeys.nim,
+      apiKey: nimKey,
       // React Native's built-in fetch cannot read streaming response bodies,
       // which makes the OpenAI SDK throw "Connection error" on stream:true.
       // Expo's fetch supports streaming, so use it here.
@@ -1044,6 +1026,8 @@ export async function runAgentLoop(
       role: "assistant",
       content: "",
       timestamp: new Date().toISOString(),
+      provider: "nim",
+      model: activeModel,
     });
 
     await streamResponse(openai, activeModel, conversation, toolParams, msgId);

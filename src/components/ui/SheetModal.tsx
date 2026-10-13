@@ -1,8 +1,8 @@
 import { View, Text, TouchableOpacity } from "react-native";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import Feather from "@expo/vector-icons/Feather";
-import type { ComponentProps } from "react";
+import { useRef, type ComponentProps } from "react";
 import { useColors } from "@/theme/ThemeProvider";
+import { Sheet, type SheetHandle } from "./Sheet";
 
 interface SheetOption {
   icon?: ComponentProps<typeof Feather>["name"];
@@ -24,16 +24,14 @@ interface SheetModalProps {
 
 export function SheetModal({ visible, onClose, title, message, options, confirmLabel, confirmDestructive, onConfirm }: SheetModalProps) {
   const T = useColors();
+  const sheet = useRef<SheetHandle>(null);
+  // Actions run after the sheet has animated away, so one that opens another
+  // sheet, dialog or screen never stacks on top of a closing sheet.
+  const then = (fn?: () => void) => sheet.current?.close(fn);
   // No snapPoints: the sheet sizes itself to its content (fitToContents).
   // Fixed snap points bypass content measurement and can present blank.
   return (
-    <BottomSheet
-      index={visible ? 0 : -1}
-      enablePanDownToClose
-      backgroundStyle={{ backgroundColor: T.white }}
-      onChange={(index: number) => { if (index === -1) onClose(); }}
-    >
-      <BottomSheetView style={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
+    <Sheet ref={sheet} open={visible} onClose={onClose} contentStyle={{ paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8 }}>
         {title && (
           <Text className="text-base font-medium text-black mb-1">{title}</Text>
         )}
@@ -45,7 +43,7 @@ export function SheetModal({ visible, onClose, title, message, options, confirmL
             {i > 0 && <View className="h-px bg-ink-100" />}
             <TouchableOpacity
               className="flex-row items-center gap-3 py-3.5"
-              onPress={() => { onClose(); opt.onPress(); }}
+              onPress={() => then(opt.onPress)}
             >
               {opt.icon && (
                 <View className="w-9 h-9 bg-ink-100 rounded-full items-center justify-center">
@@ -59,7 +57,7 @@ export function SheetModal({ visible, onClose, title, message, options, confirmL
         {confirmLabel && onConfirm && (
           <TouchableOpacity
             className={`h-12 rounded-xl items-center justify-center ${confirmDestructive ? "bg-danger" : "bg-black"}`}
-            onPress={() => { onClose(); onConfirm(); }}
+            onPress={() => then(onConfirm)}
           >
             <Text className="text-sm font-medium text-white">{confirmLabel}</Text>
           </TouchableOpacity>
@@ -67,12 +65,11 @@ export function SheetModal({ visible, onClose, title, message, options, confirmL
         {!options && !confirmLabel && (
           <TouchableOpacity
             className="h-12 items-center justify-center"
-            onPress={onClose}
+            onPress={() => then()}
           >
             <Text className="text-sm text-ink-500">OK</Text>
           </TouchableOpacity>
         )}
-      </BottomSheetView>
-    </BottomSheet>
+    </Sheet>
   );
 }

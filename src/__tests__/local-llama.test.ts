@@ -25,3 +25,32 @@ describe("local-llama", () => {
     // (the internal Set has the reference removed)
   });
 });
+
+describe("local-llama job queue", () => {
+  it("never runs two completions on the shared context at once", async () => {
+    jest.resetModules();
+    let active = 0;
+    let peak = 0;
+    const llama = require("llama.rn");
+    jest.spyOn(llama, "initLlama").mockImplementation(async () => ({
+      completion: async () => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((r) => setTimeout(r, 5));
+        active--;
+        return { text: "ok", content: "ok" };
+      },
+      stopCompletion: async () => {},
+      release: async () => {},
+    }));
+    const m = require("../services/local-llama") as typeof import("../services/local-llama");
+    await m.loadModel("/models/test.gguf");
+    const replies = await Promise.all([
+      m.chatWithTools([{ role: "user", content: "a" }], undefined),
+      m.generateResponse("b"),
+      m.chatWithTools([{ role: "user", content: "c" }], undefined),
+    ]);
+    expect(peak).toBe(1);
+    expect(replies.map((r) => (typeof r === "string" ? r : r.content))).toEqual(["ok", "ok", "ok"]);
+  });
+});

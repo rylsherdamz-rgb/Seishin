@@ -9,6 +9,26 @@ let _error: string | null = null;
 
 const listeners = new Set<() => void>();
 
+/**
+ * One llama.rn context can only run one job at a time. Chat, Smart capture and
+ * summaries all share it, and (re)loading must not release a context that is
+ * mid-completion — so every use goes through this queue.
+ */
+let _queue: Promise<unknown> = Promise.resolve();
+function exclusive<T>(job: () => Promise<T>): Promise<T> {
+  const run = _queue.then(job, job);
+  _queue = run.catch(() => undefined);
+  return run;
+}
+
+async function releaseContext() {
+  const ctx = _context;
+  if (!ctx) return;
+  _context = null;
+  await ctx.stopCompletion().catch(() => {});
+  await exclusive(() => ctx.release());
+}
+
 function notify() {
   listeners.forEach((fn) => fn());
 }
@@ -32,17 +52,13 @@ export function isModelLoaded() {
 
 export async function loadModel(modelPath: string, onProgress?: (pct: number) => void) {
   if (_state === "loading") return;
-  if (_context) {
-    await _context.release();
-    _context = null;
-  }
-
   _state = "loading";
   _progress = 0;
   _error = null;
   notify();
 
   try {
+    await releaseContext();
     await installJsi();
 
     const params: ContextParams = {
@@ -65,9 +81,9 @@ export async function loadModel(modelPath: string, onProgress?: (pct: number) =>
     _progress = 100;
     _error = null;
     notify();
-  } catch (e: any) {
+  } catch (e) {
     _state = "error";
-    _error = e?.message || "Failed to load model";
+    _error = e instanceof Error && e.message ? e.message : "Failed to load model";
     _context = null;
     notify();
     throw e;
@@ -75,10 +91,7 @@ export async function loadModel(modelPath: string, onProgress?: (pct: number) =>
 }
 
 export async function unloadModel() {
-  if (_context) {
-    await _context.release();
-    _context = null;
-  }
+  await releaseContext();
   _state = "unloaded";
   _progress = 0;
   _error = null;
@@ -87,37 +100,92 @@ export async function unloadModel() {
 
 let _aborted = false;
 
+export const generationAborted = () => _aborted;
+
 export function abortGeneration() {
   _aborted = true;
+  // The flag only mutes the token callback; this actually stops the model.
+  _context?.stopCompletion().catch(() => {});
 }
 
 export async function generateResponse(
   prompt: string,
   onToken?: (token: string) => void,
 ): Promise<string> {
-  if (!_context || _state !== "ready") {
-    throw new Error("Model not loaded");
-  }
+  return exclusive(async () => {
+    const ctx = _context;
+    if (!ctx || _state !== "ready") {
+      throw new Error("Model not loaded");
+    }
 
-  _aborted = false;
-  const tokens: string[] = [];
-  const text: string[] = [];
-  const result = await _context.completion(
-    {
-      prompt,
-      n_predict: 2048,
-      temperature: 0.7,
-      top_k: 40,
-      top_p: 0.95,
-      stop: ["<|eot_id|>", "<|end|>", "User:", "\n\nUser"],
-    },
-    (data) => {
-      if (_aborted || data.token === undefined) return;
-      tokens.push(data.token);
-      text.push(data.token);
-      onToken?.(data.token);
-    },
-  );
+    _aborted = false;
+    const result = await ctx.completion(
+      {
+        prompt,
+        n_predict: 2048,
+        temperature: 0.7,
+        top_k: 40,
+        top_p: 0.95,
+        stop: ["<|eot_id|>", "<|end|>", "User:", "\n\nUser"],
+      },
+      (data) => {
+        if (_aborted || data.token === undefined) return;
+        onToken?.(data.token);
+      },
+    );
 
-  return result.text;
+    return result.text;
+  });
+}
+
+/** OpenAI-style chat turn; tool fields pass through to the model's jinja template. */
+export interface LocalChatMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string;
+  tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
+  tool_call_id?: string;
+}
+
+export interface LocalToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/**
+ * Chat with on-device tool calling. llama.rn renders the model's own chat
+ * template (jinja) with the tool schemas and parses tool calls back out, so
+ * the same tools the cloud agent uses run fully offline. `onContent` receives
+ * the reply text so far (tool-call JSON already stripped).
+ */
+export async function chatWithTools(
+  messages: LocalChatMessage[],
+  tools: object[] | undefined,
+  onContent?: (text: string) => void,
+): Promise<{ content: string; toolCalls: LocalToolCall[] }> {
+  return exclusive(async () => {
+    const ctx = _context;
+    if (!ctx || _state !== "ready") throw new Error("Model not loaded");
+    _aborted = false;
+    const result = await ctx.completion(
+      {
+        messages: messages as unknown as { role: string; content?: string }[],
+        tools,
+        tool_choice: tools ? "auto" : undefined,
+        jinja: true,
+        n_predict: 1024,
+        temperature: 0.3,
+        top_k: 40,
+        top_p: 0.95,
+      },
+      (data) => {
+        if (_aborted || data.content === undefined) return;
+        onContent?.(data.content);
+      },
+    );
+    const toolCalls = (result.tool_calls ?? [])
+      .filter((c) => c.function?.name)
+      .map((c, i) => ({ id: c.id || `local-call-${Date.now()}-${i}`, name: c.function.name, arguments: c.function.arguments || "{}" }));
+    return { content: (result.content ?? result.text ?? "").trim(), toolCalls };
+  });
 }

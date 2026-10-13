@@ -4,6 +4,9 @@ import { occursOnDate, dateKey } from "@/utils/recurrence";
 import { scheduleEventReminder, cancelEventReminder } from "@/services/notification-service";
 import { NoteAttachment } from "@/stores/notes-store";
 import { isNonEmptyString, isRecord, readList, sizeOf, writeJSON } from "./persist";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("calendar");
 
 export interface Recurrence {
   frequency: "daily" | "weekly" | "monthly";
@@ -78,14 +81,17 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   events: [],
   selectedDate: dateKey(new Date()),
 
+  // Sync reloads every minute: keep the same array when nothing changed, so
+  // subscribers (auto-sync's edit listener, screens) don't see a fake edit.
   loadEvents: () => {
-    set({ events: readList(eventsStorage, EVENTS_KEY, isCalendarEvent) });
+    const events = readList(eventsStorage, EVENTS_KEY, isCalendarEvent);
+    if (JSON.stringify(events) !== JSON.stringify(get().events)) set({ events });
   },
 
   addEvent: (event) => {
     if (!isCalendarEvent(event)) return false;
     const ok = commit(set, [...get().events, event]);
-    if (ok && event.reminder) scheduleEventReminder(event).catch(() => {});
+    if (ok && event.reminder) scheduleEventReminder(event).catch((e) => log.warn("could not schedule reminder", event.id, e));
     return ok;
   },
 
@@ -93,7 +99,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     const events = get().events.map((e) => (e.id === id ? { ...e, ...changes, id } : e));
     const updated = events.find((e) => e.id === id);
     if (!updated || !isCalendarEvent(updated) || !commit(set, events)) return false;
-    if (updated.reminder) scheduleEventReminder(updated).catch(() => {});
+    if (updated.reminder) scheduleEventReminder(updated).catch((e) => log.warn("could not schedule reminder", updated.id, e));
     else if ("reminder" in changes) cancelEventReminder(id);
     return true;
   },

@@ -1,18 +1,23 @@
 /**
  * Background auto-sync: Android WorkManager / iOS BGTask via
- * expo-background-task. Runs roughly every 30 minutes (the OS decides the
- * exact time, batching for battery) even when Seishin is closed, and keeps
- * calendars, connectors and persistent reminders fresh.
+ * expo-background-task. Asks for the OS minimum (15 minutes — WorkManager
+ * will not run periodic work more often; the OS may still batch it later for
+ * battery) so calendars, connectors and persistent reminders stay fresh even
+ * when Seishin is closed. While the app is open, useAutoSync syncs live.
  *
  * The task must be defined at module load, so this file is imported from the
  * root layout.
  */
 import * as TaskManager from "expo-task-manager";
 import * as BackgroundTask from "expo-background-task";
+import { settingsStorage } from "@/stores/mmkv";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("background-sync");
 export const BACKGROUND_SYNC_TASK = "seishin-background-sync";
+/** Shortest periodic interval Android's WorkManager allows. */
+export const BACKGROUND_MIN_MINUTES = 15;
+const INTERVAL_KEY = "settings:connectors:bgInterval";
 
 TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
   try {
@@ -25,16 +30,19 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
   }
 });
 
-export async function registerBackgroundSync(minutes = 30): Promise<boolean> {
+export async function registerBackgroundSync(minutes = BACKGROUND_MIN_MINUTES): Promise<boolean> {
   try {
     const status = await BackgroundTask.getStatusAsync();
     if (status !== BackgroundTask.BackgroundTaskStatus.Available) {
       log.warn("background tasks restricted on this device");
       return false;
     }
-    if (!(await TaskManager.isTaskRegisteredAsync(BACKGROUND_SYNC_TASK))) {
-      await BackgroundTask.registerTaskAsync(BACKGROUND_SYNC_TASK, { minimumInterval: minutes });
-    }
+    const registered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_SYNC_TASK);
+    // Older installs registered at 30 min: re-register so the new interval applies.
+    if (registered && settingsStorage.getNumber(INTERVAL_KEY) === minutes) return true;
+    if (registered) await BackgroundTask.unregisterTaskAsync(BACKGROUND_SYNC_TASK);
+    await BackgroundTask.registerTaskAsync(BACKGROUND_SYNC_TASK, { minimumInterval: minutes });
+    settingsStorage.set(INTERVAL_KEY, minutes);
     return true;
   } catch (e) {
     log.warn("could not register background sync", e);

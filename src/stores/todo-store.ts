@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { todosStorage } from "./mmkv";
 import { isNonEmptyString, isRecord, readList, sizeOf, writeJSON } from "./persist";
 import type { ReminderLevel } from "@/services/reminder-plan";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("todos");
 
 export interface Todo {
   id: string;
@@ -83,10 +86,10 @@ function reminders(): ReminderService | null {
   }
 }
 function syncReminders(t: Todo) {
-  reminders()?.scheduleTaskReminders(t).catch(() => {});
+  reminders()?.scheduleTaskReminders(t).catch((e) => log.warn("could not schedule reminders", t.id, e));
 }
 function cancelReminders(id: string) {
-  reminders()?.cancelTaskReminders(id).catch(() => {});
+  reminders()?.cancelTaskReminders(id).catch((e) => log.warn("could not cancel reminders", id, e));
 }
 
 export const useTodoStore = create<TodoState>((set, get) => {
@@ -101,7 +104,12 @@ export const useTodoStore = create<TodoState>((set, get) => {
     todos: [],
     filter: "all",
 
-    loadTodos: () => set({ todos: readList(todosStorage, TODOS_KEY, isTodo) }),
+    // Sync reloads every minute: keep the same array when nothing changed, so
+    // subscribers (auto-sync's edit listener, screens) don't see a fake edit.
+    loadTodos: () => {
+      const todos = readList(todosStorage, TODOS_KEY, isTodo);
+      if (JSON.stringify(todos) !== JSON.stringify(get().todos)) set({ todos });
+    },
 
     addTodo: (todo) => {
       const ok = commit([todo, ...get().todos]);

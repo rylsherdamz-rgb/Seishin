@@ -13,16 +13,36 @@ export interface SyncReport {
   errors: string[];
 }
 
+/** Live (every-minute) runs skip these until enough time has passed. */
+const FEEDS_GAP = 5 * 60000; // .ics feeds change rarely; be polite to school servers
+const REMINDERS_GAP = 30 * 60000; // top-up reschedules from "now" — every minute would keep nags from ever firing
+let lastFeeds = 0;
+let lastReminders = 0;
+
 let running: Promise<SyncReport> | null = null;
+let queued: Promise<SyncReport> | null = null;
+/** What the queued run will do; a full request upgrades a queued light one. */
+let queuedReq: { reason: string; light: boolean } | null = null;
 
 /**
  * Sync every connector once: phone calendars, calendar feeds, Todoist and
  * Notion, then top up task reminders. Shared by app launch, foreground,
- * pull-to-refresh and the background task; concurrent calls share one run.
- * `light` skips network-heavy pulls (used right after local edits).
+ * pull-to-refresh, the live minute tick and the background task. A call made
+ * mid-run queues exactly one follow-up run, so an edit made while a sync is in
+ * flight is still pushed. `light` skips network-heavy pulls (post-edit pushes).
  */
 export function syncEverything(reason: string, opts: { light?: boolean } = {}): Promise<SyncReport> {
-  if (running) return running;
+  if (running) {
+    const light = !!opts.light;
+    if (!queuedReq || (queuedReq.light && !light)) queuedReq = { reason, light };
+    queued ??= running.catch(() => undefined).then(() => {
+      const next = queuedReq ?? { reason, light };
+      queued = null;
+      queuedReq = null;
+      return syncEverything(next.reason, { light: next.light });
+    });
+    return queued;
+  }
   running = (async () => {
     const errors: string[] = [];
     let changes = 0;
@@ -47,9 +67,17 @@ export function syncEverything(reason: string, opts: { light?: boolean } = {}): 
     const { syncNotion } = require("./notion") as typeof import("./notion");
     await step("todoist", syncTodoist);
     await step("notion", syncNotion);
-    if (!opts.light) {
+    const now = Date.now();
+    // Frequent triggers (minute tick, every app resume) respect the gaps; launch,
+    // manual and background runs always do everything.
+    const live = reason === "live" || reason === "foreground";
+    if (!opts.light && (!live || now - lastFeeds > FEEDS_GAP)) {
+      lastFeeds = now;
       const { syncFeeds } = require("./feeds") as typeof import("./feeds");
       await step("feeds", syncFeeds);
+    }
+    if (!opts.light && (!live || now - lastReminders > REMINDERS_GAP)) {
+      lastReminders = now;
       const { refreshAllTaskReminders } = require("@/services/task-reminders") as typeof import("@/services/task-reminders");
       await step("reminders", () => refreshAllTaskReminders(useTodoStore.getState().todos));
     }

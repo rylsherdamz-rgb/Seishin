@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 import { getDocumentAsync } from "expo-document-picker";
@@ -12,6 +11,7 @@ import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { recognizeText } from "@/services/ocr";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { SheetModal } from "@/components/ui/SheetModal";
+import { Sheet } from "@/components/ui/Sheet";
 import { EditorBottomBar } from "@/components/notes/EditorBottomBar";
 import { EditorImages, EditorFiles } from "@/components/notes/EditorAttachments";
 import { NoteColorPicker } from "@/components/notes/NoteColorPicker";
@@ -71,7 +71,6 @@ export default function NoteEditorScreen() {
   const [youtubeBusy, setYoutubeBusy] = useState(false);
   const insets = useSafeAreaInsets();
   const { inset: kb, top: kbTop } = useKeyboardInset();
-  const youtubeSnapPoints = useMemo(() => ["40%"], []);
   const noteIdRef = useRef<string | undefined>(existing?.id);
   // Ensures a launch "action" (from the Notes "+" menu) fires its picker only once.
   const actionFired = useRef(false);
@@ -272,8 +271,8 @@ export default function NoteEditorScreen() {
       setAttachments(nextAtts);
       setShowYoutubeInput(false);
       setYoutubeUrl("");
-    } catch (e: any) {
-      Alert.alert("Transcript Error", e.message || "Could not fetch transcript for this video.");
+    } catch (e) {
+      Alert.alert("Transcript Error", (e instanceof Error && e.message) || "Could not fetch transcript for this video.");
     } finally {
       setYoutubeBusy(false);
     }
@@ -478,14 +477,12 @@ export default function NoteEditorScreen() {
           { icon: "trash-2", label: "Delete", destructive: true, onPress: () => setShowDeleteConfirm(true) },
         ]}
       />
-      <BottomSheet
-        index={showYoutubeInput || youtubeBusy ? 0 : -1}
-        snapPoints={youtubeSnapPoints}
-        enablePanDownToClose
-        backgroundStyle={{ backgroundColor: T.white }}
-        onChange={(index: number) => { if (index === -1 && !youtubeBusy) { setShowYoutubeInput(false); setYoutubeUrl(""); } }}
+      <Sheet
+        open={showYoutubeInput || youtubeBusy}
+        dismissible={!youtubeBusy}
+        onClose={() => { if (!youtubeBusy) { setShowYoutubeInput(false); setYoutubeUrl(""); } }}
+        contentStyle={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 8 }}
       >
-        <BottomSheetView style={{ paddingHorizontal: 20, paddingBottom: 32, paddingTop: 8 }}>
           <Text className="text-base font-semibold text-black mb-1">YouTube Video Summary</Text>
           <Text className="text-xs text-ink-400 mb-4">Paste a YouTube link to generate a timestamped transcript</Text>
           {youtubeBusy ? (
@@ -523,8 +520,7 @@ export default function NoteEditorScreen() {
               </View>
             </>
           )}
-        </BottomSheetView>
-      </BottomSheet>
+      </Sheet>
       <AlertDialog
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}

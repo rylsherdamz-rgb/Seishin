@@ -276,8 +276,8 @@ export default function TodoScreen() {
             completed: sheetItem.completed,
             todoId: sheetItem.id,
           }}
-          onTodoToggle={(id) => { toggleTodo(id); setSheetItem(null); }}
-          onTodoDelete={(id) => { deleteTodo(id); setSheetItem(null); }}
+          onTodoToggle={(id) => toggleTodo(id)}
+          onTodoDelete={(id) => deleteTodo(id)}
           onClose={handleSheetClose}
         />
       )}

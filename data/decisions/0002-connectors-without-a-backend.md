@@ -38,5 +38,21 @@ Connect through what the phone already syncs, not through Google's APIs:
   events are read-only and never exported back.
 - **Background:** `expo-background-task` (WorkManager / BGTask) ~every 30 min,
   plus launch, foreground and post-edit syncs, through one `syncEverything`.
+  *Superseded 2026-10-09 — see "Live sync" below.*
 - **Not done:** Google Tasks, Microsoft To Do, Slack, Gmail — they require OAuth
   app registration; revisit if a sign-in story is added.
+
+## Addendum — live sync (2026-10-09)
+- **While open:** full sync on launch, on every resume (15 s de-bounce), every
+  60 s, and a light push 1.5 s after any edit. A call made mid-run queues one
+  follow-up so edits are never dropped.
+- **Gaps on frequent runs:** .ics feeds at most every 5 min; the reminder
+  top-up at most every 30 min (it reschedules from "now" — running it every
+  minute would keep persistent nags from ever firing). Launch, manual and
+  background runs always do everything.
+- **Closed:** background task at 15 min — Android WorkManager's floor for
+  periodic work; true "always" while closed would need a foreground service
+  with a permanent notification (not done). Existing installs re-register
+  from 30 → 15 min on next launch.
+- **Store reloads** keep the same array when storage is unchanged; before, each
+  sync's reload looked like an edit and re-triggered sync in an endless loop.
