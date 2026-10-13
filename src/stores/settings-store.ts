@@ -1,5 +1,9 @@
 import { create } from "zustand";
 import { settingsStorage } from "./mmkv";
+import { deleteToken, getToken, setToken } from "@/services/connectors/secrets";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("settings");
 
 interface CleanupPolicy {
   notificationsDays: number;
@@ -9,12 +13,7 @@ interface CleanupPolicy {
 }
 
 interface SettingsState {
-  emailConfig: {
-    host: string;
-    port: number;
-    user: string;
-    pass: string;
-  } | null;
+  /** Held in memory only; persisted in SecureStore (see `ensureSecrets`). */
   apiKeys: {
     nim: string;
   };
@@ -30,7 +29,6 @@ interface SettingsState {
   alarmRingtoneName: string;
 
   loadSettings: () => void;
-  setEmailConfig: (config: SettingsState["emailConfig"]) => void;
   setApiKey: (provider: "nim", key: string) => void;
   setNimEndpoint: (endpoint: string) => void;
   setNimModel: (model: string) => void;
@@ -49,54 +47,74 @@ const DEFAULT_CLEANUP: CleanupPolicy = {
   ocrDays: 7,
 };
 
+function readJSON<T>(key: string, fallback: T): T {
+  try {
+    const raw = settingsStorage.getString(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch (e) {
+    log.warn(`${key} is corrupt; using default`, e);
+    return fallback;
+  }
+}
+
+/** Everything except the API key — read synchronously from MMKV. */
+function readSettings() {
+  return {
+    nimEndpoint: settingsStorage.getString("nimEndpoint") || "https://integrate.api.nvidia.com/v1",
+    nimModel: settingsStorage.getString("nimModel") || "meta/llama-3.2-1b-instruct",
+    nimLargeModel: settingsStorage.getString("nimLargeModel") || null,
+    nimCachedModels: readJSON<string[]>("nimCachedModels", []),
+    modelPath: settingsStorage.getString("modelPath") || null,
+    cleanupPolicies: { ...DEFAULT_CLEANUP, ...readJSON<Partial<CleanupPolicy>>("cleanupPolicies", {}) },
+    notificationFilter: readJSON<string[]>("notificationFilter", []),
+    alarmRingtoneUri: settingsStorage.getString("alarmRingtoneUri") || null,
+    alarmRingtoneName: settingsStorage.getString("alarmRingtoneName") || "Default alarm sound",
+  };
+}
+
+const NIM_SECRET = "nim";
+let secretsLoaded: Promise<void> | null = null;
+
+/**
+ * Load the NIM key from SecureStore into memory. Older builds kept it as
+ * plain text in MMKV; move it across once and wipe the plain copy.
+ */
+export function ensureSecrets(): Promise<void> {
+  if (!secretsLoaded) {
+    secretsLoaded = (async () => {
+      let nim = (await getToken(NIM_SECRET)) ?? "";
+      const legacy = readJSON<{ nim?: string }>("apiKeys", {});
+      if (legacy.nim) {
+        if (!nim) nim = legacy.nim;
+        if (await setToken(NIM_SECRET, nim)) settingsStorage.remove("apiKeys");
+      }
+      settingsStorage.remove("emailConfig"); // unused; held a plain-text password
+      // Don't clobber a key the user typed while this was loading.
+      if (!useSettingsStore.getState().apiKeys.nim) useSettingsStore.setState({ apiKeys: { nim } });
+    })().catch((e) => log.error("secret load failed", e));
+  }
+  return secretsLoaded;
+}
+
+/** The NIM key, waiting for SecureStore on a cold start (e.g. background tasks). */
+export async function getNimKey(): Promise<string> {
+  await ensureSecrets();
+  return useSettingsStore.getState().apiKeys.nim;
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
-  emailConfig: null,
-  apiKeys: { nim: "", youtubeApiKey: "" },
-  nimEndpoint: "https://integrate.api.nvidia.com/v1",
-  nimModel: "meta/llama-3.2-1b-instruct",
-  nimLargeModel: null,
-  nimCachedModels: [],
-  modelPath: null,
-  cleanupPolicies: DEFAULT_CLEANUP,
-  notificationFilter: [],
-  alarmRingtoneUri: null,
-  alarmRingtoneName: "Default alarm sound",
+  apiKeys: { nim: "" },
+  ...readSettings(),
 
   loadSettings: () => {
-    const emailRaw = settingsStorage.getString("emailConfig");
-    const apiKeysRaw = settingsStorage.getString("apiKeys");
-    const nimEndpoint = settingsStorage.getString("nimEndpoint");
-    const nimModel = settingsStorage.getString("nimModel");
-    const nimLargeModel = settingsStorage.getString("nimLargeModel");
-    const nimCachedModels = settingsStorage.getString("nimCachedModels");
-    const modelPath = settingsStorage.getString("modelPath");
-    const cleanupRaw = settingsStorage.getString("cleanupPolicies");
-    const notifFilterRaw = settingsStorage.getString("notificationFilter");
-    const alarmRingtoneUri = settingsStorage.getString("alarmRingtoneUri");
-    const alarmRingtoneName = settingsStorage.getString("alarmRingtoneName");
-
-    if (emailRaw) set({ emailConfig: JSON.parse(emailRaw) });
-    if (apiKeysRaw) set({ apiKeys: JSON.parse(apiKeysRaw) });
-    if (nimEndpoint) set({ nimEndpoint });
-    if (nimModel) set({ nimModel });
-    if (nimLargeModel) set({ nimLargeModel });
-    if (nimCachedModels) set({ nimCachedModels: JSON.parse(nimCachedModels) });
-    if (modelPath) set({ modelPath });
-    if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
-    if (notifFilterRaw) set({ notificationFilter: JSON.parse(notifFilterRaw) });
-    if (alarmRingtoneUri) set({ alarmRingtoneUri });
-    if (alarmRingtoneName) set({ alarmRingtoneName });
-  },
-
-  setEmailConfig: (config) => {
-    settingsStorage.set("emailConfig", JSON.stringify(config));
-    set({ emailConfig: config });
+    set(readSettings());
+    void ensureSecrets();
   },
 
   setApiKey: (provider, key) => {
-    const apiKeys = { ...get().apiKeys, [provider]: key };
-    settingsStorage.set("apiKeys", JSON.stringify(apiKeys));
-    set({ apiKeys });
+    const value = key.trim();
+    set({ apiKeys: { ...get().apiKeys, [provider]: value } });
+    void (value ? setToken(provider, value) : deleteToken(provider));
   },
 
   setNimEndpoint: (endpoint) => {
@@ -144,3 +162,5 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ alarmRingtoneUri: uri, alarmRingtoneName: name });
   },
 }));
+
+void ensureSecrets();

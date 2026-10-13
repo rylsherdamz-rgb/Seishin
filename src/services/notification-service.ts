@@ -106,8 +106,8 @@ export async function ensureAlarmChannel() {
 
 export function useNotifications() {
   const { addItem } = useInboxStore();
-  const listenerRef = useRef<any>(null);
-  const responseListenerRef = useRef<any>(null);
+  const listenerRef = useRef<Notifications.EventSubscription | null>(null);
+  const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {

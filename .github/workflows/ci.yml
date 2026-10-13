@@ -5,35 +5,44 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      eas_profile:
+        description: "EAS build profile to run after checks (leave empty to skip)"
+        required: false
+        default: ""
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint-typecheck-test:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npx tsc --noEmit
-      - run: npm test -- --coverage
-      - run: npm run build -- --noEmit
+      - run: npm run typecheck
+      - run: npm run test:ci
 
+  # Native builds cost EAS credits — run them on demand, not on every push.
   eas-build:
-    needs: lint-typecheck-test
-    if: github.ref == 'refs/heads/main'
+    needs: check
+    if: github.event_name == 'workflow_dispatch' && inputs.eas_profile != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-      - run: eas build --platform android --profile development --non-interactive
+      - run: eas build --platform android --profile ${{ inputs.eas_profile }} --non-interactive

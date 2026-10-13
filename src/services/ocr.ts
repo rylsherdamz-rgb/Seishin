@@ -18,7 +18,7 @@ export async function recognizeText(uri: string): Promise<string> {
   }
 }
 
-export function cacheOcrResult(uri: string, text: string, blocks: any[]) {
+export function cacheOcrResult(uri: string, text: string, blocks: OcrCache["blocks"]) {
   const cache: OcrCache = { uri, text, blocks, timestamp: new Date().toISOString() };
   const history = getOcrHistory();
   history.unshift(cache);
@@ -26,8 +26,13 @@ export function cacheOcrResult(uri: string, text: string, blocks: any[]) {
 }
 
 export function getOcrHistory(): OcrCache[] {
-  const raw = ocrStorage.getString("history");
-  return raw ? JSON.parse(raw) : [];
+  try {
+    const raw = ocrStorage.getString("history");
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? (parsed as OcrCache[]) : [];
+  } catch {
+    return []; // corrupt cache: start over rather than crash
+  }
 }
 
 export function clearOcrHistory() {

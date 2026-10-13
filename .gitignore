@@ -13,3 +13,8 @@ web-build/
 android/
 ios/
 *.tsbuildinfo
+
+# local tooling output
+.graphify/
+graphify-out/
+coverage/

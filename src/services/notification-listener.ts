@@ -12,7 +12,6 @@ export interface PhoneNotification {
 
 type Listener = (notification: PhoneNotification) => void;
 
-const listeners = new Set<Listener>();
 let emitter: NativeEventEmitter | null = null;
 
 function getEmitter() {
@@ -24,22 +23,20 @@ function getEmitter() {
 }
 
 export function onNotificationReceived(listener: Listener) {
-  listeners.add(listener);
-
   const e = getEmitter();
-  const subscription = e?.addListener("onNotificationReceived", (data: any) => {
-    const notif: PhoneNotification = {
-      app: data.app ?? "",
-      title: data.title ?? "",
-      text: data.text ?? "",
-      timestamp: data.timestamp ?? 0,
-      key: data.key ?? "",
-    };
-    for (const fn of listeners) fn(notif);
+  // Each caller owns one native subscription and receives each event once.
+  const subscription = e?.addListener("onNotificationReceived", (raw: unknown) => {
+    const data = (raw ?? {}) as Partial<Record<keyof PhoneNotification, unknown>>;
+    listener({
+      app: typeof data.app === "string" ? data.app : "",
+      title: typeof data.title === "string" ? data.title : "",
+      text: typeof data.text === "string" ? data.text : "",
+      timestamp: typeof data.timestamp === "number" ? data.timestamp : 0,
+      key: typeof data.key === "string" ? data.key : "",
+    });
   });
 
   return () => {
-    listeners.delete(listener);
     subscription?.remove();
   };
 }
