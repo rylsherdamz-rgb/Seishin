@@ -65,7 +65,10 @@ export abstract class BaseTool {
           properties: Object.fromEntries(
             Object.entries(this.parameters).map(([key, val]) => [
               key,
-              { type: val.type, description: val.description },
+              // JSON Schema requires `items` for arrays (strict APIs reject the tool otherwise).
+              val.type === "array"
+                ? { type: "array", items: { type: "string" }, description: val.description }
+                : { type: val.type, description: val.description },
             ])
           ),
           required: Object.keys(this.parameters).filter(
