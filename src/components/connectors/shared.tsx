@@ -33,6 +33,31 @@ const LEVELS: { value: ReminderLevel; label: string }[] = [
   { value: "off", label: "Off" },
 ];
 
+/** Small single-choice segmented control used by connector settings. */
+export function Segmented<T extends string | number>({ label, options, value, onChange }: { label: string; options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <View className="mt-4">
+      <Text className="text-xs font-bold tracking-wide text-ink-500 mb-2">{label.toUpperCase()}</Text>
+      <View className="flex-row bg-ink-50 rounded-2xl p-1">
+        {options.map((o) => {
+          const on = value === o.value;
+          return (
+            <TouchableOpacity
+              key={String(o.value)}
+              onPress={() => onChange(o.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on }}
+              className={`flex-1 h-10 rounded-xl items-center justify-center ${on ? "bg-white shadow-subtle" : ""}`}
+            >
+              <Text className={`text-[13px] font-semibold ${on ? "text-black" : "text-ink-500"}`}>{o.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function ReminderChips({ value, onChange, label = "Remind me about imported deadlines" }: { value: ReminderLevel; onChange: (v: ReminderLevel) => void; label?: string }) {
   return (
     <View className="mt-4">

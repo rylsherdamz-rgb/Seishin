@@ -20,8 +20,10 @@ let running: Promise<SyncReport> | null = null;
  * Notion, then top up task reminders. Shared by app launch, foreground,
  * pull-to-refresh and the background task; concurrent calls share one run.
  * `light` skips network-heavy pulls (used right after local edits).
+ * `local` only re-reads the phone calendars (cheap, no network) — used every
+ * time the app comes back so edits made in Google Calendar show up at once.
  */
-export function syncEverything(reason: string, opts: { light?: boolean } = {}): Promise<SyncReport> {
+export function syncEverything(reason: string, opts: { light?: boolean; local?: boolean } = {}): Promise<SyncReport> {
   if (running) return running;
   running = (async () => {
     const errors: string[] = [];
@@ -45,14 +47,21 @@ export function syncEverything(reason: string, opts: { light?: boolean } = {}): 
     });
     const { syncTodoist } = require("./todoist") as typeof import("./todoist");
     const { syncNotion } = require("./notion") as typeof import("./notion");
-    await step("todoist", syncTodoist);
-    await step("notion", syncNotion);
-    if (!opts.light) {
+    if (!opts.local) {
+      await step("todoist", syncTodoist);
+      await step("notion", syncNotion);
+    }
+    if (!opts.light && !opts.local) {
       const { syncFeeds } = require("./feeds") as typeof import("./feeds");
       await step("feeds", syncFeeds);
       const { refreshAllTaskReminders } = require("@/services/task-reminders") as typeof import("@/services/task-reminders");
       await step("reminders", () => refreshAllTaskReminders(useTodoStore.getState().todos));
     }
+    // New/moved events from Google & co. get their alarms even when the app is closed.
+    const { refreshEventAlarms } = require("@/services/event-alarms") as typeof import("@/services/event-alarms");
+    await step("alarms", async () => { await refreshEventAlarms(useCalendarStore.getState().events); });
+    const { updateWidgets } = require("@/widgets/update") as typeof import("@/widgets/update");
+    await step("widgets", async () => { await updateWidgets(); });
     const report = { at: new Date().toISOString(), reason, changes, errors };
     try { settingsStorage.set(LAST_KEY, JSON.stringify(report)); } catch { /* informational only */ }
     return report;

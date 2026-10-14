@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Pressable } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Pressable, RefreshControl } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import { COPY } from "@/constants/copy";
@@ -17,6 +17,7 @@ interface DayTimelineProps {
   onOpen: (item: CalendarItem) => void;
   onToggleTodo: (todoId: string) => void;
   onCreateAt: (minutes: number) => void;
+  refresh?: { refreshing: boolean; onRefresh: () => void };
 }
 
 function hourLabel(h: number): string {
@@ -35,7 +36,8 @@ function useNowMinutes(): number {
 }
 
 /** Hour-by-hour day view with overlapping-event columns and a live "now" line. */
-export function DayTimeline({ date, today, items, onOpen, onToggleTodo, onCreateAt }: DayTimelineProps) {
+export function DayTimeline({ date, today, items, onOpen, onToggleTodo, onCreateAt, refresh }: DayTimelineProps) {
+  const C = useColors();
   const scrollRef = useRef<ScrollView>(null);
   const [width, setWidth] = useState(0);
   const nowMin = useNowMinutes();
@@ -64,6 +66,7 @@ export function DayTimeline({ date, today, items, onOpen, onToggleTodo, onCreate
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={refresh ? <RefreshControl {...refresh} colors={[C.black]} tintColor={C.black} /> : undefined}
       >
         <View style={{ height: HOUR_H * 24 + 12 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
           {HOURS.map((h) => (

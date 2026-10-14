@@ -18,14 +18,33 @@ export function keyToDate(key: string): Date {
   return new Date(key + "T00:00:00");
 }
 
+/**
+ * Local calendar day the event starts on. Dates are stored as UTC ISO
+ * strings, so the "T" prefix is the UTC day — wrong east/west of UTC (in
+ * UTC+8 everything before 08:00, and every all-day event, landed a day early).
+ */
 export function eventStartDate(e: CalendarEvent): string {
-  return e.startDate.split("T")[0];
+  const d = new Date(e.startDate);
+  return isNaN(d.getTime()) ? e.startDate.slice(0, 10) : dateKey(d);
 }
 
-/** True if the event occurs on the given local YYYY-MM-DD date (non-recurring events: its own start date). */
+/**
+ * Last local day a non-recurring all-day event covers (multi-day trips,
+ * exams weeks, holidays imported from Google). Other events: the start day.
+ */
+export function eventLastDate(e: CalendarEvent): string {
+  const start = eventStartDate(e);
+  if (!e.allDay || e.recurrence) return start;
+  const end = new Date(e.endDate);
+  if (isNaN(end.getTime())) return start;
+  const last = dateKey(new Date(end.getTime() - 1));
+  return last > start ? last : start;
+}
+
+/** True if the event occurs on the given local YYYY-MM-DD date (non-recurring events: the day(s) it covers). */
 export function occursOnDate(e: CalendarEvent, date: string): boolean {
   const start = eventStartDate(e);
-  if (!e.recurrence) return start === date;
+  if (!e.recurrence) return date >= start && date <= eventLastDate(e);
   const rec = e.recurrence;
   if (date < start) return false;
   if (rec.until && date > rec.until) return false;
@@ -64,7 +83,16 @@ export function expandOccurrences(
   const start = eventStartDate(e);
   const out: string[] = [];
   if (!e.recurrence) {
-    if (start >= from && start <= to) out.push(start);
+    const last = eventLastDate(e);
+    if (last === start) {
+      if (start >= from && start <= to) out.push(start);
+      return out;
+    }
+    for (let d = keyToDate(start > from ? start : from); out.length < maxCount; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      const key = dateKey(d);
+      if (key > last || key > to) break;
+      out.push(key);
+    }
     return out;
   }
   const lo = keyToDate(from > start ? from : start);
