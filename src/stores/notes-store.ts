@@ -38,6 +38,8 @@ interface NoteState {
   setQuery: (query: string) => void;
   getFilteredNotes: () => Note[];
   getNotesForEvent: (eventId: string) => Note[];
+  /** Restore: replace every note. */
+  replaceAll: (notes: Note[]) => void;
 }
 
 const NOTES_KEY = "notes";
@@ -128,4 +130,10 @@ export const useNotesStore = create<NoteState>((set, get) => ({
   },
 
   getNotesForEvent: (eventId) => get().notes.filter((n) => n.eventId === eventId),
+
+  replaceAll: (notes) => {
+    const sorted = sortNotes(notes);
+    persist(sorted);
+    set({ notes: sorted });
+  },
 }));

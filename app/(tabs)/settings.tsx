@@ -23,6 +23,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { fetchNimModels, fetchAllNimModels, cacheNimModels, categorizeModel, getTierLabel } from "@/services/nim-models";
 import { useColors } from "@/theme/ThemeProvider";
 import { AppearancePicker } from "@/components/AppearancePicker";
+import { BackupSection } from "@/components/BackupSection";
 
 const storageCategories = [
   { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
@@ -486,6 +487,9 @@ export default function SettingsScreen() {
               />
             )}
           </Card>
+
+          <SectionHeader title="Backup & restore" />
+          <BackupSection />
 
           <SectionHeader title="Storage" />
           <TouchableOpacity onPress={() => setShowStorage(!showStorage)} activeOpacity={0.7}>
