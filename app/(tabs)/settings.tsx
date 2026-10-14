@@ -11,6 +11,7 @@ import {
   notificationsStorage, agentStorage, ocrStorage, todosStorage, invitesStorage,
 } from "@/stores/mmkv";
 import { clearOcrHistory } from "@/services/ocr";
+import { factoryReset } from "@/services/factory-reset";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { useNotifications, pickAlarmRingtone, applyAlarmRingtone } from "@/services/notification-service";
 import * as FileSystem from "expo-file-system/legacy";
@@ -142,13 +143,16 @@ export default function SettingsScreen() {
 
   const confirmFactoryReset = useCallback(() => {
     setConfirmConfig({
-      title: "Factory Reset",
-      message: "This will delete ALL data. Are you sure?",
-      onConfirm: () => {
-        clearAllStorage();
-        clearOcrHistory();
+      title: "Factory reset",
+      message: "Deletes all events, tasks, notes, messages, settings, connector sign-ins and scheduled reminders on this phone. Your Google, Todoist and Notion data is not touched. This can't be undone.",
+      onConfirm: async () => {
+        const res = await factoryReset();
         setSizes(getStorageSizes());
-        setModalConfig({ title: "Done", message: "All data has been cleared." });
+        setModalConfig(
+          res.ok
+            ? { title: "Done", message: "Everything on this phone has been cleared." }
+            : { title: "Partly done", message: `Data was cleared, but these steps failed: ${res.failed.join(", ")}. Restart the app and try again.` },
+        );
       },
     });
   }, [setConfirmConfig, setModalConfig, setSizes]);

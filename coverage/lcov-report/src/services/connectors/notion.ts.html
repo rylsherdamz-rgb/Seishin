@@ -1,0 +1,418 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/services/connectors/notion.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../prettify.css" />
+    <link rel="stylesheet" href="../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">src/services/connectors</a> notion.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">36.36% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>28/77</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">23.88% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>16/67</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">57.89% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>11/19</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">33.92% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>19/56</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useTodoStore } from "@/stores/todo-store";
+import { http } from "./http";
+import { getToken } from "./secrets";
+import { notionState, type NotionState } from "./state";
+import { normalizeDue, planTaskSync, type ExternalTask } from "./task-sync-plan";
+&nbsp;
+const API = "https://api.notion.com/v1";
+const VERSION = "2025-09-03";
+const PROVIDER = "notion";
+&nbsp;
+const headers = <span class="fstat-no" title="function not covered" >(t</span>oken: string) =&gt; (<span class="cstat-no" title="statement not covered" >{</span>
+  Authorization: `Bearer ${token}`,
+  "Notion-Version": VERSION,
+  "Content-Type": "application/json",
+});
+&nbsp;
+/** Accepts a database URL or a raw id; returns the 32-hex id (dashes optional). */
+export function parseNotionId(input: string): string | null {
+  const m = input.replace(/-/g, "").match(/([0-9a-f]{32})(?:[?#]|$)/i) ?? input.replace(/-/g, "").match(/([0-9a-f]{32})/i);
+  return m ? m[1].toLowerCase() : null;
+}
+&nbsp;
+type Schema = Record&lt;string, { type: string; status?: { groups?: { name: string; option_ids: string[] }[]; options?: { id: string; name: string }[] } }&gt;;
+&nbsp;
+/** Find the title / date / done properties automatically from the data source schema. */
+export function detectProps(schema: Schema): Pick&lt;NotionState, "titleProp" | "dateProp" | "doneProp" | "doneType" | "doneNames"&gt; {
+  const entries = Object.entries(schema);
+  const title = entries.find(([, p]) =&gt; p.type === "title")?.[0] ?? <span class="branch-1 cbranch-no" title="branch not covered" >null;</span>
+  const dateCandidates = entries.filter(([, p]) =&gt; p.type === "date");
+  const date = (dateCandidates.find(([n]) =&gt; /due|deadline|date|when/i.test(n)) ?? dateCandidates[0])?.[0] ?? null;
+  const status = entries.find(([, p]) =&gt; p.type === "status");
+  if (status) {
+    const cfg = status[1].status;
+    const complete = cfg?.groups?.find((g) =&gt; /complete|done/i.test(g.name));
+    const names = (cfg?.options ?? <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>.filter((o) =&gt; complete?.option_ids.includes(o.id)).map((o) =&gt; o.name);
+    return { titleProp: title, dateProp: date, doneProp: status[0], doneType: "status", doneNames: names.length ? names : <span class="branch-1 cbranch-no" title="branch not covered" >["Done"] </span>};
+  }
+  const check = entries.filter(([, p]) =&gt; p.type === "checkbox");
+  const done = (check.find(([n]) =&gt; /done|complete|finished/i.test(n)) ?? <span class="branch-1 cbranch-no" title="branch not covered" >check[0])</span>?.[0] ?? <span class="branch-1 cbranch-no" title="branch not covered" >null;</span>
+  return { titleProp: title, dateProp: date, doneProp: done, doneType: done ? "checkbox" : <span class="branch-1 cbranch-no" title="branch not covered" >null,</span> doneNames: [] };
+}
+&nbsp;
+/** Resolve a database to its (first) data source and detect its properties. */
+export async function <span class="fstat-no" title="function not covered" >setupNotion(</span>token: string, databaseInput: string): Promise&lt;NotionState&gt; {
+  const id = <span class="cstat-no" title="statement not covered" >parseNotionId(databaseInput);</span>
+<span class="cstat-no" title="statement not covered" >  if (!id) <span class="cstat-no" title="statement not covered" >throw new Error("That doesn't look like a Notion database link");</span></span>
+  const db = <span class="cstat-no" title="statement not covered" >await http&lt;{ data_sources?: { id: string; name: string }[]; title?: { plain_text: string }[] }&gt;(`${API}/databases/${id}`, { headers: headers(token) });</span>
+  const ds = <span class="cstat-no" title="statement not covered" >db.data_sources?.[0];</span>
+<span class="cstat-no" title="statement not covered" >  if (!ds) <span class="cstat-no" title="statement not covered" >throw new Error("This database has no data source the integration can read");</span></span>
+  const source = <span class="cstat-no" title="statement not covered" >await http&lt;{ properties: Schema }&gt;(`${API}/data_sources/${ds.id}`, { headers: headers(token) });</span>
+  const props = <span class="cstat-no" title="statement not covered" >detectProps(source.properties);</span>
+<span class="cstat-no" title="statement not covered" >  if (!props.titleProp) <span class="cstat-no" title="statement not covered" >throw new Error("Couldn't find a title column in that database");</span></span>
+<span class="cstat-no" title="statement not covered" >  return notionState.set({ enabled: true, databaseId: id, dataSourceId: ds.id, ...props, lastError: null });</span>
+}
+&nbsp;
+interface NotionPage {
+  id: string;
+  url: string;
+  archived?: boolean;
+  in_trash?: boolean;
+  properties: Record&lt;string, {
+    type: string;
+    title?: { plain_text: string }[];
+    date?: { start: string; end?: string | null } | null;
+    checkbox?: boolean;
+    status?: { name: string } | null;
+  }&gt;;
+}
+&nbsp;
+function <span class="fstat-no" title="function not covered" >pageToTask(</span>p: NotionPage, s: NotionState): ExternalTask {
+  const title = <span class="cstat-no" title="statement not covered" >(s.titleProp &amp;&amp; p.properties[s.titleProp]?.title?.map(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >t.plain_text)</span>.join("")) || "(Untitled)";</span>
+  const start = <span class="cstat-no" title="statement not covered" >s.dateProp ? p.properties[s.dateProp]?.date?.start : undefined;</span>
+  const hasTime = <span class="cstat-no" title="statement not covered" >!!start &amp;&amp; start.includes("T");</span>
+  const doneProp = <span class="cstat-no" title="statement not covered" >s.doneProp ? p.properties[s.doneProp] : undefined;</span>
+  const done = <span class="cstat-no" title="statement not covered" >s.doneType === "checkbox" ? !!doneProp?.checkbox : s.doneType === "status" ? s.doneNames.includes(doneProp?.status?.name ?? "") : false;</span>
+<span class="cstat-no" title="statement not covered" >  return { externalId: p.id, title, due: normalizeDue(hasTime ? undefined : start, hasTime ? start : undefined), done, url: p.url };</span>
+}
+&nbsp;
+export async function <span class="fstat-no" title="function not covered" >syncNotion(</span>): Promise&lt;number&gt; {
+  const s = <span class="cstat-no" title="statement not covered" >notionState.get();</span>
+<span class="cstat-no" title="statement not covered" >  if (!s.enabled || !s.dataSourceId) <span class="cstat-no" title="statement not covered" >return 0;</span></span>
+  const token = <span class="cstat-no" title="statement not covered" >await getToken(PROVIDER);</span>
+<span class="cstat-no" title="statement not covered" >  if (!token) { <span class="cstat-no" title="statement not covered" >notionState.set({ lastError: "Reconnect Notion — token missing" }); <span class="cstat-no" title="statement not covered" ></span>return 0; </span>}</span>
+<span class="cstat-no" title="statement not covered" >  try {</span>
+    const pages: NotionPage[] = <span class="cstat-no" title="statement not covered" >[];</span>
+    let cursor: string | undefined;
+<span class="cstat-no" title="statement not covered" >    for (let i = <span class="cstat-no" title="statement not covered" >0;</span> i &lt; 5; i++) {</span>
+      const res = <span class="cstat-no" title="statement not covered" >await http&lt;{ results: NotionPage[]; has_more: boolean; next_cursor: string | null }&gt;(`${API}/data_sources/${s.dataSourceId}/query`, {</span>
+        method: "POST",
+        headers: headers(token),
+        body: JSON.stringify({ page_size: 100, ...(cursor ? { start_cursor: cursor } : {}) }),
+      });
+<span class="cstat-no" title="statement not covered" >      pages.push(...res.results);</span>
+<span class="cstat-no" title="statement not covered" >      if (!res.has_more || !res.next_cursor) <span class="cstat-no" title="statement not covered" >break;</span></span>
+<span class="cstat-no" title="statement not covered" >      cursor = res.next_cursor;</span>
+    }
+    const remote = <span class="cstat-no" title="statement not covered" >pages.filter(<span class="fstat-no" title="function not covered" >(p</span>) =&gt; <span class="cstat-no" title="statement not covered" >!p.archived &amp;&amp; !p.in_trash)</span>.map(<span class="fstat-no" title="function not covered" >(p</span>) =&gt; <span class="cstat-no" title="statement not covered" >pageToTask(p, s))</span>;</span>
+    const store = <span class="cstat-no" title="statement not covered" >useTodoStore.getState();</span>
+    const plan = <span class="cstat-no" title="statement not covered" >planTaskSync(remote, store.todos, PROVIDER, { reminder: s.reminder, canCompleteRemote: !!s.doneProp });</span>
+<span class="cstat-no" title="statement not covered" >    for (const pageId of plan.completeRemote) {</span>
+      const value = <span class="cstat-no" title="statement not covered" >s.doneType === "checkbox" ? { checkbox: true } : { status: { name: s.doneNames[0] ?? "Done" } };</span>
+<span class="cstat-no" title="statement not covered" >      await http(`${API}/pages/${pageId}`, { method: "PATCH", headers: headers(token), body: JSON.stringify({ properties: { [s.doneProp!]: value } }) }).catch(<span class="fstat-no" title="function not covered" >()</span> =&gt; {});</span>
+    }
+<span class="cstat-no" title="statement not covered" >    store.applySync(plan.create, plan.update, plan.completeLocal);</span>
+<span class="cstat-no" title="statement not covered" >    notionState.set({ lastSync: new Date().toISOString(), lastError: null });</span>
+<span class="cstat-no" title="statement not covered" >    return plan.create.length + plan.update.length + plan.completeLocal.length;</span>
+  } catch (e) {
+<span class="cstat-no" title="statement not covered" >    notionState.set({ lastError: e instanceof Error ? e.message : "Sync failed" });</span>
+<span class="cstat-no" title="statement not covered" >    return 0;</span>
+  }
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-14T11:01:20.065Z
+            </div>
+        <script src="../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../sorter.js"></script>
+        <script src="../../../block-navigation.js"></script>
+    </body>
+</html>
+    

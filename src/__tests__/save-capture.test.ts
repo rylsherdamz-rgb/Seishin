@@ -1,5 +1,5 @@
 jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
-const mockSchedule = jest.fn(async () => 0);
+const mockSchedule = jest.fn(async (..._args: unknown[]) => 0);
 jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: (...a: unknown[]) => mockSchedule(...a), cancelTaskReminders: jest.fn(async () => {}) }));
 
 import { saveCapture } from "@/components/capture/save-capture";
