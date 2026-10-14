@@ -104,3 +104,12 @@ describe("dateKey", () => {
     expect(dateKey(new Date(2026, 0, 5))).toBe("2026-01-05");
   });
 });
+
+describe("local day keys", () => {
+  it("an early-morning event belongs to its local day, not its UTC day", () => {
+    const start = new Date(2026, 9, 15, 0, 30);
+    const e = ev({ startDate: start.toISOString(), endDate: new Date(2026, 9, 15, 1, 30).toISOString() });
+    expect(occursOnDate(e, "2026-10-15")).toBe(true);
+    expect(occursOnDate(e, "2026-10-14")).toBe(false);
+  });
+});

@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
+import { useThemeStore } from "@/stores/theme-store";
+import { updateWidgets, updateWidgetsSoon } from "@/widgets/update";
 
 /** While Seishin is on screen, pull from every connector this often. */
 export const LIVE_INTERVAL = 60000;
@@ -38,6 +40,8 @@ export function useAutoSync() {
     startLive();
 
     const sub = AppState.addEventListener("change", (s) => {
+      // Leaving the app: make sure the home screen shows the latest.
+      if (s === "background") updateWidgets();
       if (s !== "active") return stopLive();
       if (Date.now() - last.current > FOREGROUND_GAP) sync("foreground");
       startLive();
@@ -52,12 +56,18 @@ export function useAutoSync() {
     const own = (list: ReturnType<typeof useCalendarStore.getState>["events"]) => list.filter((e) => e.source !== "calendar" && e.source !== "feed");
     const unsubEvents = useCalendarStore.subscribe((s, prev) => {
       if (s.events === prev.events) return;
+      updateWidgetsSoon();
       const a = own(s.events);
       const b = own(prev.events);
       if (a.length !== b.length || a.some((e, i) => e !== b[i])) pushSoon();
     });
     const unsubTodos = useTodoStore.subscribe((s, prev) => {
-      if (s.todos !== prev.todos) pushSoon();
+      if (s.todos === prev.todos) return;
+      pushSoon();
+      updateWidgetsSoon();
+    });
+    const unsubTheme = useThemeStore.subscribe((s, prev) => {
+      if (s.mode !== prev.mode || s.accent !== prev.accent) updateWidgetsSoon(300);
     });
 
     return () => {
@@ -65,6 +75,7 @@ export function useAutoSync() {
       stopLive();
       unsubEvents();
       unsubTodos();
+      unsubTheme();
       if (timer) clearTimeout(timer);
     };
   }, []);

@@ -4,6 +4,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useTodoStore, Todo } from "@/stores/todo-store";
 import { uid } from "@/utils/id";
+import { dateKey } from "@/utils/recurrence";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
@@ -25,7 +26,7 @@ const priorityColors: Record<string, string> = {
 
 export default function TodoScreen() {
   const T = useColors();
-  const { eventId } = useLocalSearchParams<{ eventId?: string }>();
+  const { eventId, add } = useLocalSearchParams<{ eventId?: string; add?: string }>();
   const todos = useTodoStore((s) => s.todos);
   const storeFilter = useTodoStore((s) => s.filter);
   const loadTodos = useTodoStore((s) => s.loadTodos);
@@ -35,7 +36,8 @@ export default function TodoScreen() {
   const clearCompleted = useTodoStore((s) => s.clearCompleted);
   const setFilter = useTodoStore((s) => s.setFilter);
   const [filter, localFilter] = useState<TodoFilter>(storeFilter);
-  const [showAdd, setShowAdd] = useState(false);
+  // `add=1` when opened from the Tasks / Quick add widget.
+  const [showAdd, setShowAdd] = useState(add === "1");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [sheetItem, setSheetItem] = useState<Todo | null>(null);
   const [newTitle, setNewTitle] = useState(() => loadTodoDraft().title ?? "");
@@ -271,7 +273,7 @@ export default function TodoScreen() {
           todo={{
             id: sheetItem.id,
             title: sheetItem.title,
-            date: sheetItem.dueDate?.split("T")[0],
+            date: sheetItem.dueDate ? dateKey(new Date(sheetItem.dueDate)) : undefined,
             priority: sheetItem.priority,
             completed: sheetItem.completed,
             todoId: sheetItem.id,

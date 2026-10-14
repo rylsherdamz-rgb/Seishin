@@ -71,3 +71,36 @@ describe("task deadlines and recurrence", () => {
     expect(toDeviceRecurrence(undefined)).toBeNull();
   });
 });
+
+describe("device quirks", () => {
+  const { allDayFromUtc, allDayToUtc, remoteToLocal } = jest.requireActual("@/services/calendar-sync-plan") as typeof import("@/services/calendar-sync-plan");
+  const { occursOnDate } = jest.requireActual("@/utils/recurrence") as typeof import("@/utils/recurrence");
+
+  it("Android all-day events (UTC midnight) land on their local day", () => {
+    const span = allDayFromUtc("2026-10-15T00:00:00.000Z", "2026-10-16T00:00:00.000Z");
+    const ev = { id: "x", title: "Holiday", ...span, allDay: true, source: "calendar" as const };
+    expect(occursOnDate(ev, "2026-10-15")).toBe(true);
+    expect(occursOnDate(ev, "2026-10-14")).toBe(false);
+    expect(occursOnDate(ev, "2026-10-16")).toBe(false);
+  });
+
+  it("multi-day all-day events cover every day", () => {
+    const span = allDayFromUtc("2026-10-15T00:00:00.000Z", "2026-10-18T00:00:00.000Z");
+    const ev = { id: "x", title: "Trip", ...span, allDay: true, source: "calendar" as const };
+    expect(["2026-10-15", "2026-10-16", "2026-10-17"].every((d) => occursOnDate(ev, d))).toBe(true);
+    expect(occursOnDate(ev, "2026-10-18")).toBe(false);
+  });
+
+  it("exports all-day events as UTC midnight, end exclusive", () => {
+    const { start, end } = allDayToUtc(new Date(2026, 9, 15).toISOString(), new Date(2026, 9, 15, 23, 59).toISOString());
+    expect(start.toISOString()).toBe("2026-10-15T00:00:00.000Z");
+    expect(end.toISOString()).toBe("2026-10-16T00:00:00.000Z");
+  });
+
+  it("keeps the event's own reminder, else the default", () => {
+    const base = { id: "1", calendarId: "g", title: "A", startDate: "2026-10-15T01:00:00Z", endDate: "2026-10-15T02:00:00Z", allDay: false };
+    expect(remoteToLocal({ ...base, alarmMinutes: 30 }, { defaultReminder: 10 }).reminder).toBe(30);
+    expect(remoteToLocal({ ...base, alarmMinutes: null }, { defaultReminder: 10 }).reminder).toBe(10);
+    expect(remoteToLocal({ ...base }, { defaultReminder: 0 }).reminder).toBeUndefined();
+  });
+});

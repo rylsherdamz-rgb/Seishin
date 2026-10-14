@@ -39,12 +39,19 @@ const cancel = (Notifications as unknown as { __cancel: jest.Mock }).__cancel;
 
 const REMINDER_MAP_KEY = "eventReminderNotifs";
 
+const tomorrowAt = (h: number, m: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+};
+
 function baseEvent(overrides: Partial<CalendarEvent>): CalendarEvent {
   return {
     id: "evt-1",
     title: "Standup",
-    startDate: "2026-08-10T09:30:00.000+08:00",
-    endDate: "2026-08-10T10:00:00.000+08:00",
+    startDate: tomorrowAt(9, 30),
+    endDate: tomorrowAt(10, 0),
     source: "manual",
     reminder: 30,
     ...overrides,
@@ -84,12 +91,18 @@ describe("event alarm scheduling", () => {
     expect(new Set(keys.map((k) => map[k])).size).toBe(keys.length);
   });
 
+  test("an event that ended long ago is not re-rung when edited", async () => {
+    await scheduleEventReminder(baseEvent({ startDate: "2026-01-10T09:30:00.000Z", endDate: "2026-01-10T10:00:00.000Z" }));
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
   test("re-scheduling replaces prior alarms for the same event", async () => {
     await scheduleEventReminder(baseEvent({}));
     const firstMap = JSON.parse(settingsStorage.getString(REMINDER_MAP_KEY)!);
-    const firstIds = Object.values(firstMap);
+    const firstIds = Object.values(firstMap) as string[];
     await scheduleEventReminder(baseEvent({}));
-    expect(cancel).toHaveBeenCalledWith(firstIds[0]);
+    // Map values are "notificationId|signature".
+    expect(cancel).toHaveBeenCalledWith(firstIds[0].split("|")[0]);
   });
 
   test("cancelEventReminder clears all occurrences of the event", async () => {
