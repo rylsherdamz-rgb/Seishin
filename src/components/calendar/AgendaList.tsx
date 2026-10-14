@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, RefreshControl } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
@@ -20,9 +20,12 @@ interface AgendaListProps {
   onOpen: (item: CalendarItem) => void;
   onToggleTodo: (todoId: string) => void;
   onShowDay: (date: string) => void;
+  /** Pull-to-refresh → sync connectors. */
+  refresh?: { refreshing: boolean; onRefresh: () => void };
 }
 
-export function AgendaList({ rows, today, emptyTitle, emptySubtitle, onOpen, onToggleTodo, onShowDay }: AgendaListProps) {
+export function AgendaList({ rows, today, emptyTitle, emptySubtitle, onOpen, onToggleTodo, onShowDay, refresh }: AgendaListProps) {
+  const C = useColors();
   const renderItem = useCallback(
     ({ item, index }: { item: AgendaRow; index: number }) => {
       const content = "kind" in item ? (
@@ -54,6 +57,7 @@ export function AgendaList({ rows, today, emptyTitle, emptySubtitle, onOpen, onT
       maxToRenderPerBatch={12}
       windowSize={10}
       renderItem={renderItem}
+      refreshControl={refresh ? <RefreshControl {...refresh} colors={[C.black]} tintColor={C.black} /> : undefined}
       ListEmptyComponent={<EmptyState icon="sun" title={emptyTitle} subtitle={emptySubtitle} />}
     />
   );

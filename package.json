@@ -1,7 +1,7 @@
 {
   "name": "seishin",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "dependencies": {
     "@expo/ui": "~57.0.23",
     "@expo/vector-icons": "^15.0.2",
@@ -33,6 +33,7 @@
     "openai": "^6.45.0",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-android-widget": "^0.22.1",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-mmkv": "^4.3.2",
     "react-native-nitro-modules": "^0.36.1",

@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-na
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import { Toggle } from "@/components/ui/Toggle";
+import { Segmented } from "./shared";
 import {
   disconnectCalendars, ensureCalendarPermission, listDeviceCalendars, readSyncState,
-  suggestDefaults, syncCalendars, writeSyncState, type CalendarSyncState, type DeviceCalendar,
+  suggestDefaults, writeSyncState, type CalendarSyncState, type DeviceCalendar,
 } from "@/services/calendar-sync";
 
 function ago(iso: string | null): string {
@@ -36,15 +37,22 @@ export function CalendarConnector() {
     if (state.enabled) loadCals();
   }, [state.enabled, loadCals]);
 
-  const update = (patch: Partial<CalendarSyncState>) => setState(writeSyncState(patch));
-
   const sync = useCallback(async () => {
     setBusy(true);
-    const res = await syncCalendars();
+    // Calendars + their reminders + widgets, no network connectors.
+    const { syncEverything } = await import("@/services/connectors/sync-all");
+    await syncEverything("calendar", { local: true });
     setBusy(false);
-    setState(readSyncState());
-    if (res === null && readSyncState().lastError) Alert.alert("Sync didn't finish", readSyncState().lastError ?? "Please try again.");
+    const after = readSyncState();
+    setState(after);
+    if (after.lastError) Alert.alert("Sync didn't finish", after.lastError);
   }, []);
+
+  // Settings changes apply right away instead of at the next background run.
+  const update = (patch: Partial<CalendarSyncState>) => {
+    setState(writeSyncState(patch));
+    sync();
+  };
 
   const connect = useCallback(async () => {
     setBusy(true);
@@ -68,7 +76,7 @@ export function CalendarConnector() {
   const disconnect = () =>
     Alert.alert("Disconnect calendars?", "Synced events are removed from Seishin. Nothing is deleted from your Google or phone calendars.", [
       { text: "Cancel", style: "cancel" },
-      { text: "Disconnect", style: "destructive", onPress: () => { disconnectCalendars(); setState(readSyncState()); } },
+      { text: "Disconnect", style: "destructive", onPress: () => { disconnectCalendars(); setState(readSyncState()); sync(); } },
     ]);
 
   const toggleImport = (id: string) =>
@@ -139,6 +147,14 @@ export function CalendarConnector() {
         </View>
         <Text className="text-[15px] text-black">Don't send Seishin events</Text>
       </TouchableOpacity>
+
+      <Segmented
+        label="Remind me about synced events"
+        value={state.defaultReminder}
+        onChange={(v) => update({ defaultReminder: v })}
+        options={[{ value: 0, label: "Their own" }, { value: 10, label: "10 min" }, { value: 30, label: "30 min" }, { value: 60, label: "1 h" }]}
+      />
+      <Text className="text-xs text-ink-500 mt-1.5">Events with their own Google reminder keep it.</Text>
 
       <View className="flex-row items-center justify-between mt-3 min-h-[48px]">
         <View className="flex-1 pr-3">

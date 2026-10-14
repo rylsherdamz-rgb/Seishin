@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, StatusBar as RNStatusBar } from "react-native";
+import { View, Text, TouchableOpacity, StatusBar as RNStatusBar, Linking } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, FadeInDown } from "react-native-reanimated";
 import * as ExpoSplashScreen from "expo-splash-screen";
@@ -12,6 +12,7 @@ import { Logo } from "@/components/Logo";
 import { AlarmOverlay } from "@/components/AlarmOverlay";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
+import { useSettingsStore } from "@/stores/settings-store";
 import { Host } from "@expo/ui";
 import { useNotifications } from "@/services/notification-service";
 import { useAutoSync } from "@/hooks/useAutoSync";
@@ -151,6 +152,9 @@ function AppShell() {
   const router = useRouter();
   useNotifications();
   useAutoSync();
+  // Settings (incl. the AI key from the Keystore) are needed app-wide — e.g.
+  // Smart capture — not only once the Settings or Agent tab has been opened.
+  useEffect(() => { useSettingsStore.getState().loadSettings(); }, []);
 
   useEffect(() => {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");
@@ -163,9 +167,14 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    if (phase === "app") {
-      router.replace("/(tabs)");
-    }
+    if (phase !== "app") return;
+    // Opened from a widget / link: that route navigates itself — don't
+    // override it with the home tab.
+    Linking.getInitialURL()
+      .then((url) => {
+        if (!url || !/^seishin:\/\/\/?open\b/.test(url)) router.replace("/(tabs)");
+      })
+      .catch(() => router.replace("/(tabs)"));
   }, [phase]);
 
   if (phase === "splash") {
@@ -205,6 +214,7 @@ function AppShell() {
               <Stack.Screen name="capture" options={{ animation: "slide_from_bottom" }} />
               <Stack.Screen name="task" options={{ animation: "slide_from_right" }} />
               <Stack.Screen name="connectors" options={{ animation: "slide_from_right" }} />
+              <Stack.Screen name="open" options={{ animation: "none" }} />
             </Stack>
             {/* The alarm screen is designed dark-on-light-ink; pin it to the base palette. */}
             <ThemeScope theme="light">

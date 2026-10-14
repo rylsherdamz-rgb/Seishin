@@ -3,13 +3,14 @@
  * the phone keeps in sync with Google Calendar, Outlook, Samsung, etc. — so
  * Seishin syncs with them with no server and no extra sign-in.
  */
+import { Platform } from "react-native";
 import * as Cal from "expo-calendar/legacy";
 import { settingsStorage } from "@/stores/mmkv";
 import { useCalendarStore, type CalendarEvent } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { createLogger } from "@/utils/logger";
 import {
-  eventHash, planExport, planImport, taskDeadlineEvents, toDeviceRecurrence,
+  allDayToUtc, eventHash, planExport, planImport, taskDeadlineEvents, toDeviceRecurrence,
   type ExportRecord, type RemoteEvent,
 } from "./calendar-sync-plan";
 
@@ -25,6 +26,8 @@ export interface CalendarSyncState {
   /** Device calendar Seishin writes its events into (null = don't export). */
   exportId: string | null;
   exportTasks: boolean;
+  /** Reminder (minutes before) for imported events that have none of their own; 0 = off. */
+  defaultReminder: number;
   lastSync: string | null;
   lastError: string | null;
   records: Record<string, ExportRecord>;
@@ -48,7 +51,7 @@ export interface SyncSummary {
 }
 
 const DEFAULT: CalendarSyncState = {
-  enabled: false, importIds: [], exportId: null, exportTasks: true, lastSync: null, lastError: null, records: {},
+  enabled: false, importIds: [], exportId: null, exportTasks: true, defaultReminder: 10, lastSync: null, lastError: null, records: {},
 };
 
 export function readSyncState(): CalendarSyncState {
@@ -106,26 +109,40 @@ async function runImport(state: CalendarSyncState): Promise<{ imported: number; 
   const to = new Date(Date.now() + FUTURE_DAYS * 86400000);
   // Never re-import our own export target's Seishin-written events.
   const importIds = state.importIds;
+  const ours = new Set(Object.values(state.records).map((r) => String(r.deviceId)));
   const remote: RemoteEvent[] = importIds.length
     ? (await Cal.getEventsAsync(importIds, from, to))
-        .filter((e) => !Object.values(state.records).some((r) => r.deviceId === e.id))
+        .filter((e) => !ours.has(String(e.id)) && e.status !== Cal.EventStatus.CANCELED)
         .map((e) => ({
           id: String(e.id), calendarId: String(e.calendarId), title: e.title,
           startDate: new Date(e.startDate).toISOString(), endDate: new Date(e.endDate).toISOString(),
           allDay: !!e.allDay, notes: e.notes, location: e.location,
+          alarmMinutes: firstAlarm(e.alarms),
         }))
     : [];
   const store = useCalendarStore.getState();
-  const plan = planImport(remote, store.events, importIds, { from, to });
+  const plan = planImport(remote, store.events, importIds, { from, to }, {
+    defaultReminder: state.defaultReminder,
+    utcAllDay: Platform.OS === "android",
+  });
   store.applyImport(plan.upserts, plan.removeIds);
   return { imported: plan.upserts.length, removed: plan.removeIds.length };
 }
 
+/** Reminder closest to the start on a device event, in minutes before start (null when it has none). */
+function firstAlarm(alarms: Cal.Alarm[] | undefined): number | null {
+  const offsets = (alarms ?? []).map((a) => a.relativeOffset).filter((o): o is number => typeof o === "number" && o <= 0);
+  return offsets.length ? -Math.max(...offsets) : null;
+}
+
 function toDevice(e: CalendarEvent) {
+  // Android requires all-day events at UTC midnight in the UTC zone, or they shift a day.
+  const utc = e.allDay && Platform.OS === "android" ? allDayToUtc(e.startDate, e.endDate) : null;
   return {
     title: e.title,
-    startDate: new Date(e.startDate),
-    endDate: new Date(e.endDate),
+    startDate: utc ? utc.start : new Date(e.startDate),
+    endDate: utc ? utc.end : new Date(e.endDate),
+    ...(utc ? { timeZone: "UTC" } : {}),
     allDay: !!e.allDay,
     notes: [e.notes, "— Added by Seishin"].filter(Boolean).join("\n\n"),
     recurrenceRule: toDeviceRecurrence(e.recurrence) as Cal.RecurrenceRule | null,

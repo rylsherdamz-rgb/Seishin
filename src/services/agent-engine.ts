@@ -81,48 +81,75 @@ class ListEventsTool extends BaseTool {
 
 class AddTodoTool extends BaseTool {
   name = "add_todo";
-  description = "Add a todo item with optional due date";
+  description = "Add a task with an optional due date, a checklist of items to do/answer, and reminders. Use reminder \"persistent\" when the user wants to be reminded until it's done (e.g. homework, bills).";
   parameters = {
-    title: { type: "string", description: "Todo title" },
+    title: { type: "string", description: "Task title" },
     priority: { type: "string", description: "Priority: low, medium, or high", optional: true },
-    dueDate: { type: "string", description: "Optional due date in ISO format", optional: true },
+    dueDate: { type: "string", description: "Optional due date/time in ISO format (local time)", optional: true },
+    reminder: { type: "string", description: "persistent (keep reminding until done), normal (before the deadline), or off", optional: true },
+    items: { type: "array", description: "Optional checklist: questions or steps, as strings", optional: true },
   };
 
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
-    const { addTodo } = useTodoStore.getState();
-    addTodo({
+    const due = typeof args.dueDate === "string" && !isNaN(Date.parse(args.dueDate)) ? new Date(args.dueDate).toISOString() : undefined;
+    if (args.dueDate && !due) return this.failResponse("dueDate must be an ISO date/time like 2026-10-15T23:59.");
+    const reminder = ["persistent", "normal", "off"].includes(args.reminder as string)
+      ? (args.reminder as "persistent" | "normal" | "off")
+      : due ? "normal" : "off";
+    const items = Array.isArray(args.items)
+      ? args.items.filter((i): i is string => typeof i === "string" && i.trim().length > 0).slice(0, 25).map((text) => ({ id: uid("item"), text: text.trim(), done: false }))
+      : undefined;
+    const title = ((args.title as string) || "Untitled").slice(0, 200);
+    const ok = useTodoStore.getState().addTodo({
       id: uid("ai-todo"),
-      title: (args.title as string) || "Untitled",
-      priority: (args.priority as "low" | "medium" | "high") || "medium",
+      title,
+      priority: (["low", "medium", "high"].includes(args.priority as string) ? args.priority : "medium") as "low" | "medium" | "high",
       completed: false,
       category: "general",
       tags: [],
       createdAt: new Date().toISOString(),
-      dueDate: args.dueDate as string | undefined,
+      dueDate: due,
+      reminder,
+      items,
     });
-    let msg = `Added todo: "${args.title}"`;
-    if (args.dueDate) msg += ` (due: ${new Date(args.dueDate as string).toLocaleDateString()})`;
-    return this.successResponse(msg);
+    if (!ok) return this.failResponse("Couldn't save the task.");
+    let msg = `Added task "${title}"`;
+    if (due) msg += ` due ${new Date(due).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+    if (items?.length) msg += ` with ${items.length} checklist item${items.length > 1 ? "s" : ""}`;
+    if (reminder === "persistent") msg += ". I'll keep reminding until it's done";
+    return this.successResponse(msg + ".");
   }
 }
 
 class ListTodosTool extends BaseTool {
   name = "list_todos";
-  description = "List todos. By default lists active (not done) todos; set includeCompleted to also show finished ones.";
+  description = "List tasks, soonest deadline first, with overdue ones flagged, checklist progress and where they came from (Todoist, Notion, a course feed). By default only open tasks.";
   parameters = {
-    includeCompleted: { type: "boolean", description: "Include completed todos in the list", optional: true },
+    includeCompleted: { type: "boolean", description: "Include completed tasks", optional: true },
+    withinDays: { type: "number", description: "Only tasks due within this many days (overdue always included)", optional: true },
   };
 
   async execute(args: Record<string, unknown>): Promise<ToolResult> {
     const { todos } = useTodoStore.getState();
     const includeCompleted = args.includeCompleted === true || args.includeCompleted === "true";
-    const list = includeCompleted ? todos : todos.filter((t) => !t.completed);
-    if (list.length === 0) return this.successResponse("No todos found.");
-    const lines = list.map((t) => {
+    const within = Number(args.withinDays);
+    const now = Date.now();
+    let list = includeCompleted ? todos : todos.filter((t) => !t.completed);
+    if (within > 0) list = list.filter((t) => t.dueDate && Date.parse(t.dueDate) <= now + within * 86400000);
+    if (list.length === 0) return this.successResponse("No tasks found.");
+    const dueMs = (t: (typeof list)[number]) => (t.dueDate ? Date.parse(t.dueDate) : Infinity);
+    const lines = [...list].sort((a, b) => dueMs(a) - dueMs(b)).map((t) => {
       let s = `- [id:${t.id}] ${t.title} [${t.priority}]`;
-      if (t.dueDate) s += ` due ${new Date(t.dueDate).toLocaleDateString()}`;
-      s += t.completed ? " (done)" : "";
-      return s;
+      if (t.dueDate) {
+        const d = new Date(t.dueDate);
+        s += ` due ${d.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+        if (!t.completed && d.getTime() < now) s += " — OVERDUE";
+      }
+      if (t.items?.length) s += ` (${t.items.filter((i) => i.done).length}/${t.items.length} items done)`;
+      if (t.subject) s += ` · ${t.subject}`;
+      if (t.external) s += ` · from ${t.external.provider.startsWith("feed:") ? "course calendar" : t.external.provider}`;
+      if (t.reminder === "persistent" && !t.completed) s += " · reminding until done";
+      return s + (t.completed ? " (done)" : "");
     });
     return this.successResponse(lines.join("\n"));
   }

@@ -38,8 +38,19 @@ function writeMap(map: IdMap) {
   }
 }
 
-/** Channel + action buttons. Safe to call repeatedly. */
-export async function setupTaskReminders(): Promise<void> {
+let setupDone: Promise<void> | null = null;
+
+/**
+ * Channel + action buttons, once per app run. Android silently drops
+ * notifications for a channel that doesn't exist yet, so every scheduling
+ * path awaits this — not only the launch refresh.
+ */
+export function setupTaskReminders(): Promise<void> {
+  if (!setupDone) setupDone = doSetup();
+  return setupDone;
+}
+
+async function doSetup(): Promise<void> {
   try {
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync(CHANNEL, {
@@ -55,6 +66,7 @@ export async function setupTaskReminders(): Promise<void> {
     ]);
   } catch (e) {
     log.warn("setup failed", e);
+    setupDone = null;
   }
 }
 
@@ -84,6 +96,7 @@ export async function scheduleTaskReminders(t: Todo, now = new Date()): Promise<
   const due = t.dueDate ? new Date(t.dueDate) : null;
   const plan = planReminders(due && !isNaN(due.getTime()) ? due : null, now, levelOf(t));
   if (plan.length === 0) return 0;
+  await setupTaskReminders();
   const ids: string[] = [];
   for (const p of plan) {
     try {
@@ -115,6 +128,7 @@ export async function scheduleTaskReminders(t: Todo, now = new Date()): Promise<
 
 /** One extra reminder an hour from now (notification "snooze" action). */
 export async function snoozeTask(t: Todo, minutes = 60): Promise<void> {
+  await setupTaskReminders();
   try {
     const id = await Notifications.scheduleNotificationAsync({
       content: {

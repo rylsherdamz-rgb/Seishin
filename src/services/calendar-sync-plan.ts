@@ -20,6 +20,19 @@ export interface RemoteEvent {
   allDay: boolean;
   notes?: string;
   location?: string | null;
+  /** Minutes before start of the event's own first reminder on the phone (null = none set). */
+  alarmMinutes?: number | null;
+}
+
+export interface ImportOptions {
+  /** Reminder for imported events without their own (minutes; 0 = none). */
+  defaultReminder?: number;
+  /**
+   * Android's calendar provider stores all-day events at UTC midnight. Shown
+   * as-is they start at 08:00 (UTC+8) or on the previous day (UTC−5), so they
+   * are moved to the local day.
+   */
+  utcAllDay?: boolean;
 }
 
 export interface ExportRecord {
@@ -44,22 +57,44 @@ export function importId(r: RemoteEvent): string {
   return `ext-${r.calendarId}-${r.id}-${Date.parse(r.startDate)}`;
 }
 
-export function remoteToLocal(r: RemoteEvent): CalendarEvent {
+/** UTC-midnight all-day span → local 00:00 of the first day … 23:59 of the last day. */
+export function allDayFromUtc(start: string, end: string): { startDate: string; endDate: string } {
+  const s = new Date(start);
+  const e = new Date(end);
+  const first = new Date(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
+  // The device end is exclusive (midnight after the last day).
+  const lastUtc = new Date(Math.max(e.getTime() - 1, s.getTime()));
+  const last = new Date(lastUtc.getUTCFullYear(), lastUtc.getUTCMonth(), lastUtc.getUTCDate(), 23, 59);
+  return { startDate: first.toISOString(), endDate: last.toISOString() };
+}
+
+/** Local all-day span → the UTC-midnight, end-exclusive form Android's provider requires. */
+export function allDayToUtc(startISO: string, endISO: string): { start: Date; end: Date } {
+  const s = new Date(startISO);
+  const e = new Date(endISO);
+  const start = new Date(Date.UTC(s.getFullYear(), s.getMonth(), s.getDate()));
+  const end = new Date(Date.UTC(e.getFullYear(), e.getMonth(), e.getDate() + 1));
+  return { start, end: end > start ? end : new Date(start.getTime() + 86400000) };
+}
+
+export function remoteToLocal(r: RemoteEvent, opts: ImportOptions = {}): CalendarEvent {
   const notes = [r.location ? `📍 ${r.location}` : "", r.notes ?? ""].filter(Boolean).join("\n").slice(0, 4000);
+  const span = r.allDay && opts.utcAllDay ? allDayFromUtc(r.startDate, r.endDate) : { startDate: iso(r.startDate), endDate: iso(r.endDate) };
+  const reminder = r.alarmMinutes != null && r.alarmMinutes >= 0 ? r.alarmMinutes : opts.defaultReminder ?? 0;
   return {
     id: importId(r),
     title: r.title?.trim() || "(No title)",
-    startDate: iso(r.startDate),
-    endDate: iso(r.endDate),
+    ...span,
     allDay: r.allDay || undefined,
     notes: notes || undefined,
+    reminder: reminder > 0 ? reminder : undefined,
     source: "calendar",
     externalCalendarId: r.calendarId,
   };
 }
 
 function sameImported(a: CalendarEvent, b: CalendarEvent): boolean {
-  return a.title === b.title && a.startDate === b.startDate && a.endDate === b.endDate && !!a.allDay === !!b.allDay && (a.notes ?? "") === (b.notes ?? "");
+  return a.title === b.title && a.startDate === b.startDate && a.endDate === b.endDate && !!a.allDay === !!b.allDay && (a.notes ?? "") === (b.notes ?? "") && (a.reminder ?? 0) === (b.reminder ?? 0);
 }
 
 /**
@@ -67,8 +102,8 @@ function sameImported(a: CalendarEvent, b: CalendarEvent): boolean {
  * and drop imported events inside the synced window that disappeared, or
  * whose calendar is no longer selected.
  */
-export function planImport(remote: RemoteEvent[], local: CalendarEvent[], selected: string[], window: { from: Date; to: Date }): ImportPlan {
-  const incoming = new Map(remote.filter((r) => selected.includes(r.calendarId)).map((r) => [importId(r), remoteToLocal(r)]));
+export function planImport(remote: RemoteEvent[], local: CalendarEvent[], selected: string[], window: { from: Date; to: Date }, opts: ImportOptions = {}): ImportPlan {
+  const incoming = new Map(remote.filter((r) => selected.includes(r.calendarId)).map((r) => [importId(r), remoteToLocal(r, opts)]));
   const existing = new Map(local.filter((e) => e.source === "calendar").map((e) => [e.id, e]));
   const upserts: CalendarEvent[] = [];
   for (const [id, ev] of incoming) {
@@ -86,8 +121,11 @@ export function planImport(remote: RemoteEvent[], local: CalendarEvent[], select
   return { upserts, removeIds };
 }
 
+/** Bump to rewrite every exported event once (v2: all-day events written in UTC on Android). */
+const HASH_VERSION = "v2";
+
 export function eventHash(e: CalendarEvent): string {
-  return [e.title, e.startDate, e.endDate, e.allDay ? 1 : 0, e.notes ?? "", JSON.stringify(e.recurrence ?? null)].join("|");
+  return [HASH_VERSION, e.title, e.startDate, e.endDate, e.allDay ? 1 : 0, e.notes ?? "", JSON.stringify(e.recurrence ?? null)].join("|");
 }
 
 /** Task deadlines as calendar entries: a 30-min block ending at the deadline, or all-day when no time was set. */

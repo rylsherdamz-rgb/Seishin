@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, Alert } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
@@ -19,6 +19,7 @@ import { CreateSheet } from "@/components/calendar/CreateSheet";
 import { EventFormSheet } from "@/components/calendar/EventFormSheet";
 import type { EventPrefill } from "@/components/calendar/useEventForm";
 import { useCalendarData, useToday } from "@/components/calendar/useCalendarData";
+import { useSyncRefresh } from "@/hooks/useSyncRefresh";
 
 /** Default start for a new event on `key`: next half-hour today, else 9 AM. */
 function defaultStart(key: string, today: string): Date {
@@ -45,6 +46,7 @@ export default function CalendarScreen() {
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<EventPrefill | null>(null);
   const { events, marks, dayItems, upcomingRows, summary } = useCalendarData(selected, viewMonth, today);
+  const refresh = useSyncRefresh();
 
   useEffect(() => {
     loadEvents();
@@ -84,6 +86,17 @@ export default function CalendarScreen() {
   // Stable handlers: inline lambdas here would defeat the memoized day cells.
   const openDay = useCallback((key: string) => openForm(key), [openForm]);
   const createAt = useCallback((m: number) => openForm(selected, m), [openForm, selected]);
+
+  // Arrived from a widget (app/open.tsx): show that day, or start a new event on it.
+  const link = useLocalSearchParams<{ create?: string; at?: string }>();
+  useEffect(() => {
+    if (!link.at) return;
+    setViewMonth(selected);
+    setView("day");
+    if (link.create === "event") openForm(selected);
+    // Once per link.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [link.at]);
   const openCreate = useCallback(() => setCreateOpen(true), []);
 
   const shiftWeek = useCallback((d: 1 | -1) => select(addDays(selected, d * 7)), [select, selected]);
@@ -126,6 +139,7 @@ export default function CalendarScreen() {
           onOpen={setSheetItem}
           onToggleTodo={toggleTodo}
           onShowDay={select}
+          refresh={refresh}
         />
       ) : (
         <Animated.View key={selected + view} entering={FadeIn.duration(160)} className="flex-1">
@@ -138,6 +152,7 @@ export default function CalendarScreen() {
               onOpen={setSheetItem}
               onToggleTodo={toggleTodo}
               onCreateAt={createAt}
+              refresh={refresh}
             />
           ) : (
             <AgendaList
@@ -148,6 +163,7 @@ export default function CalendarScreen() {
               onOpen={setSheetItem}
               onToggleTodo={toggleTodo}
               onShowDay={select}
+              refresh={refresh}
             />
           )}
         </Animated.View>
