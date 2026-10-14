@@ -1,5 +1,16 @@
 import { create } from "zustand";
 import { settingsStorage } from "./mmkv";
+import { deleteToken, getToken, setToken } from "@/services/connectors/secrets";
+
+/** JSON setting that tolerates corrupt values instead of crashing on launch. */
+function parse<T>(key: string): T | undefined {
+  try {
+    const raw = settingsStorage.getString(key);
+    return raw ? (JSON.parse(raw) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 interface CleanupPolicy {
   notificationsDays: number;
@@ -51,7 +62,7 @@ const DEFAULT_CLEANUP: CleanupPolicy = {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   emailConfig: null,
-  apiKeys: { nim: "", youtubeApiKey: "" },
+  apiKeys: { nim: "" },
   nimEndpoint: "https://integrate.api.nvidia.com/v1",
   nimModel: "meta/llama-3.2-1b-instruct",
   nimLargeModel: null,
@@ -63,39 +74,62 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   alarmRingtoneName: "Default alarm sound",
 
   loadSettings: () => {
-    const emailRaw = settingsStorage.getString("emailConfig");
-    const apiKeysRaw = settingsStorage.getString("apiKeys");
-    const nimEndpoint = settingsStorage.getString("nimEndpoint");
-    const nimModel = settingsStorage.getString("nimModel");
-    const nimLargeModel = settingsStorage.getString("nimLargeModel");
-    const nimCachedModels = settingsStorage.getString("nimCachedModels");
-    const modelPath = settingsStorage.getString("modelPath");
-    const cleanupRaw = settingsStorage.getString("cleanupPolicies");
-    const notifFilterRaw = settingsStorage.getString("notificationFilter");
-    const alarmRingtoneUri = settingsStorage.getString("alarmRingtoneUri");
-    const alarmRingtoneName = settingsStorage.getString("alarmRingtoneName");
+    const str = (k: string) => settingsStorage.getString(k) ?? undefined;
+    const nimEndpoint = str("nimEndpoint");
+    const nimModel = str("nimModel");
+    const nimLargeModel = str("nimLargeModel");
+    const modelPath = str("modelPath");
+    const alarmRingtoneUri = str("alarmRingtoneUri");
+    const alarmRingtoneName = str("alarmRingtoneName");
+    const nimCachedModels = parse<string[]>("nimCachedModels");
+    const cleanup = parse<CleanupPolicy>("cleanupPolicies");
+    const notifFilter = parse<string[]>("notificationFilter");
+    const email = parse<NonNullable<SettingsState["emailConfig"]>>("emailConfig");
 
-    if (emailRaw) set({ emailConfig: JSON.parse(emailRaw) });
-    if (apiKeysRaw) set({ apiKeys: JSON.parse(apiKeysRaw) });
     if (nimEndpoint) set({ nimEndpoint });
     if (nimModel) set({ nimModel });
     if (nimLargeModel) set({ nimLargeModel });
-    if (nimCachedModels) set({ nimCachedModels: JSON.parse(nimCachedModels) });
+    if (Array.isArray(nimCachedModels)) set({ nimCachedModels });
     if (modelPath) set({ modelPath });
-    if (cleanupRaw) set({ cleanupPolicies: JSON.parse(cleanupRaw) });
-    if (notifFilterRaw) set({ notificationFilter: JSON.parse(notifFilterRaw) });
+    if (cleanup) set({ cleanupPolicies: { ...DEFAULT_CLEANUP, ...cleanup } });
+    if (Array.isArray(notifFilter)) set({ notificationFilter: notifFilter });
     if (alarmRingtoneUri) set({ alarmRingtoneUri });
     if (alarmRingtoneName) set({ alarmRingtoneName });
+
+    // Secrets live in the Keystore. Older installs kept them in plain MMKV:
+    // move them over once, then erase the plaintext copies.
+    const legacyKeys = parse<{ nim?: string }>("apiKeys");
+    if (legacyKeys?.nim) {
+      setToken("nim", legacyKeys.nim).then((ok) => { if (ok) settingsStorage.remove("apiKeys"); });
+      set({ apiKeys: { nim: legacyKeys.nim } });
+    } else if (legacyKeys) {
+      settingsStorage.remove("apiKeys");
+    }
+    if (email?.pass) {
+      setToken("email", email.pass).then((ok) => {
+        if (ok) settingsStorage.set("emailConfig", JSON.stringify({ ...email, pass: "" }));
+      });
+    }
+    if (email) set({ emailConfig: email });
+    getToken("nim").then((nim) => { if (nim) set({ apiKeys: { ...get().apiKeys, nim } }); });
+    if (email && !email.pass) {
+      getToken("email").then((pass) => { if (pass) set({ emailConfig: { ...email, pass } }); });
+    }
   },
 
   setEmailConfig: (config) => {
-    settingsStorage.set("emailConfig", JSON.stringify(config));
+    // Password goes to the Keystore; everything else is ordinary settings.
+    if (config?.pass) setToken("email", config.pass);
+    else deleteToken("email");
+    settingsStorage.set("emailConfig", JSON.stringify(config ? { ...config, pass: "" } : null));
     set({ emailConfig: config });
   },
 
   setApiKey: (provider, key) => {
     const apiKeys = { ...get().apiKeys, [provider]: key };
-    settingsStorage.set("apiKeys", JSON.stringify(apiKeys));
+    if (key.trim()) setToken(provider, key);
+    else deleteToken(provider);
+    settingsStorage.remove("apiKeys");
     set({ apiKeys });
   },
 

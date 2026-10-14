@@ -12,6 +12,7 @@ import { Logo } from "@/components/Logo";
 import { AlarmOverlay } from "@/components/AlarmOverlay";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { settingsStorage } from "@/stores/mmkv";
+import { useSettingsStore } from "@/stores/settings-store";
 import { Host } from "@expo/ui";
 import { useNotifications } from "@/services/notification-service";
 import { useAutoSync } from "@/hooks/useAutoSync";
@@ -151,6 +152,9 @@ function AppShell() {
   const router = useRouter();
   useNotifications();
   useAutoSync();
+  // Settings (incl. the AI key from the Keystore) are needed app-wide — e.g.
+  // Smart capture — not only once the Settings or Agent tab has been opened.
+  useEffect(() => { useSettingsStore.getState().loadSettings(); }, []);
 
   useEffect(() => {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");
