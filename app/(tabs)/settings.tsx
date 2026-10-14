@@ -24,6 +24,8 @@ import { fetchNimModels, fetchAllNimModels, cacheNimModels, categorizeModel, get
 import { useColors } from "@/theme/ThemeProvider";
 import { AppearancePicker } from "@/components/AppearancePicker";
 import { BackupSection } from "@/components/BackupSection";
+import { WidgetsSection } from "@/components/settings/WidgetsSection";
+import { RemindersCheck } from "@/components/settings/RemindersCheck";
 
 const storageCategories = [
   { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
@@ -487,6 +489,12 @@ export default function SettingsScreen() {
               />
             )}
           </Card>
+
+          <SectionHeader title="Reminders" />
+          <RemindersCheck />
+
+          {Platform.OS === "android" ? <SectionHeader title="Home screen widgets" /> : null}
+          <WidgetsSection />
 
           <SectionHeader title="Backup & restore" />
           <BackupSection />

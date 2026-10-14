@@ -19,6 +19,10 @@ jobs:
       - run: npm run lint
       - run: npx tsc --noEmit
       - run: npm test -- --coverage
+      # Dates are stored in UTC but shown by local day; catch day-shift bugs east of UTC.
+      - run: npm test
+        env:
+          TZ: Asia/Manila
       - run: npm run build -- --noEmit
 
   eas-build:
