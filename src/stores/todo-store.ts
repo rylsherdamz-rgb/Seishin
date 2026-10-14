@@ -49,6 +49,8 @@ interface TodoState {
   getStats: () => { total: number; active: number; completed: number };
   getTodosForEvent: (eventId: string) => Todo[];
   toggleItem: (todoId: string, itemId: string) => boolean;
+  /** Restore: replace every task (reminders rescheduled). */
+  replaceAll: (todos: Todo[]) => boolean;
   /** Bulk changes from a connector sync — one write. */
   applySync: (create: Todo[], update: { id: string; changes: Partial<Todo> }[], completeIds: string[]) => boolean;
   clearAll: () => void;
@@ -132,6 +134,17 @@ export const useTodoStore = create<TodoState>((set, get) => {
     deleteTodo: (id) => {
       const ok = commit(get().todos.filter((t) => t.id !== id));
       if (ok) cancelReminders(id);
+      return ok;
+    },
+
+    replaceAll: (todos) => {
+      const before = get().todos;
+      const ok = commit(todos.filter(isTodo));
+      if (ok) {
+        const keep = new Set(get().todos.map((t) => t.id));
+        before.filter((t) => !keep.has(t.id)).forEach((t) => cancelReminders(t.id));
+        get().todos.forEach(syncReminders);
+      }
       return ok;
     },
 
