@@ -203,7 +203,7 @@ function homeScreen(P, t = 99, wallpaper = '#9aa39b', labelInk = '#111111') {
     <div style="display:flex;gap:16px;${drop(0.9)}">
       ${nextUp(P)}
       <div style="width:171px;height:171px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
-        <div style="width:60px;height:60px;border-radius:18px;background:#000;display:flex;align-items:center;justify-content:center">${logo(48, '#ffffff', '#000000')}</div>
+        <div style="width:60px;height:60px;border-radius:18px;background:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.12)">${logo(50, '#000000', '#ffffff')}</div>
         <div style="font-size:12px;font-weight:600;color:${labelInk}">Seishin</div>
       </div>
     </div>
@@ -232,7 +232,7 @@ function caption(text, t, a, color = '#000', top = 250, size = 66) {
 function notification(y) {
   return `<div style="position:absolute;left:40px;right:40px;top:${y}px;background:#ffffff;border-radius:36px;padding:30px 34px;box-shadow:0 24px 70px rgba(0,0,0,.22)">
     <div style="display:flex;align-items:center;gap:14px;font-size:24px;color:#666">
-      <div style="width:40px;height:40px;border-radius:12px;background:#000;display:flex;align-items:center;justify-content:center">${calIcon('#fff', 24)}</div>
+      <div style="width:40px;height:40px;border-radius:12px;background:#fff;border:1px solid #e5e5e5;display:flex;align-items:center;justify-content:center">${logo(34, '#000000', '#ffffff')}</div>
       Seishin · now
     </div>
     <div style="font-size:34px;font-weight:700;color:#000;margin-top:14px">Calculus lecture</div>
@@ -339,14 +339,14 @@ function render(t) {
   v = vis(t, 20.2, 23.5, 0.5, 0.01);
   if (v > 0) {
     const x = out(seg(t, 20.3, 21.0));
-    L.push(`<div class="layer" style="background:#000;opacity:${v}">
-      <div class="center" style="top:${640 + (1 - x) * 40}px;display:flex;justify-content:center">${logo(220, '#ffffff', '#000000')}</div>
-      <div class="center" style="top:${900 + (1 - x) * 40}px;font-family:'Inter Display',Inter,sans-serif;font-size:120px;font-weight:800;letter-spacing:-.04em;color:#fff">Seishin</div>
-      <div class="center" style="top:1060px;font-size:40px;font-weight:500;color:#a3a3a3;opacity:${seg(t, 20.8, 21.4)}">Calendar · Tasks · Notes · Reminders</div>
+    L.push(`<div class="layer" style="background:#fff;opacity:${v}">
+      <div class="center" style="top:${640 + (1 - x) * 40}px;display:flex;justify-content:center">${logo(220, '#000000', '#ffffff')}</div>
+      <div class="center" style="top:${900 + (1 - x) * 40}px;font-family:'Inter Display',Inter,sans-serif;font-size:120px;font-weight:800;letter-spacing:-.04em;color:#000">Seishin</div>
+      <div class="center" style="top:1060px;font-size:40px;font-weight:500;color:#666;opacity:${seg(t, 20.8, 21.4)}">Calendar · Tasks · Notes · Reminders</div>
       <div class="center" style="top:1180px;opacity:${seg(t, 21.2, 21.8)}">
-        <span style="display:inline-block;padding:22px 44px;border-radius:999px;background:#fff;color:#000;font-size:38px;font-weight:700">5 new home-screen widgets</span>
+        <span style="display:inline-block;padding:22px 44px;border-radius:999px;background:#000;color:#fff;font-size:38px;font-weight:700">5 new home-screen widgets</span>
       </div>
-      <div class="center" style="top:1330px;font-size:30px;color:#737373;opacity:${seg(t, 21.6, 22.2)}">Today · Tasks · Month · Next up · Quick add</div>
+      <div class="center" style="top:1330px;font-size:30px;color:#666;opacity:${seg(t, 21.6, 22.2)}">Today · Tasks · Month · Next up · Quick add</div>
     </div>`);
   }
 
