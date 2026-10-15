@@ -27,6 +27,12 @@ describe("widget data", () => {
     expect(days[1].rows[1].progress).toBe("1/2");
   });
 
+  it("an end-of-day deadline tomorrow doesn't say 'Due today'", () => {
+    const [today, tomorrow] = agendaFor([], [todo("Today's", at(2026, 10, 14, 23, 59)), todo("Tomorrow's", at(2026, 10, 15, 23, 59))], NOW);
+    expect(today.rows[0].when).toBe("Due today");
+    expect(tomorrow.rows[0].when).toBe("Due end of day");
+  });
+
   it("tasks: overdue first, undated last, completed hidden", () => {
     const rows = tasksFor([todo("Undated"), todo("Later", at(2026, 10, 20, 9)), todo("Late", at(2026, 10, 12, 9)), todo("Done", at(2026, 10, 10), { completed: true })], NOW);
     expect(rows.map((r) => r.title)).toEqual(["Late", "Later", "Undated"]);

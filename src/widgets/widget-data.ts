@@ -97,7 +97,7 @@ function taskRow(t: Todo, day: string, now: Date): WidgetRow {
     id: `task-${t.id}`,
     kind: "task",
     title: t.title,
-    when: overdue ? "Overdue" : isEndOfDay(due) ? "Due today" : `Due ${fmtTime(due)}`,
+    when: overdue ? "Overdue" : isEndOfDay(due) ? (day === dateKey(now) ? "Due today" : "Due end of day") : `Due ${fmtTime(due)}`,
     sort: overdue ? -2 : isEndOfDay(due) ? 24 * 60 : minutes(due),
     overdue,
     progress: progressOf(t),
