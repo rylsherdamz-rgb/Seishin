@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Seishin widgets — promo scene</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #ffffff; font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body.still { width: auto; height: auto; background: transparent; }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+  body.still #stage { position: static; overflow: visible; display: inline-block; padding: 0; }
+  .ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .layer { position: absolute; inset: 0; overflow: hidden; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+  button { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+/*
+ * Deterministic promo for the Seishin home-screen widgets.
+ * render(t) draws the frame at t seconds (no CSS animation, so every frame
+ * is reproducible); renderStill(...) draws one widget alone for screenshots.
+ * Widget markup mirrors src/widgets/*.tsx (same sizes, tokens and copy).
+ */
+const DURATION = 23;
+
+const THEMES = {
+  light:    { dark: false, black: '#000000', i700: '#333333', i600: '#4d4d4d', i500: '#666666', i400: '#808080', i300: '#999999', i100: '#e5e5e5', i50: '#f2f2f2', white: '#ffffff' },
+  paper:    { dark: false, black: '#1c1917', i700: '#44403c', i600: '#57534e', i500: '#6f6a64', i400: '#857f78', i300: '#a29c94', i100: '#e8e2d8', i50: '#f3eee6', white: '#fbf8f3' },
+  dark:     { dark: true,  black: '#f5f5f5', i700: '#bdbdbd', i600: '#a3a3a3', i500: '#8c8c8c', i400: '#737373', i300: '#5e5e5e', i100: '#2b2b2b', i50: '#1e1e1e', white: '#111111' },
+  midnight: { dark: true,  black: '#e8ecf5', i700: '#aeb8cd', i600: '#949fb8', i500: '#7d88a1', i400: '#667089', i300: '#525b72', i100: '#252c3d', i50: '#1a2030', white: '#0f1320' },
+  amoled:   { dark: true,  black: '#ffffff', i700: '#c2c2c2', i600: '#a6a6a6', i500: '#8a8a8a', i400: '#6e6e6e', i300: '#575757', i100: '#1f1f1f', i50: '#121212', white: '#000000' },
+};
+const ACCENTS = { mono: [null, null], blue: ['#2563eb', '#60a5fa'], green: ['#16a34a', '#4ade80'], violet: ['#7c3aed', '#a78bfa'], orange: ['#ea580c', '#fb923c'], rose: ['#e11d48', '#fb7185'] };
+
+function pal(theme = 'light', accent = 'mono') {
+  const t = THEMES[theme] || THEMES.light;
+  const a = ACCENTS[accent] || ACCENTS.mono;
+  return { ...t, accent: (t.dark ? a[1] : a[0]) || t.black, onAccent: a[0] === null ? t.white : (t.dark ? '#0b0b0b' : '#ffffff'), danger: t.dark ? '#ff453a' : '#ff3b30' };
+}
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const out = (x) => 1 - Math.pow(1 - x, 3);
+const back = (x) => { const c = 1.4; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+/** Scene visibility: fade in over `fi`, out over `fo`. */
+const vis = (t, a, b, fi = 0.35, fo = 0.35) => Math.min(seg(t, a, a + fi), 1 - seg(t, b - fo, b));
+
+// ---------- brand ----------
+function logo(size, ink, paper) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+    <path d="M30 55 L20 20 L48 40Z" fill="${ink}"/><path d="M90 55 L100 20 L72 40Z" fill="${ink}"/>
+    <path d="M32 50 L25 28 L45 42Z" fill="${paper}"/><path d="M88 50 L95 28 L75 42Z" fill="${paper}"/>
+    <ellipse cx="60" cy="62" rx="34" ry="30" fill="${ink}"/><ellipse cx="60" cy="65" rx="24" ry="20" fill="${paper}"/>
+    <path d="M45 50 L50 58 L55 50 L60 58 L65 50 L70 58 L75 50" stroke="${ink}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M52 48 L52 56M60 46 L60 56M68 48 L68 56" stroke="${ink}" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="50" cy="62" r="3.5" fill="${ink}"/><circle cx="70" cy="62" r="3.5" fill="${ink}"/>
+    <circle cx="49" cy="60.5" r="1" fill="${paper}"/><circle cx="69" cy="60.5" r="1" fill="${paper}"/>
+    <path d="M58 68 L60 70 L62 68Z" fill="${ink}"/>
+    <path d="M60 70 L55 74M60 70 L65 74" stroke="${ink}" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M35 66 L48 68M35 70 L48 70M35 74 L48 72M85 66 L72 68M85 70 L72 70M85 74 L72 72" stroke="${ink}" stroke-width="1" stroke-linecap="round"/>
+    <path d="M44 74 L40 78M76 74 L80 78" stroke="${ink}" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`;
+}
+const check = (c, s = 10) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+const calIcon = (c, s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+
+// ---------- widget parts (mirror src/widgets/ui.tsx) ----------
+const card = (P, w, h, pad, inner, extra = '') =>
+  `<div style="width:${w}px;height:${h}px;padding:${pad}px;border-radius:24px;background:${P.white};display:flex;flex-direction:column;overflow:hidden;color:${P.black};${extra}">${inner}</div>`;
+
+const plus = (P) => `<div style="width:34px;height:34px;border-radius:17px;background:${P.accent};color:${P.onAccent};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:500;line-height:1">+</div>`;
+
+/** r: { title, sub, overdue, kind, fill(0..1), collapse(0..1), id } */
+function row(P, r) {
+  const c = r.collapse || 0;
+  const f = r.fill || 0;
+  const lead = r.kind === 'task'
+    ? `<div ${r.id ? `id="${r.id}"` : ''} style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex:none">
+         <span style="width:18px;height:18px;border-radius:9px;border:2px solid ${f > 0 ? P.accent : r.overdue ? P.danger : P.i300};background:${f > 0 ? P.accent : 'transparent'};display:flex;align-items:center;justify-content:center;transform:scale(${1 + 0.25 * Math.sin(Math.PI * f)})">${f > 0.3 ? check(P.onAccent) : ''}</span>
+       </div>`
+    : `<div style="width:4px;height:30px;border-radius:2px;margin:0 10px 0 2px;background:${P.accent};flex:none"></div>`;
+  return `<div style="height:${lerp(46, 0, ease(c))}px;opacity:${1 - out(c)};overflow:hidden;flex:none">
+    <div style="display:flex;align-items:center;height:46px;padding:5px 0;opacity:${f > 0 ? 1 - 0.45 * f : 1}">
+      ${lead}
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div class="ell" style="font-size:14px;font-weight:500;color:${P.black};${f > 0.3 ? `text-decoration:line-through;text-decoration-color:${P.i400};` : ''}">${r.title}</div>
+        ${r.sub ? `<div class="ell" style="font-size:12px;color:${r.overdue ? P.danger : P.i500}">${r.sub}</div>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+const label = (P, text, accent) => `<div style="font-size:11px;font-weight:700;letter-spacing:.02em;color:${accent ? P.accent : P.i500};margin:8px 0 4px">${text}</div>`;
+
+// ---------- the five widgets ----------
+function agenda(P, w = 358, h = 200) {
+  const head = `<div style="display:flex;align-items:center">
+      <div style="flex:1;display:flex;align-items:center">
+        <div style="font-size:34px;font-weight:700;line-height:1;color:${P.accent};margin-right:10px">15</div>
+        <div><div style="font-size:14px;font-weight:700">Thursday</div><div style="font-size:12px;color:${P.i500}">October 2026</div></div>
+      </div>${plus(P)}</div>`;
+  const rows = [
+    label(P, 'TODAY', true),
+    row(P, { kind: 'task', title: 'Reflection paper', sub: 'Overdue · Tue, Oct 13', overdue: true }),
+    row(P, { kind: 'event', title: 'Calculus lecture', sub: '1:00 PM' }),
+    row(P, { kind: 'task', title: 'Chem lab report', sub: 'Due 5:00 PM · 1/3 done' }),
+    label(P, 'TOMORROW'),
+    row(P, { kind: 'event', title: 'Physics 101', sub: '7:30 AM' }),
+  ].join('');
+  return card(P, w, h, 14, head + `<div style="flex:1;min-height:0;overflow:hidden">${rows}</div>`);
+}
+
+const TASKS = [
+  { id: 'essay', title: 'Reflection paper', sub: 'Overdue · Tue, Oct 13', overdue: true },
+  { id: 'lab', title: 'Chem lab report', sub: 'Today · 5:00 PM · 1/3 done' },
+  { id: 'quiz', title: 'Physics quiz review', sub: 'Tomorrow' },
+  { id: 'read', title: 'Read chapter 5', sub: 'Mon, Oct 19 · 9:00 AM' },
+  { id: 'notebook', title: 'Buy a new notebook', sub: '' },
+];
+/** st: { fill: {id: 0..1}, collapse: {id: 0..1} } */
+function tasks(P, st = { fill: {}, collapse: {} }, w = 358, h = 200) {
+  const open = TASKS.filter((t) => !((st.fill[t.id] || 0) > 0.5));
+  const overdue = open.filter((t) => t.overdue).length;
+  const count = open.length === 0 ? 'All clear' : overdue ? `${open.length} open · ${overdue} overdue` : `${open.length} open`;
+  const head = `<div style="display:flex;align-items:center;margin-bottom:4px">
+      <div style="flex:1"><div style="font-size:17px;font-weight:700">Tasks</div><div style="font-size:12px;color:${overdue ? P.danger : P.i500}">${count}</div></div>${plus(P)}</div>`;
+  const rows = TASKS.map((t, i) => row(P, { ...t, kind: 'task', fill: st.fill[t.id], collapse: st.collapse[t.id], id: `tick-${t.id}` })).join('');
+  return card(P, w, h, 14, head + `<div style="flex:1;min-height:0;overflow:hidden">${rows}</div>`);
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const BUSY = { '2026-9': [3, 7, 9, 13, 14, 15, 16, 20, 22, 28], '2026-10': [2, 5, 9, 12, 17, 19, 24, 26], '2026-8': [4, 8, 11, 18, 21, 25, 29] };
+function monthGrid(P, year, month) {
+  const first = new Date(year, month, 1);
+  const start = new Date(year, month, 1 - first.getDay());
+  const busy = BUSY[`${year}-${month}`] || [];
+  let weeks = [];
+  for (let w = 0; w < 6; w++) {
+    const cells = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
+      const inMonth = date.getMonth() === month;
+      const today = date.getFullYear() === 2026 && date.getMonth() === 9 && date.getDate() === 15;
+      const has = inMonth && busy.includes(date.getDate());
+      cells.push({ inMonth, html: `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="width:26px;height:26px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:${today ? P.accent : 'transparent'};font-size:12px;font-weight:${today ? 700 : 500};color:${today ? P.onAccent : inMonth ? P.black : P.i300}">${date.getDate()}</div>
+        <div style="width:4px;height:4px;border-radius:2px;margin-top:1px;background:${has ? (today ? P.accent : P.i500) : 'transparent'}"></div></div>` });
+    }
+    weeks.push(cells);
+  }
+  if (weeks[5].every((c) => !c.inMonth)) weeks = weeks.slice(0, 5);
+  return `<div style="height:100%;display:flex;flex-direction:column">${weeks.map((w) => `<div style="flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr))">${w.map((c) => c.html).join('')}</div>`).join('')}</div>`;
+}
+/** pos: month offset from October 2026, fractional while paging. */
+function month(P, pos = 0, w = 358, h = 300) {
+  const base = Math.floor(pos);
+  const frac = pos - base;
+  const mA = new Date(2026, 9 + base, 1);
+  const mB = new Date(2026, 9 + base + 1, 1);
+  const showB = frac > 0.5;
+  const shown = showB ? mB : mA;
+  const current = Math.round(pos) === 0;
+  const nav = (id, ch) => `<div id="${id}" style="width:34px;height:30px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:${P.i700}">${ch}</div>`;
+  const head = `<div style="display:flex;align-items:center;padding-left:6px">
+      <div style="flex:1;font-size:15px;font-weight:700;color:${current ? P.black : P.accent}">${MONTHS[shown.getMonth()]} ${shown.getFullYear()}</div>${nav('m-prev', '‹')}${nav('m-next', '›')}</div>`;
+  const days = `<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));margin-top:4px">${'SMTWTFS'.split('').map((d) => `<div style="text-align:center;font-size:10px;font-weight:700;color:${P.i400}">${d}</div>`).join('')}</div>`;
+  const gridW = w - 20;
+  const e = ease(frac);
+  const grids = `<div style="flex:1;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;bottom:0;left:0;width:${gridW}px;transform:translateX(${-e * gridW}px)">${monthGrid(P, mA.getFullYear(), mA.getMonth())}</div>
+      ${frac > 0 ? `<div style="position:absolute;top:0;bottom:0;left:0;width:${gridW}px;transform:translateX(${(1 - e) * gridW}px)">${monthGrid(P, mB.getFullYear(), mB.getMonth())}</div>` : ''}
+    </div>`;
+  return card(P, w, h, 10, head + days + grids);
+}
+
+function nextUp(P, s = { label: 'NEXT UP', title: 'Calculus lecture', when: 'in 25 min', color: null }, w = 171, h = 171) {
+  return card(P, w, h, 14, `<div style="height:100%;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.04em;color:${P.i500}">${s.label}</div>
+      <div style="font-size:16px;font-weight:700;margin-top:4px;line-height:1.25">${s.title}</div>
+      <div class="ell" style="font-size:13px;font-weight:600;margin-top:2px;color:${s.color || P.i600}">${s.when}</div></div>`);
+}
+
+function quick(P, w = 358, h = 76) {
+  const a = [['◷', 'Event'], ['✓', 'Task'], ['◉', 'Scan'], ['✎', 'Note']];
+  return `<div style="width:${w}px;height:${h}px;padding:6px;border-radius:24px;background:${P.white};display:flex;align-items:stretch">
+    ${a.map(([g, l]) => `<div style="flex:1;margin:0 3px;border-radius:18px;background:${P.i50};display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div style="font-size:18px;line-height:1.1;color:${P.accent}">${g}</div><div style="font-size:11px;font-weight:600;color:${P.black};margin-top:2px">${l}</div></div>`).join('')}
+  </div>`;
+}
+
+// ---------- compositions ----------
+function homeScreen(P, t = 99, wallpaper = '#9aa39b', labelInk = '#111111') {
+  const drop = (start) => { const x = out(seg(t, start, start + 0.45)); return `opacity:${x};transform:translateY(${(1 - x) * 40}px) scale(${lerp(0.94, 1, x)});`; };
+  return `<div style="width:390px;height:844px;padding:16px;display:flex;flex-direction:column;gap:16px;background:${wallpaper}">
+    <div style="${drop(0)}">${quick(P)}</div>
+    <div style="${drop(0.3)}">${agenda(P)}</div>
+    <div style="${drop(0.6)}">${month(P)}</div>
+    <div style="display:flex;gap:16px;${drop(0.9)}">
+      ${nextUp(P)}
+      <div style="width:171px;height:171px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+        <div style="width:60px;height:60px;border-radius:18px;background:#000;display:flex;align-items:center;justify-content:center">${logo(48, '#ffffff', '#000000')}</div>
+        <div style="font-size:12px;font-weight:600;color:${labelInk}">Seishin</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function phone(inner, scale) {
+  const sw = 390 * scale, sh = 844 * scale, bez = 14;
+  return `<div style="width:${sw + bez * 2}px;height:${sh + bez * 2}px;border-radius:${30 * scale + bez}px;background:#0b0b0b;padding:${bez}px;box-shadow:0 40px 120px rgba(0,0,0,.28)">
+    <div style="width:${sw}px;height:${sh}px;border-radius:${30 * scale}px;overflow:hidden;position:relative">
+      <div style="position:absolute;left:0;top:0;transform:scale(${scale});transform-origin:0 0">${inner}</div>
+    </div></div>`;
+}
+
+const shadow = 'box-shadow:0 30px 90px rgba(0,0,0,.14);border-radius:24px;';
+function featured(html, w, h, s, top, extra = '') {
+  return `<div style="position:absolute;left:${(1080 - w * s) / 2}px;top:${top}px;width:${w * s}px;height:${h * s}px;${shadow}${extra}">
+    <div style="transform:scale(${s});transform-origin:0 0">${html}</div></div>`;
+}
+
+function caption(text, t, a, color = '#000', top = 250, size = 66) {
+  const x = out(seg(t, a, a + 0.5));
+  return `<div class="center" style="top:${top + (1 - x) * 30}px;opacity:${x};padding:0 90px;font-family:'Inter Display',Inter,sans-serif;font-size:${size}px;font-weight:700;letter-spacing:-.02em;line-height:1.1;color:${color}">${text}</div>`;
+}
+
+function notification(y) {
+  return `<div style="position:absolute;left:40px;right:40px;top:${y}px;background:#ffffff;border-radius:36px;padding:30px 34px;box-shadow:0 24px 70px rgba(0,0,0,.22)">
+    <div style="display:flex;align-items:center;gap:14px;font-size:24px;color:#666">
+      <div style="width:40px;height:40px;border-radius:12px;background:#000;display:flex;align-items:center;justify-content:center">${calIcon('#fff', 24)}</div>
+      Seishin · now
+    </div>
+    <div style="font-size:34px;font-weight:700;color:#000;margin-top:14px">Calculus lecture</div>
+    <div style="font-size:28px;color:#4d4d4d;margin-top:4px">1:00 PM – 2:30 PM</div>
+  </div>`;
+}
+
+let ripples = [];
+const ripple = (id, at, t) => { if (t >= at && t <= at + 0.6) ripples.push({ id, p: seg(t, at, at + 0.6) }); };
+
+// ---------- the timeline ----------
+function render(t) {
+  ripples = [];
+  const L = [];
+  const light = pal('light', 'mono');
+
+  // 1. Title (0–3.2)
+  let v = vis(t, 0, 3.2, 0.01, 0.4);
+  if (v > 0) {
+    const x = back(seg(t, 0.1, 0.9));
+    const lift = ease(seg(t, 2.8, 3.2)) * 60;
+    L.push(`<div class="layer" style="background:#fff;opacity:${v}">
+      <div class="center" style="top:${620 - lift}px;display:flex;justify-content:center;opacity:${seg(t, 0.1, 0.5)};transform:scale(${lerp(0.6, 1, x)})">${logo(260, '#000', '#fff')}</div>
+      <div class="center" style="top:${920 - lift}px;font-family:'Inter Display',Inter,sans-serif;font-size:132px;font-weight:800;letter-spacing:-.04em;opacity:${seg(t, 0.5, 1.0)}">Seishin</div>
+      <div class="center" style="top:${1090 - lift}px;font-size:44px;font-weight:500;color:#666;opacity:${seg(t, 1.1, 1.7)}">Your life, organized.</div>
+      <div class="center" style="top:${1170 - lift}px;font-size:44px;font-weight:500;color:#000;opacity:${seg(t, 1.6, 2.2)}">Now on your home screen.</div>
+    </div>`);
+  }
+
+  // 2. Home screen (3.0–7.7)
+  v = vis(t, 3.0, 7.7, 0.3, 0.4);
+  if (v > 0) {
+    const up = out(seg(t, 3.0, 3.7));
+    L.push(`<div class="layer" style="background:#f2f2f2;opacity:${v}">
+      ${caption('Your day, at a glance.', t, 3.2, '#000', 120, 72)}
+      <div style="position:absolute;left:${(1080 - (390 * 1.9 + 28)) / 2}px;top:${lerp(1920, 300, up)}px">${phone(homeScreen(light, t - 3.6), 1.9)}</div>
+    </div>`);
+  }
+
+  // 3. Tasks (7.5–11.2)
+  v = vis(t, 7.5, 11.2);
+  if (v > 0) {
+    const st = {
+      fill: { essay: seg(t, 8.6, 8.85), lab: seg(t, 9.7, 9.95) },
+      collapse: { essay: seg(t, 9.0, 9.35), lab: seg(t, 10.1, 10.45) },
+    };
+    ripple('tick-essay', 8.55, t);
+    ripple('tick-lab', 9.65, t);
+    L.push(`<div class="layer" style="background:#f2f2f2;opacity:${v}">
+      ${caption('Tick tasks off right from your home screen.', t, 7.7)}
+      ${featured(tasks(light, st), 358, 200, 2.7, 640)}
+      <div class="center" style="top:1300px;font-size:36px;color:#666;opacity:${seg(t, 8.2, 8.7)}">Reminders stop the moment it's done.</div>
+    </div>`);
+  }
+
+  // 4. Month (11.0–14.4)
+  v = vis(t, 11.0, 14.4);
+  if (v > 0) {
+    const pos = ease(seg(t, 12.0, 12.45)) - ease(seg(t, 13.1, 13.55));
+    ripple('m-next', 11.9, t);
+    ripple('m-prev', 13.0, t);
+    // paging back: render as offset 0..1 decreasing
+    L.push(`<div class="layer" style="background:#f2f2f2;opacity:${v}">
+      ${caption('Your whole month. Every deadline.', t, 11.2)}
+      ${featured(month(light, pos), 358, 300, 2.7, 560)}
+    </div>`);
+  }
+
+  // 5. Themes (14.2–17.4)
+  v = vis(t, 14.2, 17.4);
+  if (v > 0) {
+    const list = [['light', 'mono', 'Light'], ['paper', 'orange', 'Paper'], ['dark', 'blue', 'Dark'], ['midnight', 'violet', 'Midnight'], ['amoled', 'green', 'AMOLED']];
+    const step = 0.62;
+    const k = clamp((t - 14.4) / step, 0, list.length - 1);
+    const i = Math.floor(k);
+    const fade = seg(k - i, 0.75, 1);
+    const draw = (j, op) => {
+      const [th, ac, name] = list[j];
+      const P = pal(th, ac);
+      return `<div class="layer" style="background:${P.dark ? '#050505' : P.i50};opacity:${op}">
+        <div class="center" style="top:250px;padding:0 90px;font-family:'Inter Display',Inter,sans-serif;font-size:66px;font-weight:700;letter-spacing:-.02em;line-height:1.1;color:${P.dark ? '#ffffff' : P.black}">Matches your theme.</div>
+        ${featured(agenda(P), 358, 200, 2.7, 680, P.dark ? 'box-shadow:0 0 0 2px rgba(255,255,255,.08);' : '')}
+        <div class="center" style="top:1330px;font-size:40px;font-weight:600;color:${P.dark ? '#a3a3a3' : P.i500}">${name}</div>
+      </div>`;
+    };
+    const inX = out(seg(t, 14.2, 14.7));
+    L.push(`<div class="layer" style="opacity:${v};transform:translateY(${(1 - inX) * 30}px)">${draw(i, 1)}${i + 1 < list.length && fade > 0 ? draw(i + 1, fade) : ''}</div>`);
+  }
+
+  // 6. Next up + reminder (17.2–20.4)
+  v = vis(t, 17.2, 20.4);
+  if (v > 0) {
+    const states = t < 17.9 ? { when: 'in 2 min' } : t < 18.6 ? { when: 'in 1 min' } : { when: 'Now · until 2:30 PM', color: light.accent };
+    const n = out(seg(t, 18.6, 19.05));
+    L.push(`<div class="layer" style="background:#f2f2f2;opacity:${v}">
+      ${caption('Never miss what’s next.', t, 17.4, '#000', 420)}
+      ${featured(nextUp(light, { label: 'NEXT UP', title: 'Calculus lecture', when: states.when, color: states.color }), 171, 171, 3.4, 720)}
+      <div class="center" style="top:1390px;font-size:36px;color:#666;opacity:${seg(t, 18.8, 19.3)}">Reminders that actually ring — even for Google Calendar events.</div>
+      ${n > 0 ? notification(lerp(-320, 70, n)) : ''}
+    </div>`);
+  }
+
+  // 7. End card (20.2–23)
+  v = vis(t, 20.2, 23.5, 0.5, 0.01);
+  if (v > 0) {
+    const x = out(seg(t, 20.3, 21.0));
+    L.push(`<div class="layer" style="background:#000;opacity:${v}">
+      <div class="center" style="top:${640 + (1 - x) * 40}px;display:flex;justify-content:center">${logo(220, '#ffffff', '#000000')}</div>
+      <div class="center" style="top:${900 + (1 - x) * 40}px;font-family:'Inter Display',Inter,sans-serif;font-size:120px;font-weight:800;letter-spacing:-.04em;color:#fff">Seishin</div>
+      <div class="center" style="top:1060px;font-size:40px;font-weight:500;color:#a3a3a3;opacity:${seg(t, 20.8, 21.4)}">Calendar · Tasks · Notes · Reminders</div>
+      <div class="center" style="top:1180px;opacity:${seg(t, 21.2, 21.8)}">
+        <span style="display:inline-block;padding:22px 44px;border-radius:999px;background:#fff;color:#000;font-size:38px;font-weight:700">5 new home-screen widgets</span>
+      </div>
+      <div class="center" style="top:1330px;font-size:30px;color:#737373;opacity:${seg(t, 21.6, 22.2)}">Today · Tasks · Month · Next up · Quick add</div>
+    </div>`);
+  }
+
+  const stage = document.getElementById('stage');
+  stage.innerHTML = L.join('');
+  // Tap ripples, anchored to the element being tapped.
+  for (const r of ripples) {
+    const el = document.getElementById(r.id);
+    if (!el) continue;
+    const b = el.getBoundingClientRect();
+    const size = lerp(30, 150, out(r.p));
+    const d = document.createElement('div');
+    d.style.cssText = `position:absolute;left:${b.left + b.width / 2 - size / 2}px;top:${b.top + b.height / 2 - size / 2}px;width:${size}px;height:${size}px;border-radius:50%;background:rgba(0,0,0,${0.18 * (1 - r.p)});pointer-events:none`;
+    stage.appendChild(d);
+  }
+}
+
+/** One widget (or composition) alone, for PNG screenshots. */
+function renderStill(name, theme = 'light', accent = 'mono') {
+  document.body.className = 'still';
+  const P = pal(theme, accent);
+  const dark = P.dark;
+  const html = {
+    today: () => agenda(P),
+    tasks: () => tasks(P),
+    month: () => month(P),
+    nextup: () => nextUp(P),
+    quick: () => quick(P),
+    home: () => phone(homeScreen(P, 99, dark ? '#2b2f36' : '#9aa39b', dark ? '#ffffff' : '#111111'), 1),
+    themes: () => `<div style="display:flex;gap:24px;padding:40px;background:#e4e2de">${[['light', 'mono'], ['paper', 'orange'], ['dark', 'blue'], ['midnight', 'violet'], ['amoled', 'green']].map(([th, ac]) => agenda(pal(th, ac))).join('')}</div>`,
+  }[name]();
+  document.getElementById('stage').innerHTML = `<div id="shot" style="display:inline-block">${html}</div>`;
+}
+
+window.render = render;
+window.renderStill = renderStill;
+window.DURATION = DURATION;
+render(Number(new URLSearchParams(location.search).get('t') || 5));
+</script>
+</body>
+</html>
