@@ -19,6 +19,7 @@ import { uid } from "@/utils/id";
 import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail } from "@/services/youtube-summary";
 import { useTheme } from "@/theme/ThemeProvider";
 import { isNoteColorId, noteBackground, type NoteColorId } from "@/theme/note-colors";
+import { formatClock } from "@/components/calendar/calendar-utils";
 
 /** Height of the bottom app bar (excluding the safe-area inset). */
 const BAR_H = 56;
@@ -28,7 +29,7 @@ function editedLabel(iso: string | null): string {
   const d = new Date(iso);
   const sameDay = d.toDateString() === new Date().toDateString();
   return `Edited ${sameDay
-    ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    ? formatClock(d)
     : d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 

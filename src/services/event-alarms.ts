@@ -8,6 +8,8 @@ import * as Notifications from "expo-notifications";
 import { settingsStorage } from "@/stores/mmkv";
 import type { CalendarEvent } from "@/stores/calendar-store";
 import { createLogger } from "@/utils/logger";
+import { currentTimeFormat } from "@/stores/theme-store";
+import { formatTime } from "@/theme/prefs";
 import { NativeAlarm, ALARM_CHANNEL, REMINDER_CHANNEL, ensureEventChannels, ensureNotificationPermission } from "./notify-core";
 import { catchUpSlot, isPendingLate, parseRecord, planEventAlarms, type AlarmSlot } from "./event-alarm-plan";
 
@@ -33,7 +35,7 @@ function writeMap(map: IdMap) {
   }
 }
 
-const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const fmtTime = (d: Date) => formatTime(d, currentTimeFormat());
 
 async function schedule(slot: AlarmSlot): Promise<string> {
   const range = slot.end ? `${fmtTime(slot.occurrence)} – ${fmtTime(slot.end)}` : fmtTime(slot.occurrence);

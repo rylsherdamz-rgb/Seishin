@@ -4,6 +4,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import { KIND_LABELS, type CaptureKind } from "@/services/capture-analyzer";
 import type { ReminderLevel } from "@/services/reminder-plan";
+import { formatClock } from "@/components/calendar/calendar-utils";
 
 export interface ReviewState {
   kind: CaptureKind;
@@ -98,7 +99,7 @@ export const CaptureReview = memo(function CaptureReview({ value: v, onChange, u
             <TouchableOpacity onPress={onPickTime} accessibilityRole="button" className="h-12 rounded-xl bg-ink-50 px-4 flex-row items-center gap-2">
               <Feather name="clock" size={15} color={C.ink600} />
               <Text className="text-[15px] font-semibold text-black">
-                {v.dueHasTime ? v.due.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "End of day"}
+                {v.dueHasTime ? formatClock(v.due) : "End of day"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => onChange({ due: null })} accessibilityRole="button" accessibilityLabel="Remove due date" className="w-12 h-12 items-center justify-center">

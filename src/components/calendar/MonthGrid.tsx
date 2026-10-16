@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { monthMatrix, sameMonth, WEEKDAY_LETTER } from "./calendar-utils";
+import { useThemeStore } from "@/stores/theme-store";
+import { keyToDate } from "@/utils/recurrence";
 
 export interface DayMarks {
   events: number;
@@ -21,7 +23,8 @@ interface MonthGridProps {
 
 /** Swipeable month grid: tap selects, long-press quick-creates, swipe changes month. */
 export const MonthGrid = memo(function MonthGrid({ month, selected, today, marks, onSelect, onLongPress, onSwipe }: MonthGridProps) {
-  const rows = useMemo(() => monthMatrix(month), [month]);
+  const weekStart = useThemeStore((s) => s.weekStart);
+  const rows = useMemo(() => monthMatrix(month, weekStart), [month, weekStart]);
   const swipe = useMemo(
     () =>
       Gesture.Pan()
@@ -38,7 +41,7 @@ export const MonthGrid = memo(function MonthGrid({ month, selected, today, marks
     <GestureDetector gesture={swipe}>
       <Animated.View key={month} entering={FadeIn.duration(180)} className="px-2">
         <View className="flex-row mb-1">
-          {WEEKDAY_LETTER.map((l, i) => (
+          {rows[0].map((key) => WEEKDAY_LETTER[keyToDate(key).getDay()]).map((l, i) => (
             <Text key={i} className="flex-1 text-center text-[11px] font-semibold text-ink-300">
               {l}
             </Text>

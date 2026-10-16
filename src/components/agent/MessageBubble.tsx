@@ -5,6 +5,7 @@ import type { AgentMessage, AgentAttachment } from "@/stores/agent-store";
 import { Markdown } from "@/components/Markdown";
 import { Photo } from "@/components/ui/Photo";
 import { useColors } from "@/theme/ThemeProvider";
+import { useFormatTime } from "@/stores/theme-store";
 
 /** "On-device · qwen2.5-1.5b" / "NVIDIA NIM · llama-3.1-8b-instruct". */
 function providerLabel(m: AgentMessage): string {
@@ -26,9 +27,10 @@ interface Props {
  */
 export const MessageBubble = memo(function MessageBubble({ item, copied, onCopy }: Props) {
   const C = useColors();
+  const fmt = useFormatTime();
   const isUser = item.role === "user";
   if (!isUser && !item.content) return null;
-  const time = new Date(item.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const time = fmt(new Date(item.timestamp));
 
   return (
     <View className={`mb-3 ${isUser ? "items-end" : "items-start"}`}>

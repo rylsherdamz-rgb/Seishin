@@ -3,6 +3,7 @@ import type { Palette } from "@/theme/themes";
 import type { MonthCell } from "./widget-data";
 import { hex, openLink } from "./theme";
 import { Shell } from "./ui";
+import { keyToDate } from "@/utils/recurrence";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
@@ -42,7 +43,7 @@ export function MonthWidget({ P, title, weeks, isCurrent }: { P: Palette; title:
         <NavButton P={P} label="›" action="MONTH_NEXT" a11y="Next month" />
       </FlexWidget>
       <FlexWidget style={{ width: "match_parent", flexDirection: "row", marginTop: 4 }}>
-        {WEEKDAYS.map((d, i) => (
+        {(weeks[0] ?? []).map((c) => WEEKDAYS[keyToDate(c.key).getDay()]).map((d, i) => (
           <FlexWidget key={i} style={{ flex: 1, alignItems: "center" }}>
             <TextWidget text={d} style={{ fontSize: 10, fontWeight: "700", color: hex(P.ink400) }} />
           </FlexWidget>

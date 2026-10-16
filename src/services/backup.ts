@@ -30,7 +30,8 @@ export interface BackupCounts {
 
 /** Preference keys safe to carry between phones (no secrets, no device ids). */
 export const PORTABLE_PREF_KEYS = [
-  "settings:theme:mode", "settings:theme:accent", "settings:notes:layout",
+  "settings:theme:mode", "settings:theme:accent", "settings:theme:timeFormat", "settings:theme:weekStart",
+  "settings:theme:textSize", "settings:theme:density", "settings:theme:startTab", "settings:notes:layout",
   "cleanupPolicies", "nimEndpoint", "nimModel", "nimLargeModel", "alarmRingtoneName",
 ];
 

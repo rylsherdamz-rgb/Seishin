@@ -5,6 +5,8 @@
 import type { CalendarEvent } from "@/stores/calendar-store";
 import type { Todo } from "@/stores/todo-store";
 import { dateKey, keyToDate, occursOnDate } from "@/utils/recurrence";
+import { currentTimeFormat, currentWeekStart } from "@/stores/theme-store";
+import { formatTime, type TimeFormat, type WeekStart } from "@/theme/prefs";
 
 export interface WidgetRow {
   id: string;
@@ -49,9 +51,8 @@ const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "Ju
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-export function fmtTime(d: Date): string {
-  const h = d.getHours() % 12 || 12;
-  return `${h}:${String(d.getMinutes()).padStart(2, "0")} ${d.getHours() < 12 ? "AM" : "PM"}`;
+export function fmtTime(d: Date, format: TimeFormat = currentTimeFormat()): string {
+  return formatTime(d, format);
 }
 
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
@@ -157,10 +158,10 @@ export function tasksFor(todos: Todo[], now: Date, limit = 30): WidgetRow[] {
   });
 }
 
-/** 6×7 grid (Sunday first) for `year`/`month` (0-based). */
-export function monthGrid(year: number, month: number, events: CalendarEvent[], todos: Todo[], now: Date): MonthCell[][] {
+/** 6×7 grid (first column = the user's week start) for `year`/`month` (0-based). */
+export function monthGrid(year: number, month: number, events: CalendarEvent[], todos: Todo[], now: Date, weekStart: WeekStart = currentWeekStart()): MonthCell[][] {
   const first = new Date(year, month, 1);
-  const start = addDays(first, -first.getDay());
+  const start = addDays(first, -((first.getDay() - weekStart + 7) % 7));
   const today = dateKey(now);
   const lo = dateKey(start);
   const hi = dateKey(addDays(start, 41));

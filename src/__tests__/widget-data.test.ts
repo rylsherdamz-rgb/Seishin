@@ -44,6 +44,12 @@ describe("widget data", () => {
     expect(weeks.length).toBe(5);
   });
 
+  it("month grid honors a Monday week start; 24h clock", () => {
+    const weeks = monthGrid(2026, 9, [], [], NOW, 1);
+    expect(weeks[0][0].key).toBe("2026-09-28");
+    expect(fmtTime(at(2026, 10, 14, 13, 5), "24h")).toBe("13:05");
+  });
+
   it("next up: ongoing event beats a later deadline; falls back to a deadline", () => {
     const n = nextUp([ev("Meeting", at(2026, 10, 14, 11, 30), at(2026, 10, 14, 13))], [todo("Report", at(2026, 10, 14, 17))], NOW)!;
     expect(n.title).toBe("Meeting");

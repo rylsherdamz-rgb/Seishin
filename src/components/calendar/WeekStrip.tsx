@@ -5,6 +5,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { weekOf, WEEKDAY_SHORT } from "./calendar-utils";
 import type { DayMarks } from "./MonthGrid";
 import { keyToDate } from "@/utils/recurrence";
+import { useThemeStore } from "@/stores/theme-store";
 
 interface WeekStripProps {
   selected: string;
@@ -17,7 +18,8 @@ interface WeekStripProps {
 
 /** Compact one-week scroller shown when the month grid is collapsed. */
 export const WeekStrip = memo(function WeekStrip({ selected, today, marks, onSelect, onLongPress, onSwipe }: WeekStripProps) {
-  const days = useMemo(() => weekOf(selected), [selected]);
+  const weekStart = useThemeStore((s) => s.weekStart);
+  const days = useMemo(() => weekOf(selected, weekStart), [selected, weekStart]);
   const swipe = useMemo(
     () =>
       Gesture.Pan()

@@ -1,8 +1,9 @@
 import {
-  monthMatrix, weekOf, parseQuickAdd, addDays, recurrenceToState, buildRecurrence, sortItems,
+  monthMatrix, weekOf, startOfWeek, parseQuickAdd, addDays, recurrenceToState, buildRecurrence, sortItems,
   type CalendarItem,
 } from "@/components/calendar/calendar-utils";
 import { layoutEvents } from "@/components/calendar/timeline-layout";
+import { formatTime, weekdayOrder } from "@/theme/prefs";
 import { THEMES, ACCENTS, buildPalette, hexToChannels, paletteToVars } from "@/theme/themes";
 import { dateKey } from "@/utils/recurrence";
 
@@ -122,5 +123,31 @@ describe("note colors", () => {
       expect(noteBackground(c.id, true)).toBe(c.dark);
       expect(c.light).not.toBe(c.dark);
     }
+  });
+});
+
+describe("week start + clock preferences", () => {
+  it("starts weeks on Monday when asked", () => {
+    // 2026-10-04 is a Sunday: with a Monday start it belongs to the week of Sep 28.
+    expect(startOfWeek("2026-10-04", 1)).toBe("2026-09-28");
+    expect(startOfWeek("2026-10-07", 1)).toBe("2026-10-05");
+    expect(weekOf("2026-10-07", 1)[0]).toBe("2026-10-05");
+    expect(monthMatrix("2026-10-15", 1)[0][0]).toBe("2026-09-28");
+  });
+
+  it("keeps the Sunday default", () => {
+    expect(startOfWeek("2026-10-07", 0)).toBe("2026-10-04");
+  });
+
+  it("formats 12h and 24h clocks", () => {
+    const d = new Date(2026, 9, 7, 0, 5);
+    expect(formatTime(d, "12h")).toBe("12:05 AM");
+    expect(formatTime(d, "24h")).toBe("00:05");
+    expect(formatTime(new Date(2026, 9, 7, 13, 30), "24h")).toBe("13:30");
+    expect(formatTime(new Date(NaN), "12h")).toBe("");
+  });
+
+  it("orders weekday headers from the week start", () => {
+    expect(weekdayOrder(1)).toEqual([1, 2, 3, 4, 5, 6, 0]);
   });
 });

@@ -15,19 +15,20 @@ import { Image } from "expo-image";
 import Feather from "@expo/vector-icons/Feather";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAlarmStore } from "@/stores/alarm-store";
+import { useThemeStore } from "@/stores/theme-store";
+import { formatTime as fmt, type TimeFormat } from "@/theme/prefs";
 import { startAlarmRinging, stopAlarmRinging } from "@/services/notification-service";
 import splashLogo from "../../assets/splash-icon.png";
 
-function formatTime(iso?: string): string {
+function formatTime(iso: string | undefined, format: TimeFormat): string {
   if (!iso) return "--:--";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "--:--";
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return fmt(new Date(iso), format) || "--:--";
 }
 
 export function AlarmOverlay() {
   const alarm = useAlarmStore((s) => s.alarm);
   const dismiss = useAlarmStore((s) => s.dismiss);
+  const timeFormat = useThemeStore((s) => s.timeFormat);
   const insets = useSafeAreaInsets();
   const [now, setNow] = useState(new Date());
 
@@ -115,9 +116,9 @@ export function AlarmOverlay() {
   }));
 
   const alarmDate = alarm?.startTime ? new Date(alarm.startTime) : null;
-  const nowClock = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const startLabel = formatTime(alarm?.startTime);
-  const endLabel = alarm?.endTime ? formatTime(alarm.endTime) : null;
+  const nowClock = fmt(now, timeFormat);
+  const startLabel = formatTime(alarm?.startTime, timeFormat);
+  const endLabel = alarm?.endTime ? formatTime(alarm.endTime, timeFormat) : null;
   const timeRange = endLabel && endLabel !== "--:--" ? `${startLabel} – ${endLabel}` : startLabel;
 
   return (

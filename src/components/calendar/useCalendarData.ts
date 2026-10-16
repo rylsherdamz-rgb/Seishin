@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore, type Todo } from "@/stores/todo-store";
+import { useThemeStore } from "@/stores/theme-store";
 import { dateKey, expandOccurrences, occursOnDate } from "@/utils/recurrence";
 import {
   addDays, buildSections, eventToItem, minutesOf, sortItems, startOfWeek, todoToItem,
@@ -33,7 +34,10 @@ export function useCalendarData(selected: string, viewMonth: string, today: stri
   // the selected week strip. Keyed by month + week start rather than the
   // selected day, so tapping between days in the same week doesn't re-expand
   // every recurring event.
-  const weekStart = startOfWeek(selected);
+  const firstDay = useThemeStore((s) => s.weekStart);
+  // Item times are formatted when built; rebuild when the clock pref changes.
+  const timeFormat = useThemeStore((s) => s.timeFormat);
+  const weekStart = startOfWeek(selected, firstDay);
   const monthKey = viewMonth.slice(0, 7);
   const marks = useMemo(() => {
     const from = addDays(monthKey + "-01", -7);
@@ -59,7 +63,7 @@ export function useCalendarData(selected: string, viewMonth: string, today: stri
     for (const e of events) if (occursOnDate(e, selected)) items.push(eventToItem(e, selected));
     for (const t of todos) if (todoDay(t) === selected) items.push(todoToItem(t, selected));
     return sortItems(items);
-  }, [events, todos, selected]);
+  }, [events, todos, selected, timeFormat]);
 
   const upcomingRows = useMemo<AgendaRow[]>(() => {
     const to = addDays(today, 60);
@@ -73,7 +77,7 @@ export function useCalendarData(selected: string, viewMonth: string, today: stri
       if (d && !t.completed && d <= to) items.push(todoToItem(t, d < today ? today : d));
     }
     return buildSections(sortItems(items));
-  }, [events, todos, today]);
+  }, [events, todos, today, timeFormat]);
 
   const summary = useMemo(() => {
     const evs = dayItems.filter((i) => i.type === "event");

@@ -1,16 +1,17 @@
-import { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, StatusBar as RNStatusBar, Linking } from "react-native";
+import { useEffect, useState } from "react";
+import { StatusBar as RNStatusBar, Linking } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, FadeInDown } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated";
 import * as ExpoSplashScreen from "expo-splash-screen";
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import Feather from "@expo/vector-icons/Feather";
 import { Logo } from "@/components/Logo";
 import { AlarmOverlay } from "@/components/AlarmOverlay";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Onboarding } from "@/components/onboarding/Onboarding";
+import { useThemeStore } from "@/stores/theme-store";
 import { settingsStorage } from "@/stores/mmkv";
 import { useSettingsStore } from "@/stores/settings-store";
 import { Host } from "@expo/ui";
@@ -18,94 +19,9 @@ import { useNotifications } from "@/services/notification-service";
 import { useAutoSync } from "@/hooks/useAutoSync";
 // Defines the background sync task at module load (required by the OS scheduler).
 import "@/services/background-sync";
-import { ThemeProvider, ThemeScope, useColors, useTheme } from "@/theme/ThemeProvider";
+import { ThemeProvider, ThemeScope, useTheme } from "@/theme/ThemeProvider";
 
 ExpoSplashScreen.preventAutoHideAsync();
-
-const ONBOARDING_PAGES = [
-  {
-    icon: "calendar" as const,
-    title: "Welcome to Seishin",
-    desc: "Your all-in-one life manager. Stay organized, never miss a thing.",
-  },
-  {
-    icon: "cpu" as const,
-    title: "AI-Powered",
-    desc: "Smart agent helps manage your schedule, tasks, and more. Works offline too.",
-  },
-  {
-    icon: "file-text" as const,
-    title: "Notes, Photos & Files",
-    desc: "Capture ideas as notes. Attach photos, Excel, or any file — scanned photos turn into text automatically.",
-  },
-  {
-    icon: "check-square" as const,
-    title: "You're Ready",
-    desc: "Everything stays on your device. No accounts, no cloud, no tracking.",
-  },
-];
-
-function OnboardingScreen({ onComplete }: { onComplete: () => void }) {
-  const T = useColors();
-  const [step, setStep] = useState(0);
-  const page = ONBOARDING_PAGES[step];
-  const isLast = step === ONBOARDING_PAGES.length - 1;
-
-  return (
-    <View className="flex-1 bg-white">
-      <View className="flex-1 items-center justify-center px-8">
-        {step === 0 ? (
-          <Animated.View entering={FadeInDown.duration(400)}>
-            <Logo size={80} />
-          </Animated.View>
-        ) : (
-          <Animated.View key={step} entering={FadeInDown.duration(400)} className="w-20 h-20 bg-ink-100 rounded-full items-center justify-center mb-6">
-            <Feather name={page.icon} size={32} color={T.black} />
-          </Animated.View>
-        )}
-        <Animated.Text key={`title-${step}`} entering={FadeInDown.delay(100).duration(350)} className="text-2xl font-semibold tracking-tight text-black text-center mt-6">
-          {page.title}
-        </Animated.Text>
-        <Animated.Text key={`desc-${step}`} entering={FadeInDown.delay(200).duration(350)} className="text-base text-ink-500 text-center mt-3 leading-6">
-          {page.desc}
-        </Animated.Text>
-        <View className="flex-row gap-2 mt-12">
-          {ONBOARDING_PAGES.map((_, i) => (
-            <View
-              key={i}
-              className={`w-2 h-2 rounded-full ${i === step ? "bg-black" : "bg-ink-200"}`}
-            />
-          ))}
-        </View>
-      </View>
-      <View className="px-8 pb-12">
-        {isLast ? (
-          <TouchableOpacity
-            onPress={onComplete}
-            className="bg-black h-14 rounded-xl items-center justify-center"
-          >
-            <Text className="text-white text-base font-semibold">Get Started</Text>
-          </TouchableOpacity>
-        ) : (
-          <View className="flex-row gap-3">
-            <TouchableOpacity
-              onPress={onComplete}
-              className="flex-1 h-14 border border-ink-200 rounded-xl items-center justify-center"
-            >
-              <Text className="text-black text-sm font-medium">Skip</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setStep(step + 1)}
-              className="flex-1 h-14 bg-black rounded-xl items-center justify-center"
-            >
-              <Text className="text-white text-sm font-semibold">Next</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-}
 
 function SplashScreen() {
   const logoScale = useSharedValue(0.3);
@@ -168,13 +84,16 @@ function AppShell() {
 
   useEffect(() => {
     if (phase !== "app") return;
+    // "Open app on" preference (read once: changing it mid-session must not jump tabs).
+    const start = useThemeStore.getState().startTab;
+    const home = start === "index" ? "/(tabs)" : (`/(tabs)/${start}` as const);
     // Opened from a widget / link: that route navigates itself — don't
     // override it with the home tab.
     Linking.getInitialURL()
       .then((url) => {
-        if (!url || !/^seishin:\/\/\/?open\b/.test(url)) router.replace("/(tabs)");
+        if (!url || !/^seishin:\/\/\/?open\b/.test(url)) router.replace(home);
       })
-      .catch(() => router.replace("/(tabs)"));
+      .catch(() => router.replace(home));
   }, [phase]);
 
   if (phase === "splash") {
@@ -187,8 +106,8 @@ function AppShell() {
         <SafeAreaView style={{ flex: 1 }}>
           <RNStatusBar backgroundColor={T.white} barStyle={barStyle} />
           <StatusBar style={dark ? "light" : "dark"} />
-          <OnboardingScreen
-            onComplete={() => {
+          <Onboarding
+            onDone={() => {
               settingsStorage.set("hasSeenOnboarding", true);
               setPhase("app");
             }}
