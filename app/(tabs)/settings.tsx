@@ -20,9 +20,11 @@ import { Button } from "@/components/ui/Button";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Logo } from "@/components/Logo";
 import Feather from "@expo/vector-icons/Feather";
-import { fetchNimModels, fetchAllNimModels, cacheNimModels, categorizeModel, getTierLabel } from "@/services/nim-models";
+import { fetchNimModels, fetchAllNimModels, cacheNimModels } from "@/services/nim-models";
 import { useColors } from "@/theme/ThemeProvider";
 import { AppearancePicker } from "@/components/AppearancePicker";
+import { DisplayControls } from "@/components/settings/DisplayControls";
+import { TierBadge } from "@/components/ui/TierBadge";
 import { BackupSection } from "@/components/BackupSection";
 import { WidgetsSection } from "@/components/settings/WidgetsSection";
 import { RemindersCheck } from "@/components/settings/RemindersCheck";
@@ -263,7 +265,6 @@ export default function SettingsScreen() {
   const filteredModels = useMemo(() => models.filter((m) => m.toLowerCase().includes(modelSearch.toLowerCase())), [models, modelSearch]);
 
   const renderModelItem = useCallback(({ item }: { item: string }) => {
-    const info = categorizeModel(item);
     return (
       <TouchableOpacity
         onPress={() => { setNimMd(item); setShowModelPicker(false); setModelSearch(""); }}
@@ -275,15 +276,7 @@ export default function SettingsScreen() {
         <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
           {item}
         </Text>
-        <View className={`px-2 py-0.5 rounded-full bg-${
-          info.tier === "fast" ? "green-100" : info.tier === "balanced" ? "yellow-100" : info.tier === "smart" ? "red-100" : "ink-100"
-        }`}>
-          <Text className={`text-[10px] font-medium text-${
-            info.tier === "fast" ? "green-700" : info.tier === "balanced" ? "yellow-700" : info.tier === "smart" ? "red-700" : "ink-500"
-          }`}>
-            {getTierLabel(info.tier)}
-          </Text>
-        </View>
+        <TierBadge modelId={item} />
         {item === nimMd && (
           <Feather name="check" size={14} color={T.white} />
         )}
@@ -306,6 +299,9 @@ export default function SettingsScreen() {
           <SectionHeader title="Appearance" />
           <Card variant="elevated" className="mb-4">
             <AppearancePicker />
+          </Card>
+          <Card variant="elevated" className="mb-4">
+            <DisplayControls />
           </Card>
 
           <SectionHeader title="Quick Access" />
@@ -415,21 +411,7 @@ export default function SettingsScreen() {
                 <Text className={`text-sm flex-1 ${nimMd ? "text-black" : "text-ink-300"}`} numberOfLines={1}>
                   {nimMd || "Select a model..."}
                 </Text>
-                {!!nimMd && (
-                  <View className={`px-2 py-0.5 rounded-full mr-2 ${
-                    categorizeModel(nimMd).tier === "fast" ? "bg-green-100" :
-                    categorizeModel(nimMd).tier === "balanced" ? "bg-yellow-100" :
-                    categorizeModel(nimMd).tier === "smart" ? "bg-red-100" : "bg-ink-100"
-                  }`}>
-                    <Text className={`text-[10px] font-medium ${
-                      categorizeModel(nimMd).tier === "fast" ? "text-green-700" :
-                      categorizeModel(nimMd).tier === "balanced" ? "text-yellow-700" :
-                      categorizeModel(nimMd).tier === "smart" ? "text-red-700" : "text-ink-500"
-                    }`}>
-                      {getTierLabel(categorizeModel(nimMd).tier)}
-                    </Text>
-                  </View>
-                )}
+                {!!nimMd && <TierBadge modelId={nimMd} className="mr-2" />}
                 <Feather name="chevron-down" size={16} color={T.ink200} />
               </TouchableOpacity>
               <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Quick Models</Text>

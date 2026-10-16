@@ -7,7 +7,6 @@ import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
 import { useThemeStore } from "@/stores/theme-store";
-import { ACCENTS, THEMES, type AccentId, type ThemeMode } from "@/theme/themes";
 import { cancelEventReminder, scheduleEventReminder } from "./notification-service";
 import { createLogger } from "@/utils/logger";
 import { buildBackup, countBackup, mergeById, noteIsNewer, parseBackup, PORTABLE_PREF_KEYS, type Backup, type BackupCounts } from "./backup";
@@ -80,10 +79,7 @@ export function restoreBackup(b: Backup, mode: "merge" | "replace"): BackupCount
   notes.replaceAll(mode === "replace" ? b.notes : mergeById(notes.notes, b.notes, noteIsNewer));
 
   for (const [k, v] of Object.entries(b.prefs)) settingsStorage.set(k, v);
-  const theme = useThemeStore.getState();
-  const themeMode = b.prefs["settings:theme:mode"];
-  const accent = b.prefs["settings:theme:accent"];
-  if (themeMode === "system" || (themeMode && themeMode in THEMES)) theme.setMode(themeMode as ThemeMode);
-  if (accent && accent in ACCENTS) theme.setAccent(accent as AccentId);
+  // The theme store validates what it reads, so unknown values fall back to defaults.
+  useThemeStore.getState().reload();
   return countBackup(b);
 }

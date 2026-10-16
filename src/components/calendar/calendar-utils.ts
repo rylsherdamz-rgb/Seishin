@@ -2,6 +2,8 @@ import type { CalendarEvent, Recurrence } from "@/stores/calendar-store";
 import type { NoteAttachment } from "@/stores/notes-store";
 import type { Todo } from "@/stores/todo-store";
 import { dateKey, keyToDate } from "@/utils/recurrence";
+import { currentTimeFormat, currentWeekStart } from "@/stores/theme-store";
+import { formatTime, type TimeFormat, type WeekStart } from "@/theme/prefs";
 
 export interface CalendarItem {
   id: string;
@@ -31,8 +33,9 @@ export type AgendaRow = DateHeader | CalendarItem;
 export const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const WEEKDAY_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 
-export function formatClock(d: Date): string {
-  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+/** Clock time in the user's 12h/24h preference. */
+export function formatClock(d: Date, format: TimeFormat = currentTimeFormat()): string {
+  return formatTime(d, format);
 }
 
 export function eventToItem(e: CalendarEvent, date: string): CalendarItem {
@@ -114,21 +117,21 @@ export function shiftMonth(key: string, delta: number): string {
   return dateKey(d);
 }
 
-export function startOfWeek(key: string): string {
+export function startOfWeek(key: string, weekStart: WeekStart = currentWeekStart()): string {
   const d = keyToDate(key);
-  return addDays(key, -d.getDay());
+  return addDays(key, -((d.getDay() - weekStart + 7) % 7));
 }
 
-export function weekOf(key: string): string[] {
-  const start = startOfWeek(key);
+export function weekOf(key: string, weekStart: WeekStart = currentWeekStart()): string[] {
+  const start = startOfWeek(key, weekStart);
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }
 
 /** 6×7 grid of date keys covering the month that contains `key`. */
-export function monthMatrix(key: string): string[][] {
+export function monthMatrix(key: string, weekStart: WeekStart = currentWeekStart()): string[][] {
   const first = keyToDate(key);
   first.setDate(1);
-  const gridStart = startOfWeek(dateKey(first));
+  const gridStart = startOfWeek(dateKey(first), weekStart);
   return Array.from({ length: 6 }, (_, r) =>
     Array.from({ length: 7 }, (_, c) => addDays(gridStart, r * 7 + c)),
   );

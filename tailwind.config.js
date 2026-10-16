@@ -1,5 +1,13 @@
 const v = (name) => `rgb(var(--c-${name}) / <alpha-value>)`;
 
+// Text size + density prefs: ThemeProvider sets --fs / --d (1 = default).
+// NativeWind's native rem is 14px; at 1 these equal Tailwind's stock scale.
+const fs = (size, line) => [`calc(var(--fs) * ${size}px)`, { lineHeight: `calc(var(--fs) * ${line}px)` }];
+const densitySpacing = { 0: "0px", px: "1px" };
+for (const k of [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 20, 24, 28, 32]) {
+  densitySpacing[k] = `calc(var(--d) * ${k * 3.5}px)`;
+}
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -46,6 +54,19 @@ module.exports = {
           DEFAULT: "#2fbf71",
         },
       },
+      fontSize: {
+        "2xs": fs(10, 13),
+        xs: fs(10.5, 14),
+        sm: fs(12.25, 17.5),
+        base: fs(14, 21),
+        lg: fs(15.75, 24.5),
+        xl: fs(17.5, 24.5),
+        "2xl": fs(21, 28),
+        "3xl": fs(26.25, 31.5),
+        "4xl": fs(31.5, 35),
+      },
+      padding: densitySpacing,
+      gap: densitySpacing,
       // Soft, monochrome elevation. Shadows stay black-tinted so the
       // palette remains strictly B&W while gaining depth.
       boxShadow: {

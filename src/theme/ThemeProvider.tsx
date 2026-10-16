@@ -3,6 +3,7 @@ import { View, useColorScheme } from "react-native";
 import { vars } from "nativewind";
 import { useThemeStore } from "@/stores/theme-store";
 import { ACCENTS, THEMES, buildPalette, paletteToVars, type Palette, type ThemeDef, type ThemeId, type AccentId } from "./themes";
+import { DENSITY_SCALE, TEXT_SCALE } from "./prefs";
 
 export interface ResolvedTheme {
   theme: ThemeDef;
@@ -46,7 +47,10 @@ export function useColors(): Palette {
  */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { colors } = useTheme();
-  const style = useMemo(() => vars(paletteToVars(colors)), [colors]);
+  const fs = TEXT_SCALE[useThemeStore((s) => s.textSize)];
+  const d = DENSITY_SCALE[useThemeStore((s) => s.density)];
+  // --fs / --d scale the type ramp and padding/gap (tailwind.config.js).
+  const style = useMemo(() => vars({ ...paletteToVars(colors), "--fs": String(fs), "--d": String(d) }), [colors, fs, d]);
   return (
     <View style={[{ flex: 1, backgroundColor: colors.white }, style]}>
       {children}

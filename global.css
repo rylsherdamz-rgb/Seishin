@@ -5,6 +5,8 @@
 /* Default (Mono Light) theme. ThemeProvider overrides these at runtime. */
 @layer base {
   :root {
+    --fs: 1;
+    --d: 1;
     --c-black: 0 0 0;
     --c-ink-900: 26 26 26;
     --c-ink-800: 38 38 38;
