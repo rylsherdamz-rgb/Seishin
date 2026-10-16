@@ -8,8 +8,11 @@ import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { ACCENTS, THEMES, type AccentId, type ThemeMode } from "@/theme/themes";
+import { cancelEventReminder, scheduleEventReminder } from "./notification-service";
+import { createLogger } from "@/utils/logger";
 import { buildBackup, countBackup, mergeById, noteIsNewer, parseBackup, PORTABLE_PREF_KEYS, type Backup, type BackupCounts } from "./backup";
 
+const log = createLogger("backup");
 const LAST_KEY = "settings:backup:last";
 
 function currentBackup(): Backup {
@@ -63,7 +66,12 @@ export function restoreBackup(b: Backup, mode: "merge" | "replace"): BackupCount
   const own = cal.events.filter((e) => e.source !== "calendar" && e.source !== "feed");
   const nextEvents = mode === "replace" ? b.events : mergeById(own, b.events);
   const keep = new Set(nextEvents.map((e) => e.id));
-  cal.applyImport(nextEvents, own.filter((e) => !keep.has(e.id)).map((e) => e.id));
+  const removeIds = own.filter((e) => !keep.has(e.id)).map((e) => e.id);
+  if (cal.applyImport(nextEvents, removeIds)) {
+    // applyImport doesn't touch alarms: drop them for removed events, (re)arm restored ones.
+    removeIds.forEach((id) => cancelEventReminder(id).catch((e) => log.warn("could not cancel reminder", id, e)));
+    nextEvents.filter((e) => e.reminder).forEach((e) => scheduleEventReminder(e).catch((err) => log.warn("could not schedule reminder", e.id, err)));
+  }
 
   const todos = useTodoStore.getState();
   todos.replaceAll(mode === "replace" ? b.todos : mergeById(todos.todos, b.todos));
