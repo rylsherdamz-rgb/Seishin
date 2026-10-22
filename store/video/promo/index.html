@@ -1,0 +1,42 @@
+<!doctype html>
+<html
+  lang="en"
+  data-composition-variables='[
+    {"id":"tagline","type":"string","label":"End tagline","default":"Plan less. Live more."},
+    {"id":"cta","type":"string","label":"Call to action","default":"Now on Google Play"}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #f4f1ec; }
+      #root { position: relative; width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="27" data-width="1920" data-height="1080">
+      <div id="hook" data-composition-id="hook" data-composition-src="compositions/hook.html"
+        data-start="0" data-duration="2.8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="calendar" data-composition-id="calendar" data-composition-src="compositions/calendar.html"
+        data-start="2.8" data-duration="4.8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="tasks" data-composition-id="tasks" data-composition-src="compositions/tasks.html"
+        data-start="7.6" data-duration="7.8" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="notes" data-composition-id="notes" data-composition-src="compositions/notes.html"
+        data-start="15.4" data-duration="3.6" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="theme" data-composition-id="theme" data-composition-src="compositions/theme.html"
+        data-start="19" data-duration="3.4" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="montage" data-composition-id="montage" data-composition-src="compositions/montage.html"
+        data-start="22.4" data-duration="1.4" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"></div>
+      <div id="endcard" data-composition-id="endcard" data-composition-src="compositions/endcard.html"
+        data-start="23.8" data-duration="3.2" data-track-index="1" data-track-kind="graphics" data-width="1920" data-height="1080"
+        data-variable-values='{"tagline":"Plan less. Live more.","cta":"Now on Google Play"}'></div>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

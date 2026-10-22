@@ -1,0 +1,32 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #e11d48; font-family: "Outfit"; overflow: hidden; }
+    #mtg-phone { position: absolute; left: 1150px; top: 40px; width: 470px; height: 1000px; border-radius: 64px; background: #0b0b0c; padding: 14px; box-shadow: 0 50px 90px rgba(0, 0, 0, 0.3); }
+    #mtg-screen { position: relative; width: 100%; height: 100%; border-radius: 50px; overflow: hidden; background: #fff; }
+    .mtg-shot { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+    #mtg-words { position: absolute; left: 200px; top: 440px; font-size: 170px; font-weight: 700; letter-spacing: -0.05em; color: #fff; line-height: 1; }
+    .mtg-word { position: absolute; left: 0; top: 0; white-space: nowrap; }
+  </style>
+  <div id="root" data-composition-id="montage" data-width="1920" data-height="1080">
+    <div id="mtg-phone">
+      <div id="mtg-screen">
+        <img id="mtg-s1" class="mtg-shot clip" src="assets/01-calendar.png" data-start="0" data-duration="0.35" data-track-index="2" />
+        <img id="mtg-s2" class="mtg-shot clip" src="assets/05-task-detail.png" data-start="0.35" data-duration="0.35" data-track-index="2" />
+        <img id="mtg-s3" class="mtg-shot clip" src="assets/07-alarm.png" data-start="0.7" data-duration="0.35" data-track-index="2" />
+        <img id="mtg-s4" class="mtg-shot clip" src="assets/06-notes.png" data-start="1.05" data-duration="0.35" data-track-index="2" />
+      </div>
+    </div>
+    <div id="mtg-words" data-layout-allow-overflow data-layout-allow-overlap>
+      <span class="mtg-word clip" id="mtg-w1" data-start="0" data-duration="0.35" data-track-index="3">Plan.</span>
+      <span class="mtg-word clip" id="mtg-w2" data-start="0.35" data-duration="0.35" data-track-index="3">Track.</span>
+      <span class="mtg-word clip" id="mtg-w3" data-start="0.7" data-duration="0.35" data-track-index="3">Remember.</span>
+      <span class="mtg-word clip" id="mtg-w4" data-start="1.05" data-duration="0.35" data-track-index="3">Breathe.</span>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#mtg-phone", { y: 900, filter: "blur(14px)" }, { y: 0, filter: "blur(0px)", duration: 0.3, ease: "expo.out" }, 0);
+    tl.to("#mtg-phone", { scale: 1.06, duration: 1.2, ease: "none" }, 0.2);
+    window.__timelines["montage"] = tl;
+  </script>
+</template>

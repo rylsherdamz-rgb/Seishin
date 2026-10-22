@@ -1,0 +1,40 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
+    #thm-flood { position: absolute; inset: 0; background: #0e1424; }
+    #thm-phone { position: absolute; left: 330px; top: 40px; width: 470px; height: 1000px; border-radius: 64px; background: #0b0b0c; padding: 14px; box-shadow: 0 50px 90px rgba(0, 0, 0, 0.3); }
+    #thm-screen { position: relative; width: 100%; height: 100%; border-radius: 50px; overflow: hidden; background: #fff; }
+    #thm-video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+    #thm-copy { position: absolute; left: 960px; top: 300px; font-size: 150px; font-weight: 700; letter-spacing: -0.045em; line-height: 1.05; }
+    .thm-line { display: block; }
+    #thm-l1 { color: #111; }
+    #thm-l2 { color: #e8ecf5; }
+    #thm-l3 { color: #60a5fa; }
+  </style>
+  <div id="root" data-composition-id="theme" data-width="1920" data-height="1080">
+    <div id="thm-flood"></div>
+    <div id="thm-phone">
+      <div id="thm-screen">
+        <video id="thm-video" class="clip" src="assets/theme.mp4" data-start="0" data-duration="3.4" data-media-start="1.3" data-track-index="2" muted playsinline></video>
+      </div>
+    </div>
+    <div id="thm-copy" data-layout-allow-overlap>
+      <span class="thm-line" id="thm-l1">Light.</span>
+      <span class="thm-line" id="thm-l2">Dark.</span>
+      <span class="thm-line" id="thm-l3">Yours.</span>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // The phone rises out of the zoom-through; the room turns midnight with the real tap.
+    tl.fromTo("#thm-phone", { scale: 0.7, opacity: 0, filter: "blur(14px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "expo.out" }, 0);
+    tl.fromTo("#thm-flood", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.inOut" }, 0.5);
+    tl.fromTo("#thm-l1", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 0.1);
+    tl.to("#thm-l1", { color: "#e8ecf5", duration: 0.4, ease: "power2.inOut" }, 0.5);
+    tl.fromTo("#thm-l2", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 0.75);
+    tl.fromTo("#thm-l3", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 2.3);
+    tl.to("#thm-copy", { y: -80, opacity: 0, filter: "blur(12px)", duration: 0.22, ease: "power3.in" }, 3.15);
+    tl.to("#thm-phone", { y: -80, opacity: 0, duration: 0.22, ease: "power3.in" }, 3.15);
+    window.__timelines["theme"] = tl;
+  </script>
+</template>
