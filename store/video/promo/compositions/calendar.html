@@ -1,0 +1,43 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
+    #cal-phone { position: absolute; left: 330px; top: 40px; width: 470px; height: 1000px; border-radius: 64px; background: #0b0b0c; padding: 14px; box-shadow: 0 50px 90px rgba(17, 17, 17, 0.22); }
+    #cal-screen { position: relative; width: 100%; height: 100%; border-radius: 50px; overflow: hidden; background: #fff; }
+    #cal-zoom { position: absolute; inset: 0; transform-origin: 50% 32%; }
+    #cal-video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+    #cal-copy { position: absolute; left: 960px; top: 360px; color: #111; }
+    .kicker { font-size: 28px; font-weight: 700; letter-spacing: 0.28em; color: #e11d48; }
+    .title { font-size: 112px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; margin-top: 18px; }
+    .sub { font-size: 34px; color: #6b6b6b; margin-top: 26px; }
+    .cal-w { display: inline-block; margin-right: 0.22em; }
+  </style>
+  <div id="root" data-composition-id="calendar" data-width="1920" data-height="1080">
+    <div id="cal-phone">
+      <div id="cal-screen">
+        <div id="cal-zoom">
+          <video id="cal-video" class="clip" src="assets/cal.mp4" data-start="0" data-duration="4.8" data-media-start="4.2" data-track-index="2" muted playsinline></video>
+        </div>
+      </div>
+    </div>
+    <div id="cal-copy">
+      <div class="kicker" id="cal-kicker">CALENDAR</div>
+      <div class="title"><span class="cal-w">Your</span><span class="cal-w">day,</span><br /><span class="cal-w">at</span><span class="cal-w">a</span><span class="cal-w">glance.</span></div>
+      <div class="sub" id="cal-sub">Timeline · Agenda · Upcoming</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#cal-phone", { y: 1100, filter: "blur(16px)" }, { y: 0, filter: "blur(0px)", duration: 0.6, ease: "expo.out" }, 0);
+    tl.fromTo("#cal-kicker", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.35);
+    gsap.utils.toArray("#cal-copy .cal-w").forEach((el, i) => {
+      tl.fromTo(el, { color: "#d6d1c8" }, { color: "#111111", duration: 0.12, ease: "none" }, 0.45 + i * 0.09);
+    });
+    tl.fromTo("#cal-sub", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18 }, 1.1);
+    // Punch in on the agenda as it fills.
+    tl.fromTo("#cal-zoom", { scale: 1 }, { scale: 1.42, duration: 0.55, ease: "power2.inOut" }, 2.0);
+    // Whip out left.
+    tl.to("#cal-phone", { x: -1100, filter: "blur(18px)", duration: 0.32, ease: "power3.in" }, 4.45);
+    tl.to("#cal-copy", { x: -500, opacity: 0, filter: "blur(14px)", duration: 0.3, ease: "power3.in" }, 4.45);
+    window.__timelines["calendar"] = tl;
+  </script>
+</template>

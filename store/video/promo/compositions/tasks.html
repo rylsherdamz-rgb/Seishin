@@ -1,0 +1,51 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
+    #tsk-phone { position: absolute; left: 1120px; top: 40px; width: 470px; height: 1000px; border-radius: 64px; background: #0b0b0c; padding: 14px; box-shadow: 0 50px 90px rgba(17, 17, 17, 0.22); }
+    #tsk-screen { position: relative; width: 100%; height: 100%; border-radius: 50px; overflow: hidden; background: #fff; }
+    #tsk-zoom { position: absolute; inset: 0; transform-origin: 5% 0%; }
+    #tsk-video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+    #tsk-copy { position: absolute; left: 190px; top: 340px; color: #111; }
+    .kicker { font-size: 28px; font-weight: 700; letter-spacing: 0.28em; color: #e11d48; }
+    .title { font-size: 112px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; margin-top: 18px; }
+    .tsk-w { display: inline-block; margin-right: 0.22em; }
+    .accent { color: #e11d48; }
+    #tsk-chips { display: flex; gap: 14px; margin-top: 34px; }
+    .chip { font-size: 30px; font-weight: 600; padding: 12px 26px; border-radius: 999px; background: #e9e4dc; color: #444; }
+    .chip-on { background: #e11d48; color: #fff; }
+  </style>
+  <div id="root" data-composition-id="tasks" data-width="1920" data-height="1080">
+    <div id="tsk-phone">
+      <div id="tsk-screen">
+        <div id="tsk-zoom">
+          <video id="tsk-video" class="clip" src="assets/task.mp4" data-start="0" data-duration="7.8" data-media-start="3.0" data-track-index="2" muted playsinline></video>
+        </div>
+      </div>
+    </div>
+    <div id="tsk-copy">
+      <div class="kicker" id="tsk-kicker">TASKS</div>
+      <div class="title"><span class="tsk-w">Add</span><span class="tsk-w">a</span><span class="tsk-w">task</span><br /><span class="tsk-w">in</span><span class="tsk-w accent">seconds.</span></div>
+      <div id="tsk-chips">
+        <span class="chip" id="tsk-c1">Today</span><span class="chip" id="tsk-c2">Tomorrow</span><span class="chip" id="tsk-c3">Next week</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Arrives from the left, still carrying the whip's blur.
+    tl.fromTo("#tsk-phone", { x: -1300, filter: "blur(18px)" }, { x: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out" }, 0);
+    tl.fromTo("#tsk-kicker", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.3);
+    gsap.utils.toArray("#tsk-copy .tsk-w").forEach((el, i) => {
+      tl.fromTo(el, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power4.out" }, 0.4 + i * 0.08);
+    });
+    // Punch in on the add box before the keyboard rises; pull back once it's gone.
+    tl.fromTo("#tsk-zoom", { scale: 1 }, { scale: 2.0, duration: 0.55, ease: "power2.inOut" }, 0.55);
+    tl.to("#tsk-zoom", { scale: 1, duration: 0.55, ease: "power2.inOut" }, 7.05);
+    // Chips land as the user reaches for one; "Tomorrow" lights with the real tap.
+    ["#tsk-c1", "#tsk-c2", "#tsk-c3"].forEach((id, i) => {
+      tl.fromTo(id, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.3, ease: "back.out(1.4)" }, 2.4 + i * 0.07);
+    });
+    tl.fromTo("#tsk-c2", { backgroundColor: "#e9e4dc", color: "#444444" }, { backgroundColor: "#e11d48", color: "#ffffff", duration: 0.15 }, 4.0);
+    window.__timelines["tasks"] = tl;
+  </script>
+</template>
