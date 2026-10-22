@@ -1,51 +1,80 @@
 <template>
   <style>
     #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
-    #tsk-phone { position: absolute; left: 1120px; top: 40px; width: 470px; height: 1000px; border-radius: 64px; background: #0b0b0c; padding: 14px; box-shadow: 0 50px 90px rgba(17, 17, 17, 0.22); }
-    #tsk-screen { position: relative; width: 100%; height: 100%; border-radius: 50px; overflow: hidden; background: #fff; }
-    #tsk-zoom { position: absolute; inset: 0; transform-origin: 5% 0%; }
-    #tsk-video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
-    #tsk-copy { position: absolute; left: 190px; top: 340px; color: #111; }
+    #tsk-copy { position: absolute; left: 150px; top: 380px; color: #111; }
     .kicker { font-size: 28px; font-weight: 700; letter-spacing: 0.28em; color: #e11d48; }
-    .title { font-size: 112px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; margin-top: 18px; }
-    .tsk-w { display: inline-block; margin-right: 0.22em; }
-    .accent { color: #e11d48; }
-    #tsk-chips { display: flex; gap: 14px; margin-top: 34px; }
-    .chip { font-size: 30px; font-weight: 600; padding: 12px 26px; border-radius: 999px; background: #e9e4dc; color: #444; }
-    .chip-on { background: #e11d48; color: #fff; }
+    .title { font-size: 104px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; margin-top: 18px; }
+    .tsk-w { display: inline-block; margin-right: 0.22em; } .accent { color: #e11d48; }
+    #tsk-stage { position: absolute; left: 930px; top: 150px; width: 860px; font-family: "Roboto"; }
+    #tsk-box { background: #fff; border: 3px solid #e7e2da; border-radius: 40px; padding: 30px 34px; box-shadow: 0 40px 90px rgba(17,17,17,.12); }
+    #tsk-row { display: flex; align-items: center; height: 80px; }
+    #tsk-text { flex: 1; font-size: 44px; color: #111; white-space: nowrap; }
+    #tsk-ph { position: absolute; left: 34px; top: 30px; height: 80px; display: flex; align-items: center; font-size: 44px; color: #aaa; }
+    #tsk-caret { display: inline-block; width: 4px; height: 50px; background: #e11d48; vertical-align: middle; margin-left: 4px; }
+    #tsk-send { width: 80px; height: 80px; border-radius: 50%; background: #ece8e1; display: flex; align-items: center; justify-content: center; }
+    #tsk-send svg { width: 40px; height: 40px; }
+    #tsk-chips { display: flex; gap: 16px; margin-top: 22px; }
+    .tsk-chip { font-size: 30px; font-weight: 700; padding: 16px 30px; border-radius: 999px; background: #f1ede7; color: #555; }
+    #tsk-list { margin-top: 46px; padding: 0 20px; }
+    .tsk-h { font-size: 24px; font-weight: 700; letter-spacing: .14em; color: #888; margin-bottom: 18px; }
+    .tsk-item { display: flex; gap: 26px; align-items: center; padding: 16px 0; }
+    .tsk-o { width: 44px; height: 44px; border-radius: 50%; border: 4px solid #c9c4bc; flex: none; }
+    .tsk-item div { font-size: 36px; color: #111; } .tsk-item small { display: block; font-size: 24px; color: #888; margin-top: 4px; }
+    #tsk-new .tsk-o { border-color: #e11d48; }
+    #tsk-cursor { position: absolute; left: 0; top: 0; width: 64px; height: 64px; border-radius: 50%; background: rgba(17,17,17,.82); border: 5px solid #fff; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
   </style>
   <div id="root" data-composition-id="tasks" data-width="1920" data-height="1080">
-    <div id="tsk-phone">
-      <div id="tsk-screen">
-        <div id="tsk-zoom">
-          <video id="tsk-video" class="clip" src="assets/task.mp4" data-start="0" data-duration="7.8" data-media-start="3.0" data-track-index="2" muted playsinline></video>
-        </div>
-      </div>
-    </div>
     <div id="tsk-copy">
       <div class="kicker" id="tsk-kicker">TASKS</div>
       <div class="title"><span class="tsk-w">Add</span><span class="tsk-w">a</span><span class="tsk-w">task</span><br /><span class="tsk-w">in</span><span class="tsk-w accent">seconds.</span></div>
-      <div id="tsk-chips">
-        <span class="chip" id="tsk-c1">Today</span><span class="chip" id="tsk-c2">Tomorrow</span><span class="chip" id="tsk-c3">Next week</span>
+    </div>
+    <div id="tsk-stage" data-layout-allow-overflow data-layout-allow-overlap>
+      <div id="tsk-box" style="position: relative">
+        <div id="tsk-ph">Add a task</div>
+        <div id="tsk-row"><div id="tsk-text"><span id="tsk-typed"></span><span id="tsk-caret"></span></div>
+          <div id="tsk-send"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg></div></div>
+        <div id="tsk-chips"><span class="tsk-chip" id="tsk-c1">Today</span><span class="tsk-chip" id="tsk-c2">Tomorrow</span><span class="tsk-chip" id="tsk-c3">Next week</span></div>
       </div>
+      <div id="tsk-list">
+        <div class="tsk-h">UPCOMING</div>
+        <div id="tsk-newwrap" style="overflow: hidden"><div class="tsk-item" id="tsk-new"><span class="tsk-o"></span><div>Pick up dry cleaning<small>Tomorrow</small></div></div></div>
+        <div class="tsk-item"><span class="tsk-o"></span><div>Calculus problem set 5<small>Tomorrow · 9:00 AM · 2/4 done</small></div></div>
+        <div class="tsk-item"><span class="tsk-o"></span><div>Book flights for December<small>Sun, Oct 25</small></div></div>
+      </div>
+      <div id="tsk-cursor"></div>
     </div>
   </div>
   <script>
     const tl = gsap.timeline({ paused: true });
-    // Arrives from the left, still carrying the whip's blur.
-    tl.fromTo("#tsk-phone", { x: -1300, filter: "blur(18px)" }, { x: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out" }, 0);
+    const TEXT = "Pick up dry cleaning";
+    const typed = document.querySelector("#tsk-typed");
+    const state = { n: 0 };
+    const paint = () => { typed.textContent = TEXT.slice(0, Math.round(state.n)); };
+    tl.fromTo("#tsk-stage", { y: 900, rotation: -3 }, { y: 0, rotation: 0, duration: 0.7, ease: "expo.out" }, 0);
     tl.fromTo("#tsk-kicker", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.3);
-    gsap.utils.toArray("#tsk-copy .tsk-w").forEach((el, i) => {
-      tl.fromTo(el, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power4.out" }, 0.4 + i * 0.08);
-    });
-    // Punch in on the add box before the keyboard rises; pull back once it's gone.
-    tl.fromTo("#tsk-zoom", { scale: 1 }, { scale: 2.0, duration: 0.55, ease: "power2.inOut" }, 0.55);
-    tl.to("#tsk-zoom", { scale: 1, duration: 0.55, ease: "power2.inOut" }, 7.05);
-    // Chips land as the user reaches for one; "Tomorrow" lights with the real tap.
-    ["#tsk-c1", "#tsk-c2", "#tsk-c3"].forEach((id, i) => {
-      tl.fromTo(id, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.3, ease: "back.out(1.4)" }, 2.4 + i * 0.07);
-    });
-    tl.fromTo("#tsk-c2", { backgroundColor: "#e9e4dc", color: "#444444" }, { backgroundColor: "#e11d48", color: "#ffffff", duration: 0.15 }, 4.0);
+    gsap.utils.toArray("#tsk-copy .tsk-w").forEach((el, i) => tl.fromTo(el, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14, ease: "power4.out" }, 0.4 + i * 0.08));
+    // Typing: placeholder clears, letters land one by one.
+    tl.fromTo("#tsk-ph", { opacity: 1 }, { opacity: 0, duration: 0.1 }, 1.0);
+    tl.fromTo(state, { n: 0 }, { n: TEXT.length, duration: 1.4, ease: "none", onUpdate: paint }, 1.0);
+    tl.fromTo("#tsk-send", { backgroundColor: "#ece8e1" }, { backgroundColor: "#e11d48", duration: 0.15 }, 1.1);
+    ["#tsk-c1", "#tsk-c2", "#tsk-c3"].forEach((id, i) => tl.fromTo(id, { opacity: 0, y: 20, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "back.out(1.6)" }, 1.2 + i * 0.07));
+    // Cursor taps "Tomorrow", then the send button.
+    tl.fromTo("#tsk-cursor", { x: 900, y: 700, opacity: 0 }, { x: 330, y: 190, opacity: 1, duration: 0.6, ease: "power3.out" }, 2.6);
+    tl.to("#tsk-cursor", { scale: 0.8, duration: 0.08 }, 3.2).to("#tsk-cursor", { scale: 1, duration: 0.12 }, 3.28);
+    tl.to("#tsk-c2", { backgroundColor: "#e11d48", color: "#ffffff", scale: 1.06, duration: 0.12 }, 3.22).to("#tsk-c2", { scale: 1, duration: 0.2 }, 3.34);
+    tl.to("#tsk-cursor", { x: 760, y: 50, duration: 0.5, ease: "power3.inOut" }, 3.55);
+    tl.to("#tsk-cursor", { scale: 0.8, duration: 0.08 }, 4.15).to("#tsk-cursor", { scale: 1, duration: 0.12 }, 4.23);
+    tl.to("#tsk-send", { scale: 0.85, duration: 0.08 }, 4.17).to("#tsk-send", { scale: 1, duration: 0.15 }, 4.25);
+    // The text leaves the box and lands as the first upcoming task.
+    tl.to("#tsk-text", { y: 60, opacity: 0, duration: 0.25, ease: "power3.in" }, 4.25);
+    tl.to("#tsk-c2", { backgroundColor: "#f1ede7", color: "#555555", duration: 0.2 }, 4.3);
+    tl.to("#tsk-send", { backgroundColor: "#ece8e1", duration: 0.2 }, 4.3);
+    tl.to("#tsk-ph", { opacity: 1, duration: 0.2 }, 4.5);
+    tl.fromTo("#tsk-newwrap", { height: 0 }, { height: 116, duration: 0.4, ease: "power3.out" }, 4.4);
+    tl.fromTo("#tsk-new", { y: -80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "back.out(1.5)" }, 4.45);
+    tl.to("#tsk-cursor", { opacity: 0, x: 1000, duration: 0.4, ease: "power3.in" }, 4.7);
+    tl.to("#tsk-stage", { y: -1100, filter: "blur(16px)", duration: 0.35, ease: "power3.in" }, 5.65);
+    tl.to("#tsk-copy", { y: -400, opacity: 0, filter: "blur(14px)", duration: 0.3, ease: "power3.in" }, 5.65);
     window.__timelines["tasks"] = tl;
   </script>
 </template>

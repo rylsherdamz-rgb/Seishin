@@ -23,14 +23,18 @@ Upload in this order (Play shows the first 3–4 most):
 
 ## Promo video — `video/seishin-promo.mp4`
 
-27 s, 1920×1080, 30 fps, silent (no music source was available). Play only
+27 s, 1920×1080, 30 fps, with music and sound effects (−16 LUFS). All
+motion graphics: the app's real screens (calendar, tasks, notes, alarm,
+themes) rebuilt as large animated UI, no screen-recording zooms. Play only
 accepts a YouTube link: upload it to YouTube (Unlisted is fine) and paste the
 URL in Play Console → Main store listing → Video.
 
-- `video/raw/` — the untouched adb screen recordings.
-- `video/promo/` — the HyperFrames source. Edit copy in `index.html` /
-  `compositions/*.html`, then `cd store/video/promo && npx hyperframes render --output ../seishin-promo.mp4`.
-  To add music: drop a track in `promo/assets/` and add an `<audio id="music" class="clip" src="assets/…" data-start="0" data-volume="0.8" data-fade-out="1.5">` to `index.html`.
+- `video/promo/` — the HyperFrames source, one scene per file in
+  `compositions/`. Copy and timing live there; sounds are the `<audio>` tags in
+  `index.html`. Re-render: `cd store/video/promo && npx hyperframes render --output ../seishin-promo.mp4`.
+- `video/promo/assets/sfx/` — ElevenLabs sound effects and the music bed
+  (sound-generation loop; their Music API needs a paid plan).
+- `video/raw/` — the original adb screen recordings, kept for reference.
 
 ## Re-capturing
 
