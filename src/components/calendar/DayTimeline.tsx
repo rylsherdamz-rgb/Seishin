@@ -115,7 +115,7 @@ function EventBlock({ placed, width, past, onPress }: { placed: PlacedEvent; wid
       activeOpacity={0.75}
       accessibilityRole="button"
       accessibilityLabel={`${COPY.terms.event}: ${item.title}, ${item.time ?? ""}${item.endTime ? ` to ${item.endTime}` : ""}`}
-      className={`absolute rounded-lg bg-accent/15 border-l-[3px] border-accent px-2 overflow-hidden ${past ? "opacity-50" : ""}`}
+      className={`absolute rounded-lg bg-accent/15 border-l-[3px] border-accent px-2 overflow-hidden ${past ? "opacity-70" : ""}`}
       style={{ top: (start / 60) * HOUR_H + 7, left: GUTTER + col * colW + 2, width: colW - 4, height }}
     >
       <View className={compact ? "flex-row items-center gap-1.5 flex-1" : "pt-1"}>

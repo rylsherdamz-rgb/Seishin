@@ -45,7 +45,7 @@ export const COPY = {
       event: { label: "Event", hint: "Date, time & repeat" },
       task: { label: "Task", hint: "Your task list" },
       note: { label: "Note", hint: "Text, photos & files" },
-      scan: { label: "Capture", hint: "Assignment photo → reminders" },
+      scan: { label: "Capture", hint: "Assignment photo to reminders" },
     },
     quickBlocks: "QUICK BLOCKS",
   },

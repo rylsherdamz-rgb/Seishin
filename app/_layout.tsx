@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { StatusBar as RNStatusBar, Linking } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from "react-native-reanimated";
 import * as ExpoSplashScreen from "expo-splash-screen";
 import "../global.css";
 import { Stack, useRouter } from "expo-router";
@@ -24,28 +24,22 @@ import { ThemeProvider, ThemeScope, useTheme } from "@/theme/ThemeProvider";
 ExpoSplashScreen.preventAutoHideAsync();
 
 function SplashScreen() {
-  const logoScale = useSharedValue(0.3);
+  const logoScale = useSharedValue(0.6);
   const logoOpacity = useSharedValue(0);
-  const bgOpacity = useSharedValue(1);
 
   const logoStyle = useAnimatedStyle(() => ({
     transform: [{ scale: logoScale.value }],
     opacity: logoOpacity.value,
   }));
 
-  const bgStyle = useAnimatedStyle(() => ({
-    opacity: bgOpacity.value,
-  }));
-
   useEffect(() => {
     ExpoSplashScreen.hideAsync();
     logoOpacity.value = withTiming(1, { duration: 200 });
     logoScale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) });
-    bgOpacity.value = withDelay(200, withTiming(0, { duration: 150 }));
   }, []);
 
   return (
-    <Animated.View className="flex-1 bg-white items-center justify-center" style={bgStyle}>
+    <Animated.View className="flex-1 bg-white items-center justify-center">
       <Animated.View style={logoStyle}>
         <Logo size={120} />
       </Animated.View>
@@ -75,10 +69,10 @@ function AppShell() {
   useEffect(() => {
     const seen = settingsStorage.getBoolean("hasSeenOnboarding");
     // Short branded beat, then straight in: the stores read synchronously from
-    // MMKV, so there's nothing to wait for (was a fixed 600 ms delay).
+    // MMKV, so the only wait is letting the logo land (300 ms) and register.
     const t = setTimeout(() => {
       setPhase(seen ? "app" : "onboarding");
-    }, 350);
+    }, 700);
     return () => clearTimeout(t);
   }, []);
 

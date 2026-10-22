@@ -46,9 +46,9 @@ export function NotionConnector() {
       <View>
         <Steps
           steps={[
-            "Go to notion.so/my-integrations → New integration (internal). Copy its secret.",
-            "Open your tasks / homework database → ••• → Connections → add the integration.",
-            "Copy the database link (Share → Copy link) and paste both below.",
+            "Go to notion.so/my-integrations > New integration (internal). Copy its secret.",
+            "Open your tasks / homework database > ••• > Connections > add the integration.",
+            "Copy the database link (Share > Copy link) and paste both below.",
           ]}
         />
         <Field label="Integration secret" value={token} onChange={setTokenInput} placeholder="ntn_… or secret_…" secret />

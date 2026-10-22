@@ -10,8 +10,8 @@ import { useCalendarStore, type CalendarEvent } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { createLogger } from "@/utils/logger";
 import {
-  allDayToUtc, eventHash, planExport, planImport, taskDeadlineEvents, toDeviceRecurrence,
-  type ExportRecord, type RemoteEvent,
+  allDayToUtc, eventHash, planExport, planImport, setAccountChosen, taskDeadlineEvents, toDeviceRecurrence,
+  type AccountSelection, type ExportRecord, type RemoteEvent,
 } from "./calendar-sync-plan";
 
 const log = createLogger("calendar-sync");
@@ -21,6 +21,8 @@ const FUTURE_DAYS = 180;
 
 export interface CalendarSyncState {
   enabled: boolean;
+  /** Accounts the user picked; undefined on installs from before account picking. */
+  accounts?: string[];
   /** Device calendars whose events appear in Seishin. */
   importIds: string[];
   /** Device calendar Seishin writes its events into (null = don't export). */
@@ -40,6 +42,8 @@ export interface DeviceCalendar {
   color: string;
   writable: boolean;
   primary: boolean;
+  /** The phone actually syncs this calendar's events (off = always empty). */
+  synced: boolean;
 }
 
 export interface SyncSummary {
@@ -90,18 +94,21 @@ export async function listDeviceCalendars(): Promise<DeviceCalendar[]> {
     .map((c) => ({
       id: c.id,
       title: c.title || c.name || "Calendar",
-      account: c.ownerAccount || c.source?.name || "This phone",
+      // The signed-in account; ownerAccount is a group id for shared/Classroom calendars.
+      account: c.source?.name || c.ownerAccount || "This phone",
       color: c.color || "#888888",
       writable: !!c.allowsModifications,
       primary: !!c.isPrimary,
+      synced: c.isSynced !== false,
     }))
     .sort((a, b) => Number(b.primary) - Number(a.primary) || a.account.localeCompare(b.account) || a.title.localeCompare(b.title));
 }
 
-/** Sensible defaults on first connect: show every calendar, write to the primary writable one. */
-export function suggestDefaults(cals: DeviceCalendar[]): Pick<CalendarSyncState, "importIds" | "exportId"> {
-  const target = cals.find((c) => c.writable && c.primary) ?? cals.find((c) => c.writable) ?? null;
-  return { importIds: cals.map((c) => c.id), exportId: target?.id ?? null };
+/** First connect: a single account is picked for you; with several, the user chooses. */
+export function suggestDefaults(cals: DeviceCalendar[]): AccountSelection {
+  const none: AccountSelection = { accounts: [], importIds: [], exportId: null };
+  const accounts = [...new Set(cals.filter((c) => c.synced).map((c) => c.account))];
+  return accounts.length === 1 ? setAccountChosen(none, cals, accounts[0], true) : none;
 }
 
 async function runImport(state: CalendarSyncState): Promise<{ imported: number; removed: number }> {

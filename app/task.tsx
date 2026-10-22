@@ -1,4 +1,6 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
+import { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
@@ -26,6 +28,8 @@ export default function TaskScreen() {
   const updateTodo = useTodoStore((s) => s.updateTodo);
   const deleteTodo = useTodoStore((s) => s.deleteTodo);
   const note = useNotesStore((s) => (todo?.noteId ? s.notes.find((n) => n.id === todo.noteId) : undefined));
+  const [title, setTitle] = useState(todo?.title ?? "");
+  const [picking, setPicking] = useState(false);
 
   if (!todo) {
     return (
@@ -71,15 +75,61 @@ export default function TaskScreen() {
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}>
         {todo.subject ? <Text className="text-xs font-bold tracking-wide text-accent">{todo.subject.toUpperCase()}</Text> : null}
-        <Text className={`text-[26px] font-bold leading-8 mt-1 ${todo.completed ? "text-ink-400 line-through" : "text-black"}`}>{todo.title}</Text>
+        {/* Tap to rename; saved when editing ends (an emptied title snaps back). */}
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          onEndEditing={() => {
+            const t = title.trim();
+            if (t && t !== todo.title) updateTodo(todo.id, { title: t });
+            else setTitle(todo.title);
+          }}
+          multiline
+          submitBehavior="blurAndSubmit"
+          returnKeyType="done"
+          maxLength={200}
+          accessibilityLabel="Task title"
+          className={`text-[26px] font-bold leading-8 mt-1 p-0 ${todo.completed ? "text-ink-400 line-through" : "text-black"}`}
+        />
 
-        {due ? (
-          <View className={`self-start flex-row items-center gap-2 mt-3 h-9 px-3.5 rounded-full ${overdue ? "bg-danger-soft" : "bg-ink-50"}`}>
-            <Feather name="clock" size={14} color={overdue ? C.danger : C.ink700} />
-            <Text className={`text-[13px] font-semibold ${overdue ? "text-danger" : "text-ink-800"}`}>
-              {todo.completed ? "Done" : dueLabel(due, new Date())} · {due.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+        <View className="flex-row items-center gap-2 mt-3">
+          <TouchableOpacity
+            onPress={() => setPicking(true)}
+            accessibilityRole="button"
+            accessibilityLabel={due ? "Change due date" : "Add a due date"}
+            className={`flex-row items-center gap-2 h-9 px-3.5 rounded-full shrink ${overdue ? "bg-danger-soft" : "bg-ink-50"}`}
+          >
+            <Feather name={due ? "clock" : "calendar"} size={14} color={overdue ? C.danger : C.ink700} />
+            <Text className={`shrink text-[13px] font-semibold ${overdue ? "text-danger" : "text-ink-800"}`} numberOfLines={1}>
+              {due
+                ? `${todo.completed ? "Done" : dueLabel(due, new Date())} · ${due.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
+                : "Add due date"}
             </Text>
-          </View>
+          </TouchableOpacity>
+          {due ? (
+            <TouchableOpacity
+              onPress={() => updateTodo(todo.id, { dueDate: undefined })}
+              accessibilityRole="button"
+              accessibilityLabel="Remove due date"
+              className="w-9 h-9 rounded-full bg-ink-50 items-center justify-center"
+            >
+              <Feather name="x" size={14} color={C.ink700} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        {picking ? (
+          <DateTimePicker
+            value={due ?? new Date()}
+            mode="date"
+            onChange={(_, d) => {
+              setPicking(false);
+              if (!d) return;
+              // Keep the time already set; a new deadline means "that day" (23:59).
+              const h = due ? due.getHours() : 23;
+              const m = due ? due.getMinutes() : 59;
+              updateTodo(todo.id, { dueDate: new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m).toISOString() });
+            }}
+          />
         ) : null}
 
         {items.length > 0 ? (

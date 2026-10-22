@@ -5,7 +5,8 @@ import { useColors } from "@/theme/ThemeProvider";
 import { exportBackup, lastBackupAt, pickBackup, restoreBackup } from "@/services/backup-io";
 import type { Backup, BackupCounts } from "@/services/backup";
 
-const summary = (c: BackupCounts) => `${c.events} events, ${c.todos} tasks and ${c.notes} notes`;
+const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const summary = (c: BackupCounts) => `${count(c.events, "event")}, ${count(c.todos, "task")} and ${count(c.notes, "note")}`;
 
 function since(iso: string | null): string {
   if (!iso) return "Never backed up";

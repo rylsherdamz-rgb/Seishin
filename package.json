@@ -65,6 +65,7 @@
     "test": "jest",
     "test:ci": "jest --ci --coverage",
     "check": "npm run typecheck && npm test",
+    "widget-previews": "jest --rootDir . --testPathIgnorePatterns /node_modules/ --testMatch '**/scripts/widget-previews/*.test.tsx'",
     "postinstall": "patch-package"
   },
   "expo": {

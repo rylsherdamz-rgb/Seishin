@@ -8,10 +8,10 @@ import { addFeed, fetchFeed, normalizeFeedUrl, removeFeed, syncFeed } from "@/se
 import { ago, Field, PrimaryButton } from "./shared";
 
 const WHERE = [
-  ["Canvas", "Calendar → Calendar Feed (bottom right)"],
-  ["Google Classroom", "Google Calendar → class calendar settings → Secret address in iCal format"],
-  ["Moodle", "Calendar → Export calendar → Get calendar URL"],
-  ["Outlook", "Settings → Calendar → Shared calendars → Publish → ICS link"],
+  ["Canvas", "Calendar > Calendar Feed (bottom right)"],
+  ["Google Classroom", "Google Calendar > class calendar settings > Secret address in iCal format"],
+  ["Moodle", "Calendar > Export calendar > Get calendar URL"],
+  ["Outlook", "Settings > Calendar > Shared calendars > Publish > ICS link"],
 ];
 
 /** Subscribe to any .ics calendar link — school LMS, Classroom, Outlook, sports, holidays. */

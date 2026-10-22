@@ -62,7 +62,7 @@ import NotesScreen from "../../app/(tabs)/notes";
 import { useNotesStore } from "@/stores/notes-store";
 import { notesStorage } from "@/stores/mmkv";
 import { useInboxStore } from "@/stores/inbox-store";
-import { TouchableOpacity, Text } from "react-native";
+import { Text } from "react-native";
 
 function seedData() {
   const now = new Date().toISOString();
@@ -112,24 +112,14 @@ describe("NotesScreen render", () => {
     tree?.unmount();
   });
 
-  test("switching to Inbox tab renders inbox items without crashing", () => {
+  test("Notes has no Inbox section", () => {
     seedData();
     let tree: ReturnType<typeof create> | undefined;
     act(() => {
       tree = create(<NotesScreen />);
     });
-    // The Inbox filter chip is the section switch now.
-    const inboxChip = tree?.root
-      .findAllByType(TouchableOpacity)
-      .find((b) => b.findAllByType(Text).some((t) => String(t.props.children).startsWith("Inbox")));
-    expect(inboxChip).toBeTruthy();
-    expect(() => {
-      act(() => {
-        inboxChip?.props.onPress();
-      });
-    }).not.toThrow();
-    // Inbox header renders once switched.
-    expect(tree?.root.findAllByType(Text).some((t) => t.props.children === "Inbox")).toBe(true);
+    const texts = tree?.root.findAllByType(Text).map((t) => String(t.props.children)) ?? [];
+    expect(texts.some((t) => t.startsWith("Inbox"))).toBe(false);
     tree?.unmount();
   });
 
