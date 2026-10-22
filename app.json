@@ -85,18 +85,20 @@
               "targetCellWidth": 4,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/agenda.png"
             },
             {
               "name": "Tasks",
               "label": "Tasks",
-              "description": "Open tasks \u2014 tap the circle to mark done",
+              "description": "Open tasks — tap the circle to mark done",
               "minWidth": "250dp",
               "minHeight": "180dp",
               "targetCellWidth": 4,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/tasks.png"
             },
             {
               "name": "Month",
@@ -107,7 +109,8 @@
               "targetCellWidth": 4,
               "targetCellHeight": 3,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/month.png"
             },
             {
               "name": "NextUp",
@@ -118,7 +121,8 @@
               "targetCellWidth": 2,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/nextup.png"
             },
             {
               "name": "Quick",
@@ -128,7 +132,8 @@
               "minHeight": "60dp",
               "targetCellWidth": 4,
               "targetCellHeight": 1,
-              "resizeMode": "horizontal"
+              "resizeMode": "horizontal",
+              "previewImage": "./assets/widgets/quick.png"
             }
           ]
         }

@@ -3,7 +3,6 @@ import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColors } from "@/theme/ThemeProvider";
-import { useInboxStore } from "@/stores/inbox-store";
 
 const icons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
   index: { active: "calendar", inactive: "calendar-outline" },
@@ -14,8 +13,6 @@ const icons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: 
 
 export default function TabLayout() {
   const T = useColors();
-  // Number selector: the layout only re-renders when the unread count changes.
-  const unread = useInboxStore((s) => s.items.reduce((n, i) => n + (i.read ? 0 : 1), 0));
   return (
     <View className="flex-1" style={{ backgroundColor: T.white }}>
       <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
@@ -53,23 +50,10 @@ export default function TabLayout() {
             tabBarItemStyle: {
               paddingVertical: 2,
             },
-            tabBarBadgeStyle: {
-              backgroundColor: T.accent,
-              color: T.onAccent,
-              fontSize: 10,
-              fontWeight: "800",
-            },
           })}
         >
           <Tabs.Screen name="index" options={{ title: "Calendar", tabBarAccessibilityLabel: "Calendar" }} />
-          <Tabs.Screen
-            name="notes"
-            options={{
-              title: "Notes",
-              tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined,
-              tabBarAccessibilityLabel: unread > 0 ? `Notes, ${unread} unread in inbox` : "Notes",
-            }}
-          />
+          <Tabs.Screen name="notes" options={{ title: "Notes", tabBarAccessibilityLabel: "Notes" }} />
           <Tabs.Screen name="agent" options={{ title: "Agent", tabBarAccessibilityLabel: "AI agent" }} />
           <Tabs.Screen name="settings" options={{ title: "Settings", tabBarAccessibilityLabel: "Settings" }} />
         </Tabs>

@@ -100,13 +100,14 @@ export function planEventAlarms(events: CalendarEvent[], now: Date, opts: AlarmP
  * dropping it. Only for a one-off event added/edited right now — never during
  * the background refresh, or it would re-ring on every launch.
  */
-export function catchUpSlot(e: CalendarEvent, now: Date, graceMs = 6 * 3600000): AlarmSlot | null {
+export function catchUpSlot(e: CalendarEvent, now: Date): AlarmSlot | null {
   if (!e.reminder || e.recurrence) return null;
   const occ = new Date(e.startDate);
   if (isNaN(occ.getTime())) return null;
   const fireAt = fireTime(e, occ);
   if (fireAt.getTime() > now.getTime()) return null;
-  if (now.getTime() - occ.getTime() > graceMs) return null;
+  // Once it has started, a "starts soon" ring is noise (and a restore would ring every event from earlier today).
+  if (now.getTime() >= occ.getTime()) return null;
   const slot = slotFor(e, occ, new Date(now.getTime() + 10000));
   return { ...slot, sig: `${LATE}${slot.fireAt.getTime()}` };
 }
