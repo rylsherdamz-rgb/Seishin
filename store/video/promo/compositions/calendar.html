@@ -1,43 +1,60 @@
 <template>
   <style>
     #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
-    #cal-phone { position: absolute; left: 330px; top: 40px; width: 470px; height: 1000px; border-radius: 64px; background: #0b0b0c; padding: 14px; box-shadow: 0 50px 90px rgba(17, 17, 17, 0.22); }
-    #cal-screen { position: relative; width: 100%; height: 100%; border-radius: 50px; overflow: hidden; background: #fff; }
-    #cal-zoom { position: absolute; inset: 0; transform-origin: 50% 32%; }
-    #cal-video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
-    #cal-copy { position: absolute; left: 960px; top: 360px; color: #111; }
+    #cal-copy { position: absolute; left: 150px; top: 380px; color: #111; }
     .kicker { font-size: 28px; font-weight: 700; letter-spacing: 0.28em; color: #e11d48; }
-    .title { font-size: 112px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; margin-top: 18px; }
-    .sub { font-size: 34px; color: #6b6b6b; margin-top: 26px; }
+    .title { font-size: 104px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; margin-top: 18px; }
     .cal-w { display: inline-block; margin-right: 0.22em; }
+    #cal-panel { position: absolute; left: 930px; top: 170px; width: 840px; height: 740px; background: #fff; border-radius: 44px; box-shadow: 0 40px 90px rgba(17,17,17,.14); padding: 44px 48px; font-family: "Roboto"; }
+    #cal-month { font-size: 52px; font-weight: 700; color: #111; } #cal-month span { color: #aaa; font-weight: 400; }
+    #cal-week { position: relative; display: flex; justify-content: space-between; margin-top: 30px; }
+    .cal-day { width: 96px; height: 118px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; position: relative; z-index: 1; }
+    .cal-day b { font-size: 22px; font-weight: 500; color: #888; } .cal-day i { font-style: normal; font-size: 38px; font-weight: 700; color: #111; }
+    #cal-pill { position: absolute; top: 0; left: 0; width: 96px; height: 118px; border-radius: 26px; background: #e11d48; }
+    #cal-list { margin-top: 34px; display: flex; flex-direction: column; gap: 18px; }
+    .cal-ev { display: flex; gap: 22px; align-items: stretch; }
+    .cal-t { width: 120px; text-align: right; font-size: 24px; font-weight: 600; color: #111; padding-top: 18px; }
+    .cal-card { flex: 1; background: #fde4ea; border-left: 8px solid #e11d48; border-radius: 22px; padding: 16px 24px; }
+    .cal-card div { font-size: 30px; font-weight: 600; color: #111; } .cal-card small { font-size: 22px; color: #777; }
+    #cal-now { position: absolute; left: 190px; right: 48px; top: 512px; height: 4px; background: #e11d48; transform-origin: 0 50%; }
+    #cal-dot { position: absolute; left: 180px; top: 504px; width: 20px; height: 20px; border-radius: 50%; background: #e11d48; }
   </style>
   <div id="root" data-composition-id="calendar" data-width="1920" data-height="1080">
-    <div id="cal-phone">
-      <div id="cal-screen">
-        <div id="cal-zoom">
-          <video id="cal-video" class="clip" src="assets/cal.mp4" data-start="0" data-duration="4.8" data-media-start="4.2" data-track-index="2" muted playsinline></video>
-        </div>
-      </div>
-    </div>
     <div id="cal-copy">
       <div class="kicker" id="cal-kicker">CALENDAR</div>
       <div class="title"><span class="cal-w">Your</span><span class="cal-w">day,</span><br /><span class="cal-w">at</span><span class="cal-w">a</span><span class="cal-w">glance.</span></div>
-      <div class="sub" id="cal-sub">Timeline · Agenda · Upcoming</div>
+    </div>
+    <div id="cal-panel" data-layout-allow-overflow>
+      <div id="cal-month">October <span>2026</span></div>
+      <div id="cal-week">
+        <div id="cal-pill"></div>
+        <div class="cal-day"><b>Sun</b><i>18</i></div><div class="cal-day"><b>Mon</b><i>19</i></div><div class="cal-day"><b>Tue</b><i>20</i></div>
+        <div class="cal-day"><b>Wed</b><i>21</i></div><div class="cal-day" id="cal-thu"><b>Thu</b><i>22</i></div><div class="cal-day"><b>Fri</b><i>23</i></div><div class="cal-day"><b>Sat</b><i>24</i></div>
+      </div>
+      <div id="cal-list">
+        <div class="cal-ev"><div class="cal-t">6:30 AM</div><div class="cal-card"><div>Morning run</div><small>6:30 – 7:15 AM · 45m</small></div></div>
+        <div class="cal-ev"><div class="cal-t">9:00 AM</div><div class="cal-card"><div>Calculus II lecture</div><small>9:00 – 10:30 AM · 1h 30m</small></div></div>
+        <div class="cal-ev"><div class="cal-t">11:00 AM</div><div class="cal-card"><div>Design team stand-up</div><small>11:00 – 11:30 AM</small></div></div>
+        <div class="cal-ev"><div class="cal-t">12:30 PM</div><div class="cal-card"><div>Lunch with Mara</div><small>12:30 – 1:30 PM · 1h</small></div></div>
+      </div>
+      <div id="cal-now"></div><div id="cal-dot"></div>
     </div>
   </div>
   <script>
     const tl = gsap.timeline({ paused: true });
-    tl.fromTo("#cal-phone", { y: 1100, filter: "blur(16px)" }, { y: 0, filter: "blur(0px)", duration: 0.6, ease: "expo.out" }, 0);
-    tl.fromTo("#cal-kicker", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.35);
-    gsap.utils.toArray("#cal-copy .cal-w").forEach((el, i) => {
-      tl.fromTo(el, { color: "#d6d1c8" }, { color: "#111111", duration: 0.12, ease: "none" }, 0.45 + i * 0.09);
-    });
-    tl.fromTo("#cal-sub", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.18 }, 1.1);
-    // Punch in on the agenda as it fills.
-    tl.fromTo("#cal-zoom", { scale: 1 }, { scale: 1.42, duration: 0.55, ease: "power2.inOut" }, 2.0);
-    // Whip out left.
-    tl.to("#cal-phone", { x: -1100, filter: "blur(18px)", duration: 0.32, ease: "power3.in" }, 4.45);
-    tl.to("#cal-copy", { x: -500, opacity: 0, filter: "blur(14px)", duration: 0.3, ease: "power3.in" }, 4.45);
+    tl.fromTo("#cal-panel", { y: 1000, rotation: 4 }, { y: 0, rotation: 0, duration: 0.7, ease: "expo.out" }, 0);
+    tl.fromTo("#cal-kicker", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.3);
+    gsap.utils.toArray("#cal-copy .cal-w").forEach((el, i) => tl.fromTo(el, { color: "#d6d1c8" }, { color: "#111111", duration: 0.12, ease: "none" }, 0.4 + i * 0.09));
+    gsap.utils.toArray("#cal-week .cal-day").forEach((el, i) => tl.fromTo(el, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3, ease: "power4.out" }, 0.45 + i * 0.04));
+    // Selection pill slides along the week and lands on today.
+    tl.fromTo("#cal-pill", { x: 0, opacity: 0 }, { x: 0, opacity: 1, duration: 0.15 }, 0.8);
+    tl.to("#cal-pill", { x: 4 * 108, duration: 0.6, ease: "power3.inOut" }, 0.95);
+    tl.to("#cal-thu b, #cal-thu i", { color: "#ffffff", duration: 0.15 }, 1.4);
+    gsap.utils.toArray("#cal-list .cal-ev").forEach((el, i) => tl.fromTo(el, { opacity: 0, x: 120 }, { opacity: 1, x: 0, duration: 0.45, ease: "expo.out" }, 1.5 + i * 0.13));
+    tl.fromTo("#cal-now", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, 2.4);
+    tl.fromTo("#cal-dot", { scale: 0 }, { scale: 1, duration: 0.3, ease: "back.out(2)" }, 2.4);
+    tl.to("#cal-panel", { x: -1400, rotation: -3, filter: "blur(16px)", duration: 0.35, ease: "power3.in" }, 4.45);
+    tl.to("#cal-copy", { x: -600, opacity: 0, filter: "blur(14px)", duration: 0.3, ease: "power3.in" }, 4.45);
     window.__timelines["calendar"] = tl;
   </script>
 </template>
