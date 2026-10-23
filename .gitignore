@@ -18,3 +18,4 @@ ios/
 .graphify/
 graphify-out/
 coverage/
+credentials.json
