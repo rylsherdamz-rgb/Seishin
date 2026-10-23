@@ -15,6 +15,9 @@ export const NativeAlarm = NativeModules.AlarmFullScreen as
       setAlarmSound: (uri: string | null) => void;
       startRinging: () => void;
       stopRinging: () => void;
+      /** Foreground "keep-alive" service + start at boot (on by default). */
+      setKeepAlive?: (on: boolean) => void;
+      isKeepAliveEnabled?: () => Promise<boolean>;
     }
   | undefined;
 

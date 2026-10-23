@@ -10,7 +10,7 @@ dist/
 web-build/
 .expo-shared/
 .env
-android/
+/android/
 ios/
 *.tsbuildinfo
 

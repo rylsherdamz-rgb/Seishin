@@ -17,6 +17,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Card } from "@/components/ui/Card";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Logo } from "@/components/Logo";
+import { Toggle } from "@/components/ui/Toggle";
+import { NativeAlarm } from "@/services/notify-core";
 import Feather from "@expo/vector-icons/Feather";
 import { fetchNimModels, fetchAllNimModels, cacheNimModels } from "@/services/nim-models";
 import { useColors } from "@/theme/ThemeProvider";
@@ -109,6 +111,15 @@ export default function SettingsScreen() {
   const [ggufFileSize, setGgufFileSize] = useState(0);
   const [ggufPicking, setGgufPicking] = useState(false);
   const [modalConfig, setModalConfig] = useState<{ title: string; message: string } | null>(null);
+  // Native foreground service that keeps reminders working while the app is closed.
+  const [keepAlive, setKeepAliveState] = useState(true);
+  useEffect(() => {
+    NativeAlarm?.isKeepAliveEnabled?.().then(setKeepAliveState).catch(() => {});
+  }, []);
+  const toggleKeepAlive = (on: boolean) => {
+    setKeepAliveState(on);
+    NativeAlarm?.setKeepAlive?.(on);
+  };
   const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
@@ -436,6 +447,14 @@ export default function SettingsScreen() {
           <RemindersCheck />
           {Platform.OS === "android" ? (
             <Card className="mt-3 p-0 overflow-hidden">
+              {NativeAlarm?.setKeepAlive ? (
+                <MenuRow
+                  icon="zap"
+                  label="Run in background"
+                  subtitle="Starts with your phone so reminders and alarms ring even when Seishin is closed"
+                  right={<Toggle value={keepAlive} onValueChange={toggleKeepAlive} />}
+                />
+              ) : null}
               <MenuRow
                 icon="music"
                 label="Alarm Ringtone"

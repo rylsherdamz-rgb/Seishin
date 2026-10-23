@@ -18,15 +18,6 @@ jest.mock("expo-notifications", () => {
   };
 });
 
-jest.mock("expo-android-notification-listener-service", () => ({
-  __esModule: true,
-  default: {
-    isNotificationPermissionGranted: jest.fn(() => true),
-    addListener: jest.fn(() => ({ remove: jest.fn() })),
-    openNotificationListenerSettings: jest.fn(),
-  },
-}));
-
 import {
   scheduleEventReminder,
   cancelEventReminder,

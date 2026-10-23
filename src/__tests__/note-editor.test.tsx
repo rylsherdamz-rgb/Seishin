@@ -15,15 +15,6 @@ jest.mock("expo-notifications", () => ({
   AndroidImportance: { HIGH: 4 },
 }));
 
-jest.mock("expo-android-notification-listener-service", () => ({
-  __esModule: true,
-  default: {
-    isNotificationPermissionGranted: jest.fn(() => true),
-    addListener: jest.fn(() => ({ remove: jest.fn() })),
-    openNotificationListenerSettings: jest.fn(),
-  },
-}));
-
 jest.mock("react-native-safe-area-context", () => {
   const ReactMod = require("react");
   const { View } = require("react-native");

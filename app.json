@@ -138,7 +138,8 @@
             }
           ]
         }
-      ]
+      ],
+      "./plugins/with-seishin-alarms"
     ]
   }
 }
