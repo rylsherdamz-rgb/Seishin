@@ -21,6 +21,16 @@ Upload in this order (Play shows the first 3–4 most):
 | 11-dark-mode.png | Midnight theme |
 | 09-upcoming.png, 10-note.png | Spares |
 
+## Feature graphic — `feature-graphic/feature-graphic.png`
+
+1024×500, 24-bit PNG with no transparency, as Play requires. Upload it under Store listing → Graphics → Feature graphic.
+The source is `feature-graphic/feature-graphic.html`, which uses the app icon and screenshots 01 and 03. Re-render with:
+
+    google-chrome-stable --headless=new --hide-scrollbars --allow-file-access-from-files \
+      --window-size=1024,500 --virtual-time-budget=5000 --screenshot=/tmp/fg.png \
+      "file://$PWD/store/feature-graphic/feature-graphic.html"
+    magick /tmp/fg.png -alpha off PNG24:store/feature-graphic/feature-graphic.png
+
 ## Promo video — `video/seishin-promo.mp4`
 
 27 s, 1920×1080, 30 fps, with music and sound effects (−16 LUFS). All
