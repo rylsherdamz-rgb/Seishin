@@ -26,7 +26,9 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM",
-        "android.permission.RECEIVE_BOOT_COMPLETED"
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
       ],
       "versionCode": 1
     },
@@ -92,7 +94,7 @@
             {
               "name": "Tasks",
               "label": "Tasks",
-              "description": "Open tasks \u2014 tap the circle to mark done",
+              "description": "Open tasks — tap the circle to mark done",
               "minWidth": "250dp",
               "minHeight": "180dp",
               "targetCellWidth": 4,
@@ -140,6 +142,13 @@
         }
       ],
       "./plugins/with-seishin-alarms"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9b82acba-07b4-4876-a19d-1eafbac78f56"
+      }
+    },
+    "owner": "3x656"
   }
 }
