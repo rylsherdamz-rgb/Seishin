@@ -94,7 +94,7 @@
             {
               "name": "Tasks",
               "label": "Tasks",
-              "description": "Open tasks — tap the circle to mark done",
+              "description": "Open tasks \u2014 tap the circle to mark done",
               "minWidth": "250dp",
               "minHeight": "180dp",
               "targetCellWidth": 4,
@@ -141,7 +141,17 @@
           ]
         }
       ],
-      "./plugins/with-seishin-alarms"
+      "./plugins/with-seishin-alarms",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# Seishin native code: alarm module, receivers, services, activity\n-keep class com.seishin.app.** { *; }\n# llama.rn: JNI bridge to llama.cpp\n-keep class com.rnllama.** { *; }\n# MMKV / Nitro modules: JNI + generated specs\n-keep class com.margelo.nitro.** { *; }\n# Home-screen widgets\n-keep class com.reactnativeandroidwidget.** { *; }\n# Worklets (Reanimated 4)\n-keep class com.swmansion.worklets.** { *; }\n-keepclasseswithmembernames,includedescriptorclasses class * { native <methods>; }"
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},
