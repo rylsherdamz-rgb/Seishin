@@ -1,8 +1,11 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { Platform, AppState, AppStateStatus } from "react-native";
 import * as Notifications from "expo-notifications";
-import NotificationListener from "expo-android-notification-listener-service";
-import type { NotificationData } from "expo-android-notification-listener-service";
+/** Shape of a posted notification, as parsed for event suggestions. */
+export interface NotificationData {
+  id: string; title: string; text: string; bigText?: string; subText?: string;
+  appName: string; packageName: string; postTime: number;
+}
 import { useInboxStore, InboxItem } from "@/stores/inbox-store";
 import { useAlarmStore } from "@/stores/alarm-store";
 import type { CalendarEvent } from "@/stores/calendar-store";
@@ -47,8 +50,6 @@ export function applyAlarmRingtone(uri: string | null): void {
   } catch {}
 }
 
-export type { NotificationData };
-
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification.request.content.data as Record<string, unknown> | undefined;
@@ -81,7 +82,6 @@ export const ensureAlarmChannel = ensureEventChannels;
 
 export function useNotifications() {
   const { addItem } = useInboxStore();
-  const listenerRef = useRef<Notifications.EventSubscription | null>(null);
   const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
   const appState = useRef(AppState.currentState);
 
@@ -145,54 +145,13 @@ export function useNotifications() {
       appState.current = nextAppState;
     });
 
-    let listenerSub: { remove: () => void } | null = null;
-    if (Platform.OS === "android") {
-      try {
-        if (NotificationListener.isNotificationPermissionGranted()) {
-          listenerSub = NotificationListener.addListener("onNotificationReceived", (data: NotificationData) => {
-            handleNotificationData(data);
-          });
-          listenerRef.current = listenerSub;
-        }
-      } catch {
-        /* listener module unavailable */
-      }
-    }
-
     return () => {
       receivedSub.remove();
       responseSub.remove();
-      listenerSub?.remove();
       subscription.remove();
     };
   }, []);
 
-  function handleNotificationData(data: NotificationData) {
-    const parsed = parseNotificationForEvent(data);
-    const item: InboxItem = {
-      id: `notif-${data.id}-${Date.now()}`,
-      type: "notification",
-      title: data.title || data.appName,
-      body: data.text || data.bigText || "",
-      timestamp: new Date(data.postTime).toISOString(),
-      source: data.appName || data.packageName,
-      read: false,
-      pendingEvent: parsed
-        ? { title: parsed.title, startDate: parsed.startDate, endDate: parsed.endDate, description: parsed.description }
-        : undefined,
-    };
-    addItem(item);
-  }
-
-  const isGranted = useCallback(async () => {
-    return NotificationListener.isNotificationPermissionGranted();
-  }, []);
-
-  const openSettings = useCallback(() => {
-    NotificationListener.openNotificationListenerSettings();
-  }, []);
-
-  return { isGranted, openSettings };
 }
 
 export function parseNotificationForEvent(data: NotificationData): CalendarEvent | null {

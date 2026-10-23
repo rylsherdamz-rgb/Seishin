@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Platform } from "react-native";
+import { useMemo, useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Stack, router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
-import NotificationListener from "expo-android-notification-listener-service";
 import { useColors } from "@/theme/ThemeProvider";
 import { useSettingsStore } from "@/stores/settings-store";
 import { CalendarConnector } from "@/components/connectors/CalendarConnector";
@@ -11,6 +10,8 @@ import { TodoistConnector } from "@/components/connectors/TodoistConnector";
 import { NotionConnector } from "@/components/connectors/NotionConnector";
 import { FeedsConnector } from "@/components/connectors/FeedsConnector";
 import { AutoSyncCard } from "@/components/connectors/AutoSyncCard";
+import { readSyncState } from "@/services/calendar-sync";
+import { feedsState, notionState, todoistState } from "@/services/connectors/state";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
 
@@ -20,16 +21,22 @@ export default function ConnectorsScreen() {
   const insets = useSafeAreaInsets();
   const nimKey = useSettingsStore((s) => s.apiKeys.nim);
   const modelPath = useSettingsStore((s) => s.modelPath);
-  const [notifOn, setNotifOn] = useState(false);
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    try {
-      setNotifOn(NotificationListener.isNotificationPermissionGranted());
-    } catch {
-      setNotifOn(false);
-    }
-  }, []);
+  // One connector open at a time keeps the page short; collapsed rows show status.
+  const [open, setOpen] = useState<string | null>(null);
+  const toggle = (id: string) => setOpen((o) => (o === id ? null : id));
+  // Re-read on collapse so statuses reflect a connect/disconnect made inside.
+  const status = useMemo(() => {
+    const cal = readSyncState();
+    const feeds = feedsState.get().length;
+    return {
+      calendar: !cal.enabled ? null
+        : cal.accounts ? (cal.accounts.length ? `${cal.accounts.length} account${cal.accounts.length === 1 ? "" : "s"}` : "Choose accounts")
+        : `Connected · ${cal.importIds.length} calendar${cal.importIds.length === 1 ? "" : "s"}`,
+      feeds: feeds ? `${feeds} subscribed` : null,
+      todoist: todoistState.get().enabled ? "Connected" : null,
+      notion: notionState.get().enabled ? "Connected" : null,
+    };
+  }, [open]);
 
   return (
     <View className="flex-1 bg-white">
@@ -43,55 +50,42 @@ export default function ConnectorsScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: insets.bottom + 24, gap: 12 }}>
         <Text className="text-sm text-ink-600 px-1 leading-5">
-          Connect the places your schedule and work live. Data syncs directly between this phone and each service — no Seishin server.
+          Syncs straight between this phone and each service. No Seishin server.
         </Text>
 
         <AutoSyncCard />
 
         <Section title="Calendars" />
-        <Card icon="calendar" title="Phone calendars" subtitle="Google · Outlook · Samsung — two-way">
+        <Card id="calendar" open={open} onToggle={toggle} icon="calendar" title="Phone calendars" subtitle={status.calendar ?? "Google, Outlook, Samsung"} ok={!!status.calendar}>
           <CalendarConnector />
         </Card>
-        <Card icon="rss" title="School & subscribed calendars" subtitle="Canvas · Classroom · Moodle · Outlook · any .ics link">
+        <Card id="feeds" open={open} onToggle={toggle} icon="rss" title="School calendar links" subtitle={status.feeds ?? "Canvas, Classroom, Moodle, any .ics"} ok={!!status.feeds}>
           <FeedsConnector />
         </Card>
 
-        <Section title="Productivity" />
-        <Card icon="check-circle" title="Todoist" subtitle="Tasks, due dates and completion — two-way">
+        <Section title="Tasks" />
+        <Card id="todoist" open={open} onToggle={toggle} icon="check-circle" title="Todoist" subtitle={status.todoist ?? "Not connected"} ok={!!status.todoist}>
           <TodoistConnector />
         </Card>
-        <Card icon="database" title="Notion" subtitle="A tasks / homework database — two-way">
+        <Card id="notion" open={open} onToggle={toggle} icon="database" title="Notion" subtitle={status.notion ?? "Not connected"} ok={!!status.notion}>
           <NotionConnector />
         </Card>
 
-        <Section title="Capture & inbox" />
-
-        <Card icon="hard-drive" title="Google Drive & files" subtitle="OneDrive, Dropbox and any file app too">
-          <Text className="text-sm text-ink-600 leading-5">
-            Pick photos or PDFs straight from Drive — Seishin reads them, finds what's due and sets reminders.
-          </Text>
-          <Action icon="folder" label="Import from Drive or files" onPress={() => router.push({ pathname: "/capture", params: { source: "files" } })} />
-        </Card>
-
-        <Card icon="camera" title="Camera & photos" subtitle="Dump pictures of assignments, notices, posters">
-          <View className="flex-row gap-2 mt-1">
-            <Action icon="camera" label="Take photo" onPress={() => router.push({ pathname: "/capture", params: { source: "camera" } })} flex />
-            <Action icon="image" label="Choose photos" onPress={() => router.push({ pathname: "/capture", params: { source: "photos" } })} flex />
+        <Section title="Capture" />
+        <View className="rounded-[20px] border border-ink-100 p-4">
+          <Text className="text-base font-bold text-black">Photos & files</Text>
+          <Text className="text-xs text-ink-500">Assignments, notices, PDFs. Seishin finds what's due.</Text>
+          <View className="flex-row gap-2">
+            <Action icon="camera" label="Camera" onPress={() => router.push({ pathname: "/capture", params: { source: "camera" } })} flex />
+            <Action icon="image" label="Photos" onPress={() => router.push({ pathname: "/capture", params: { source: "photos" } })} flex />
+            <Action icon="folder" label="Files" onPress={() => router.push({ pathname: "/capture", params: { source: "files" } })} flex />
           </View>
-        </Card>
-
-        {Platform.OS === "android" ? (
-          <Card icon="bell" title="Phone notifications" subtitle={notifOn ? "Connected" : "Not connected"} ok={notifOn}>
-            <Text className="text-sm text-ink-600 leading-5">
-              Messages from Classroom, Messenger, email and other apps land in your Inbox, and dates in them become suggested events.
-            </Text>
-            {!notifOn ? (
-              <Action icon="settings" label="Allow notification access" onPress={() => { try { NotificationListener.openNotificationListenerSettings(); } catch { /* unavailable */ } }} />
-            ) : null}
-          </Card>
-        ) : null}
+        </View>
 
         <Card
+          id="ai"
+          open={open}
+          onToggle={toggle}
           icon="zap"
           title="AI reading"
           subtitle={nimKey ? "Cloud model connected" : modelPath ? "On-device model" : "Offline rules only"}
@@ -111,11 +105,20 @@ function Section({ title }: { title: string }) {
   return <Text className="text-xs font-bold tracking-widest text-ink-500 px-1 mt-3">{title.toUpperCase()}</Text>;
 }
 
-function Card({ icon, title, subtitle, ok, children }: { icon: IconName; title: string; subtitle: string; ok?: boolean; children: React.ReactNode }) {
+function Card({ id, open, onToggle, icon, title, subtitle, ok, children }: {
+  id: string; open: string | null; onToggle: (id: string) => void;
+  icon: IconName; title: string; subtitle: string; ok?: boolean; children: React.ReactNode;
+}) {
   const C = useColors();
+  const expanded = open === id;
   return (
-    <View className="rounded-[20px] border border-ink-100 p-4">
-      <View className="flex-row items-center gap-3 mb-3">
+    <View className="rounded-[20px] border border-ink-100">
+      <TouchableOpacity
+        onPress={() => onToggle(id)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        className="flex-row items-center gap-3 p-4"
+      >
         <View className="w-11 h-11 rounded-2xl bg-ink-50 items-center justify-center">
           <Feather name={icon} size={20} color={C.black} />
         </View>
@@ -123,11 +126,12 @@ function Card({ icon, title, subtitle, ok, children }: { icon: IconName; title: 
           <Text className="text-base font-bold text-black">{title}</Text>
           <View className="flex-row items-center gap-1.5">
             {ok !== undefined ? <View className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-success" : "bg-ink-300"}`} /> : null}
-            <Text className="text-xs text-ink-500">{subtitle}</Text>
+            <Text className="flex-1 text-xs text-ink-500" numberOfLines={1}>{subtitle}</Text>
           </View>
         </View>
-      </View>
-      {children}
+        <Feather name={expanded ? "chevron-up" : "chevron-down"} size={20} color={C.ink500} />
+      </TouchableOpacity>
+      {expanded ? <View className="px-4 pb-4">{children}</View> : null}
     </View>
   );
 }

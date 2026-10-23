@@ -176,3 +176,58 @@ export function toDeviceRecurrence(r?: Recurrence): { frequency: string; interva
     daysOfTheWeek: r.frequency === "weekly" && r.weekdays?.length ? r.weekdays.map((d) => ({ dayOfTheWeek: d + 1 })) : undefined,
   };
 }
+
+export interface CalendarGroup<T> {
+  account: string;
+  calendars: T[];
+}
+
+/**
+ * Phone calendars grouped by signed-in account for the connector UI. Calendars
+ * the phone doesn't sync are dropped (they never hold events), and accounts
+ * keep the input order, so the primary-first sort carries over.
+ */
+export function groupCalendarsByAccount<T extends { account: string; synced: boolean }>(cals: T[]): CalendarGroup<T>[] {
+  const groups = new Map<string, T[]>();
+  for (const c of cals) {
+    if (!c.synced) continue;
+    const list = groups.get(c.account);
+    if (list) list.push(c);
+    else groups.set(c.account, [c]);
+  }
+  return [...groups].map(([account, calendars]) => ({ account, calendars }));
+}
+
+interface AccountCalendar { id: string; account: string; synced: boolean; writable: boolean; primary: boolean }
+export interface AccountSelection { accounts: string[]; importIds: string[]; exportId: string | null }
+
+/** Accounts in use: the saved choice, or (installs from before account picking) every account with a shown calendar. */
+export function chosenAccounts(saved: string[] | undefined, importIds: string[], cals: AccountCalendar[]): string[] {
+  if (saved) return saved;
+  const ids = new Set(importIds);
+  return [...new Set(cals.filter((c) => ids.has(c.id)).map((c) => c.account))];
+}
+
+/**
+ * Adds or removes an account. Adding shows all its synced calendars (and, on the
+ * first pick, makes its primary calendar the save target); removing hides its
+ * calendars and drops the save target if it lived there.
+ */
+export function setAccountChosen(sel: AccountSelection, cals: AccountCalendar[], account: string, on: boolean): AccountSelection {
+  const mine = cals.filter((c) => c.account === account && c.synced);
+  const ids = new Set(mine.map((c) => c.id));
+  if (!on) {
+    return {
+      accounts: sel.accounts.filter((a) => a !== account),
+      importIds: sel.importIds.filter((id) => !ids.has(id)),
+      exportId: sel.exportId && ids.has(sel.exportId) ? null : sel.exportId,
+    };
+  }
+  const firstPick = sel.accounts.length === 0 && sel.exportId === null;
+  const target = mine.find((c) => c.writable && c.primary) ?? mine.find((c) => c.writable);
+  return {
+    accounts: sel.accounts.includes(account) ? sel.accounts : [...sel.accounts, account],
+    importIds: [...new Set([...sel.importIds, ...ids])],
+    exportId: firstPick && target ? target.id : sel.exportId,
+  };
+}

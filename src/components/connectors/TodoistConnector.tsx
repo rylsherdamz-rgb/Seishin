@@ -44,7 +44,7 @@ export function TodoistConnector() {
   if (!state.enabled) {
     return (
       <View>
-        <Steps steps={["In Todoist open Settings → Integrations → Developer.", "Copy your API token and paste it below."]} />
+        <Steps steps={["In Todoist open Settings > Integrations > Developer.", "Copy your API token and paste it below."]} />
         <Field label="API token" value={token} onChange={setTokenInput} placeholder="Paste token" secret />
         <PrimaryButton label="Connect Todoist" onPress={connect} busy={busy} disabled={token.trim().length < 20} />
         <Text className="text-xs text-ink-500 mt-2">Stored encrypted on this phone. Tasks with due dates get Seishin reminders; finishing a task here completes it in Todoist.</Text>

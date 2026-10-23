@@ -10,6 +10,7 @@ export const LIVE_INTERVAL = 60000;
 /** Coalesces an app-switch burst (inactive → active → …) into one sync. */
 const FOREGROUND_GAP = 15000;
 const EDIT_DEBOUNCE = 1500;
+const TODO_WIDGET_DELAY = 4000;
 
 /**
  * Keeps every connector in sync without the user thinking about it:
@@ -64,7 +65,8 @@ export function useAutoSync() {
     const unsubTodos = useTodoStore.subscribe((s, prev) => {
       if (s.todos === prev.todos) return;
       pushSoon();
-      updateWidgetsSoon();
+      // Longer than events: adding several tasks in a row shouldn't redraw widgets between them.
+      updateWidgetsSoon(TODO_WIDGET_DELAY);
     });
     const unsubTheme = useThemeStore.subscribe((s, prev) => {
       if (s.mode !== prev.mode || s.accent !== prev.accent) updateWidgetsSoon(300);

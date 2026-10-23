@@ -99,9 +99,7 @@ const AgendaCard = memo(function AgendaCard({ item, past, onOpen, onToggleTodo }
           <View className="px-2 py-0.5 rounded-full bg-danger-soft">
             <Text className="text-[10px] font-bold text-danger">{COPY.calendar.priorityHigh}</Text>
           </View>
-        ) : (
-          <Text className="text-[11px] text-ink-300 capitalize">{item.priority}</Text>
-        )}
+        ) : null}
       </TouchableOpacity>
     );
   }
@@ -117,8 +115,8 @@ const AgendaCard = memo(function AgendaCard({ item, past, onOpen, onToggleTodo }
       accessibilityLabel={`${COPY.terms.event}: ${item.title}, ${item.allDay ? COPY.calendar.allDay : `${item.time ?? ""}${item.endTime ? ` to ${item.endTime}` : ""}`}`}
       className={`flex-row gap-3 mb-2 ${past ? "opacity-55" : ""}`}
     >
-      <View className="w-14 pt-3 items-end">
-        <Text className="text-[13px] font-semibold text-black">{item.allDay ? COPY.calendar.allDay : item.time}</Text>
+      <View className="w-[68px] pt-3 items-end">
+        <Text className="text-[13px] font-semibold text-black" numberOfLines={1} adjustsFontSizeToFit>{item.allDay ? COPY.calendar.allDay : item.time}</Text>
         {!item.allDay && dur ? <Text className="text-[11px] text-ink-300 mt-0.5">{formatDuration(dur)}</Text> : null}
       </View>
       <View className="flex-1 flex-row rounded-2xl bg-accent/10 overflow-hidden">

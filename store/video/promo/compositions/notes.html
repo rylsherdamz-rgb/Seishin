@@ -1,0 +1,26 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
+    #nts-title { position: absolute; left: 150px; top: 400px; font-size: 150px; font-weight: 700; letter-spacing: -0.05em; line-height: 1; color: #111; }
+    .nts-w { display: inline-block; }
+    .nts-card { position: absolute; width: 330px; border-radius: 34px; padding: 30px 32px; font-family: "Roboto"; color: #1a1a1a; box-shadow: 0 24px 50px rgba(17,17,17,.10); }
+    .nts-card h4 { font-size: 34px; font-weight: 700; margin-bottom: 14px; } .nts-card p { font-size: 25px; line-height: 1.45; color: #333; }
+  </style>
+  <div id="root" data-composition-id="notes" data-width="1920" data-height="1080">
+    <div id="nts-title"><span class="nts-w">Notes</span><br /><span class="nts-w">in</span> <span class="nts-w" style="color:#e11d48">color.</span></div>
+    <div class="nts-card" id="nts-1" style="left:1010px;top:90px;background:#fbf2b8"><h4>Weekly goals</h4><p>Run 3×<br />Finish problem set 5 early<br />Call Mom on Sunday</p></div>
+    <div class="nts-card" id="nts-2" style="left:1380px;top:60px;background:#fbd5d1"><h4>Gift ideas for Mara</h4><p>Film camera<br />That ceramics class<br />Concert tickets</p></div>
+    <div class="nts-card" id="nts-3" style="left:1010px;top:450px;background:#d7e9f6"><h4>Physics — formulas</h4><p>ΔU = Q − W<br />PV = nRT<br />η = 1 − Tc/Th</p></div>
+    <div class="nts-card" id="nts-4" style="left:1380px;top:420px;background:#dcf3d6"><h4>Books to read</h4><p>The Overstory<br />Piranesi<br />Four Thousand Weeks</p></div>
+    <div class="nts-card" id="nts-5" style="left:1195px;top:770px;background:#e6dcf5"><h4>Trip packing list</h4><p>Passport · Charger · Rain jacket</p></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    gsap.utils.toArray("#nts-title .nts-w").forEach((el, i) => tl.fromTo(el, { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.16, ease: "power4.out" }, 0.25 + i * 0.1));
+    const from = [[-200, -700, -14], [500, -600, 12], [-300, 700, 10], [600, 600, -12], [0, 800, 6]];
+    from.forEach(([x, y, r], i) => tl.fromTo(`#nts-${i + 1}`, { x, y, rotation: r, opacity: 0 }, { x: 0, y: 0, rotation: (i % 2 ? 2 : -2), opacity: 1, duration: 0.7, ease: "expo.out" }, 0.1 + i * 0.09));
+    tl.to(".nts-card", { scale: 0.6, opacity: 0, filter: "blur(12px)", duration: 0.3, ease: "power3.in", stagger: 0.03 }, 3.0);
+    tl.to("#nts-title", { opacity: 0, filter: "blur(12px)", duration: 0.25 }, 3.05);
+    window.__timelines["notes"] = tl;
+  </script>
+</template>

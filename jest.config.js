@@ -2,6 +2,8 @@
 module.exports = {
   preset: "react-native",
   setupFiles: ["<rootDir>/jest.setup.js"],
+  // scripts/ holds generators run on demand (npm run widget-previews), not tests.
+  testPathIgnorePatterns: ["/node_modules/", "<rootDir>/scripts/"],
   transformIgnorePatterns: [
     "node_modules/(?!(react-native|@react-native|@expo|expo-.*|react-native-.*|youtubei\\.js|uuid|llama\\.rn)/)",
   ],

@@ -7,18 +7,18 @@ import * as DocumentPicker from "expo-document-picker";
 import { useSettingsStore } from "@/stores/settings-store";
 import {
   getStorageSizes, clearAllStorage,
-  eventsStorage, messagesStorage, emailsStorage,
-  notificationsStorage, agentStorage, ocrStorage, todosStorage, invitesStorage,
+  eventsStorage, agentStorage, ocrStorage, todosStorage, invitesStorage,
 } from "@/stores/mmkv";
 import { clearOcrHistory } from "@/services/ocr";
 import { factoryReset } from "@/services/factory-reset";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
-import { useNotifications, pickAlarmRingtone, applyAlarmRingtone } from "@/services/notification-service";
+import { pickAlarmRingtone, applyAlarmRingtone } from "@/services/notification-service";
 import * as FileSystem from "expo-file-system/legacy";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Logo } from "@/components/Logo";
+import { Toggle } from "@/components/ui/Toggle";
+import { NativeAlarm } from "@/services/notify-core";
 import Feather from "@expo/vector-icons/Feather";
 import { fetchNimModels, fetchAllNimModels, cacheNimModels } from "@/services/nim-models";
 import { useColors } from "@/theme/ThemeProvider";
@@ -31,11 +31,8 @@ import { RemindersCheck } from "@/components/settings/RemindersCheck";
 
 const storageCategories = [
   { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
-  { label: "Messages", key: "messages" as const, storage: messagesStorage, icon: "message-circle" as const },
-  { label: "Email Cache", key: "emails" as const, storage: emailsStorage, icon: "mail" as const },
-  { label: "Notifications", key: "notifications" as const, storage: notificationsStorage, icon: "bell" as const },
   { label: "Agent Memory", key: "agent" as const, storage: agentStorage, icon: "cpu" as const },
-  { label: "OCR History", key: "ocr" as const, storage: ocrStorage, icon: "camera" as const },
+  { label: "Scan History", key: "ocr" as const, storage: ocrStorage, icon: "camera" as const },
   { label: "Tasks", key: "todos" as const, storage: todosStorage, icon: "check-square" as const },
   { label: "Invites", key: "invites" as const, storage: invitesStorage, icon: "send" as const },
 ];
@@ -82,8 +79,6 @@ function formatBytes(bytes: number): string {
 export default function SettingsScreen() {
   const T = useColors();
   const loadSettings = useSettingsStore((s) => s.loadSettings);
-  const cleanupPolicies = useSettingsStore((s) => s.cleanupPolicies);
-  const setCleanupPolicies = useSettingsStore((s) => s.setCleanupPolicies);
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const setApiKey = useSettingsStore((s) => s.setApiKey);
   const nimEndpoint = useSettingsStore((s) => s.nimEndpoint);
@@ -95,7 +90,6 @@ export default function SettingsScreen() {
   const alarmRingtoneUri = useSettingsStore((s) => s.alarmRingtoneUri);
   const alarmRingtoneName = useSettingsStore((s) => s.alarmRingtoneName);
   const setAlarmRingtone = useSettingsStore((s) => s.setAlarmRingtone);
-  const { isGranted, openSettings } = useNotifications();
   const [sizes, setSizes] = useState<Record<string, number>>({});
   const [nimKey, setNimKey] = useState("");
   const [nimEp, setNimEp] = useState("");
@@ -103,7 +97,6 @@ export default function SettingsScreen() {
   const [ggufPath, setGgufPath] = useState("");
   const [showStorage, setShowStorage] = useState(false);
   const [showAiConfig, setShowAiConfig] = useState(false);
-  const [notifEnabled, setNotifEnabled] = useState(false);
 
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [models, setModels] = useState<string[]>([]);
@@ -118,12 +111,20 @@ export default function SettingsScreen() {
   const [ggufFileSize, setGgufFileSize] = useState(0);
   const [ggufPicking, setGgufPicking] = useState(false);
   const [modalConfig, setModalConfig] = useState<{ title: string; message: string } | null>(null);
+  // Native foreground service that keeps reminders working while the app is closed.
+  const [keepAlive, setKeepAliveState] = useState(true);
+  useEffect(() => {
+    NativeAlarm?.isKeepAliveEnabled?.().then(setKeepAliveState).catch(() => {});
+  }, []);
+  const toggleKeepAlive = (on: boolean) => {
+    setKeepAliveState(on);
+    NativeAlarm?.setKeepAlive?.(on);
+  };
   const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   useEffect(() => {
     loadSettings();
     setSizes(getStorageSizes());
-    isGranted().then(setNotifEnabled);
   }, []);
 
   useEffect(() => {
@@ -307,7 +308,7 @@ export default function SettingsScreen() {
           <SectionHeader title="Quick Access" />
           <Card className="mb-4 p-0 overflow-hidden">
             <MenuRow icon="link" label="Connectors" subtitle="Google Calendar, Drive, notifications" onPress={() => router.push("/connectors")} />
-            <MenuRow icon="zap" label="Smart capture" subtitle="Dump assignment photos → tasks + reminders" onPress={() => router.push("/capture")} />
+            <MenuRow icon="zap" label="Smart capture" subtitle="Turn assignment photos into tasks + reminders" onPress={() => router.push("/capture")} />
             <MenuRow icon="check-square" label="Tasks" subtitle="Your task list and due dates" onPress={() => router.push("/todo")} />
             <MenuRow icon="send" label="Invites" subtitle="Invitation cards and P2P codes" onPress={() => router.push("/invites")} />
           </Card>
@@ -442,23 +443,18 @@ export default function SettingsScreen() {
             </Card>
           )}
 
-          <SectionHeader title="Notifications" />
-          <Card className="mb-4 p-0 overflow-hidden">
-            <MenuRow
-              icon="bell"
-              label="Notification Listener"
-              subtitle={notifEnabled ? "Service active" : "Tap to enable"}
-              onPress={openSettings}
-              right={
-                <View className={`w-2.5 h-2.5 rounded-full ${notifEnabled ? "bg-success" : "bg-ink-300"}`} />
-              }
-            />
-            <MenuRow
-              icon="volume-2"
-              label="Foreground Service"
-              subtitle="Listen to notifications in background"
-            />
-            {Platform.OS === "android" && (
+          <SectionHeader title="Reminders" />
+          <RemindersCheck />
+          {Platform.OS === "android" ? (
+            <Card className="mt-3 p-0 overflow-hidden">
+              {NativeAlarm?.setKeepAlive ? (
+                <MenuRow
+                  icon="zap"
+                  label="Run in background"
+                  subtitle="Starts with your phone so reminders and alarms ring even when Seishin is closed"
+                  right={<Toggle value={keepAlive} onValueChange={toggleKeepAlive} />}
+                />
+              ) : null}
               <MenuRow
                 icon="music"
                 label="Alarm Ringtone"
@@ -476,11 +472,8 @@ export default function SettingsScreen() {
                   ) : undefined
                 }
               />
-            )}
-          </Card>
-
-          <SectionHeader title="Reminders" />
-          <RemindersCheck />
+            </Card>
+          ) : null}
 
           {Platform.OS === "android" ? <SectionHeader title="Home screen widgets" /> : null}
           <WidgetsSection />
@@ -526,48 +519,14 @@ export default function SettingsScreen() {
             </Card>
           )}
 
-          <Button
-            title="Factory Reset — Delete All"
-            variant="destructive"
+          <TouchableOpacity
             onPress={confirmFactoryReset}
-            icon={<Feather name="alert-triangle" size={14} color={T.white} />}
-            className="mb-8"
-          />
-
-          <SectionHeader title="Auto-Cleanup" />
-          <Card className="mb-4">
-            <Text className="text-xs text-ink-500 mb-2">Auto-delete items older than the set number of days.</Text>
-          </Card>
-          <Card className="mb-4 p-0 overflow-hidden">
-            {([
-              { label: "Notifications", key: "notificationsDays" as const },
-              { label: "Email Cache", key: "emailsDays" as const },
-              { label: "Chat Messages", key: "chatDays" as const },
-              { label: "OCR Images", key: "ocrDays" as const },
-            ]).map(({ label, key }) => (
-              <View key={key} className="flex-row items-center justify-between py-3 px-4 border-b border-ink-100 last:border-b-0">
-                <Text className="text-sm text-black">{label}</Text>
-                <View className="flex-row items-center gap-2">
-                  <TouchableOpacity
-                    onPress={() => setCleanupPolicies({ [key]: Math.max(1, cleanupPolicies[key] - 1) })}
-                    className="w-7 h-7 bg-ink-100 rounded-lg items-center justify-center"
-                  >
-                    <Feather name="minus" size={12} color={T.ink500} />
-                  </TouchableOpacity>
-                  <Text className="text-sm font-semibold text-black w-7 text-center">
-                    {cleanupPolicies[key]}
-                  </Text>
-                  <Text className="text-xs text-ink-400 w-9">days</Text>
-                  <TouchableOpacity
-                    onPress={() => setCleanupPolicies({ [key]: Math.min(365, cleanupPolicies[key] + 1) })}
-                    className="w-7 h-7 bg-ink-100 rounded-lg items-center justify-center"
-                  >
-                    <Feather name="plus" size={12} color={T.ink500} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </Card>
+            accessibilityRole="button"
+            className="flex-row items-center justify-center gap-2 h-12 mb-4 rounded-2xl border border-danger"
+          >
+            <Feather name="alert-triangle" size={14} color={T.danger} />
+            <Text className="text-sm font-semibold text-danger">Factory reset — delete everything</Text>
+          </TouchableOpacity>
 
           <SectionHeader title="About" />
           <Card variant="elevated">

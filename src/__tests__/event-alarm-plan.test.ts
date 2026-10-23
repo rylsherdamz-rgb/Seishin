@@ -52,6 +52,7 @@ describe("catch-up ring", () => {
     expect(isPendingLate(late.sig, now)).toBe(true);
     expect(catchUpSlot(ev({}), at(2026, 10, 16, 9))).toBeNull();
     expect(catchUpSlot(ev({}), at(2026, 10, 14, 9))).toBeNull(); // not due yet → normal plan
+    expect(catchUpSlot(ev({}), at(2026, 10, 15, 9, 2))).toBeNull(); // already started
   });
 
   it("reads old and new map records", () => {

@@ -18,7 +18,7 @@ const TIER_STYLE: Record<string, { bg: string; text: string }> = {
 };
 
 /** What the agent can do, shown so the tools aren't invisible. */
-export const AGENT_SKILLS = ["Calendar", "Tasks", "Notes", "Inbox", "Memory"];
+export const AGENT_SKILLS = ["Calendar", "Tasks", "Notes", "Memory"];
 
 const ggufName = (path: string | null) => (path ? (path.split("/").pop() ?? "").replace(/\.gguf$/i, "") : "");
 
@@ -182,7 +182,7 @@ function NimStatus({ hasKey }: { hasKey: boolean }) {
     <TouchableOpacity onPress={() => router.push("/settings")} accessibilityRole="button" className="rounded-xl px-3 py-2.5 bg-ink-50 flex-row items-center gap-2">
       <Text className="text-xs text-ink-600 font-mono flex-1" numberOfLines={1}>
         {nimModel.split("/").pop() || "model"}
-        {nimLargeModel ? ` · hard questions → ${nimLargeModel.split("/").pop()}` : ""}
+        {nimLargeModel ? ` · hard questions use ${nimLargeModel.split("/").pop()}` : ""}
       </Text>
       <View className={`px-1.5 py-0.5 rounded-full ${style?.bg ?? "bg-ink-200"}`}>
         <Text className={`text-[9px] font-semibold ${style?.text ?? "text-ink-500"}`}>{getTierLabel(tier)}</Text>
