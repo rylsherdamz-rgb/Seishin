@@ -27,7 +27,8 @@
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM",
         "android.permission.RECEIVE_BOOT_COMPLETED"
-      ]
+      ],
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -91,7 +92,7 @@
             {
               "name": "Tasks",
               "label": "Tasks",
-              "description": "Open tasks — tap the circle to mark done",
+              "description": "Open tasks \u2014 tap the circle to mark done",
               "minWidth": "250dp",
               "minHeight": "180dp",
               "targetCellWidth": 4,

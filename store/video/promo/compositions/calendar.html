@@ -16,8 +16,9 @@
     .cal-t { width: 120px; text-align: right; font-size: 24px; font-weight: 600; color: #111; padding-top: 18px; }
     .cal-card { flex: 1; background: #fde4ea; border-left: 8px solid #e11d48; border-radius: 22px; padding: 16px 24px; }
     .cal-card div { font-size: 30px; font-weight: 600; color: #111; } .cal-card small { font-size: 22px; color: #777; }
-    #cal-now { position: absolute; left: 190px; right: 48px; top: 512px; height: 4px; background: #e11d48; transform-origin: 0 50%; }
-    #cal-dot { position: absolute; left: 180px; top: 504px; width: 20px; height: 20px; border-radius: 50%; background: #e11d48; }
+    #cal-nowrow { position: relative; height: 4px; margin: -11px 0; }
+    #cal-now { position: absolute; left: 142px; right: 0; top: 0; height: 4px; border-radius: 2px; background: #e11d48; transform-origin: 0 50%; }
+    #cal-dot { position: absolute; left: 132px; top: -8px; width: 20px; height: 20px; border-radius: 50%; background: #e11d48; }
   </style>
   <div id="root" data-composition-id="calendar" data-width="1920" data-height="1080">
     <div id="cal-copy">
@@ -34,10 +35,10 @@
       <div id="cal-list">
         <div class="cal-ev"><div class="cal-t">6:30 AM</div><div class="cal-card"><div>Morning run</div><small>6:30 – 7:15 AM · 45m</small></div></div>
         <div class="cal-ev"><div class="cal-t">9:00 AM</div><div class="cal-card"><div>Calculus II lecture</div><small>9:00 – 10:30 AM · 1h 30m</small></div></div>
+        <div id="cal-nowrow"><div id="cal-now"></div><div id="cal-dot"></div></div>
         <div class="cal-ev"><div class="cal-t">11:00 AM</div><div class="cal-card"><div>Design team stand-up</div><small>11:00 – 11:30 AM</small></div></div>
         <div class="cal-ev"><div class="cal-t">12:30 PM</div><div class="cal-card"><div>Lunch with Mara</div><small>12:30 – 1:30 PM · 1h</small></div></div>
       </div>
-      <div id="cal-now"></div><div id="cal-dot"></div>
     </div>
   </div>
   <script>
