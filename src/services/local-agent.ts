@@ -11,7 +11,7 @@ import { useAgentStore, type AgentMessage } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { uid } from "@/utils/id";
 import { createLogger } from "@/utils/logger";
-import { chatWithTools, generationAborted, type LocalChatMessage } from "./local-llama";
+import { chatWithTools, generationAborted, isLocalImageUri, isVisionReady, type LocalChatMessage } from "./local-llama";
 import { retrieveRelevantContext, retrieveRelevantMemory } from "./retriever";
 import { getGraphSummary } from "./agent-memory";
 import { buildConversation, createDefaultTools, executeToolCalls, LOCAL_TOOL_NAMES } from "./agent-engine";
@@ -59,7 +59,16 @@ export function toLocalMessages(history: AgentMessage[]): LocalChatMessage[] {
   });
 }
 
-function buildLocalConversation(userInput: string, extractedContext?: string): LocalChatMessage[] {
+/**
+ * Images the model can see this turn: only with a vision projector loaded, only
+ * local files, at most two (each costs up to ~256 of the 4096-token context).
+ */
+export function visibleImages(imageUris: string[] | undefined): string[] {
+  if (!imageUris?.length || !isVisionReady()) return [];
+  return imageUris.filter(isLocalImageUri).slice(0, 2);
+}
+
+function buildLocalConversation(userInput: string, extractedContext?: string, imageUris?: string[]): LocalChatMessage[] {
   const known = [retrieveRelevantContext(userInput), retrieveRelevantMemory(userInput), getGraphSummary()]
     .filter(Boolean)
     .join("\n\n");
@@ -67,10 +76,18 @@ function buildLocalConversation(userInput: string, extractedContext?: string): L
   // The cut may land mid tool-exchange; chat templates reject a tool result
   // without its call, so start the history at a user turn.
   while (history.length && history[0].role !== "user") history.shift();
-  if (extractedContext) {
+  const images = visibleImages(imageUris);
+  if (extractedContext || images.length) {
     for (let i = history.length - 1; i >= 0; i--) {
       if (history[i].role !== "user") continue;
-      history[i] = { role: "user", content: `${history[i].content}\n\n[Attached content]\n${extractedContext}`.trim() };
+      const text = extractedContext ? `${history[i].content}\n\n[Attached content]\n${extractedContext}`.trim() : String(history[i].content);
+      // Image first, then text — the order the vision fine-tune (training/) learned.
+      history[i] = {
+        role: "user",
+        content: images.length
+          ? [...images.map((url) => ({ type: "image_url" as const, image_url: { url } })), { type: "text" as const, text }]
+          : text,
+      };
       break;
     }
   }
@@ -81,12 +98,14 @@ function buildLocalConversation(userInput: string, extractedContext?: string): L
  * One user request on the on-device model. Streams each reply into the chat,
  * runs any tool calls, and feeds results back until the model answers in
  * plain text (or the step limit is reached). Returns the final reply.
+ * With a vision projector loaded, attached images go to the model as well as
+ * their OCR text.
  */
-export async function runLocalAgent(userInput: string, extractedContext?: string): Promise<string> {
+export async function runLocalAgent(userInput: string, extractedContext?: string, imageUris?: string[]): Promise<string> {
   const store = useAgentStore.getState();
   const model = localModelName();
   const toolParams = createDefaultTools().toParams().filter((t) => t.type === "function" && LOCAL_TOOL_NAMES.includes(t.function.name));
-  const conversation = buildLocalConversation(userInput, extractedContext);
+  const conversation = buildLocalConversation(userInput, extractedContext, imageUris);
 
   for (let step = 0; step < MAX_LOCAL_STEPS; step++) {
     const msgId = uid("local");

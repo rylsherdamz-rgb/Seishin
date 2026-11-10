@@ -54,3 +54,39 @@ describe("local-llama job queue", () => {
     expect(replies.map((r) => (typeof r === "string" ? r : r.content))).toEqual(["ok", "ok", "ok"]);
   });
 });
+
+describe("local-llama vision projector", () => {
+  const load = async (initMultimodal: () => Promise<boolean>) => {
+    jest.resetModules();
+    const llama = require("llama.rn");
+    jest.spyOn(llama, "initLlama").mockImplementation(async () => ({
+      completion: async () => ({ text: "", content: "" }),
+      stopCompletion: async () => {},
+      release: async () => {},
+      initMultimodal: jest.fn(initMultimodal),
+    }));
+    return require("../services/local-llama") as typeof import("../services/local-llama");
+  };
+
+  it("is text-only without an mmproj file", async () => {
+    const m = await load(async () => true);
+    await m.loadModel("/models/m.gguf");
+    expect(m.isModelLoaded()).toBe(true);
+    expect(m.isVisionReady()).toBe(false);
+  });
+
+  it("sees images once the projector loads", async () => {
+    const m = await load(async () => true);
+    await m.loadModel("/models/m.gguf", undefined, "/models/mmproj.gguf");
+    expect(m.isVisionReady()).toBe(true);
+    await m.unloadModel();
+    expect(m.isVisionReady()).toBe(false);
+  });
+
+  it("keeps the text model running if the projector fails", async () => {
+    const m = await load(async () => { throw new Error("bad mmproj"); });
+    await m.loadModel("/models/m.gguf", undefined, "/models/mmproj.gguf");
+    expect(m.isModelLoaded()).toBe(true);
+    expect(m.isVisionReady()).toBe(false);
+  });
+});

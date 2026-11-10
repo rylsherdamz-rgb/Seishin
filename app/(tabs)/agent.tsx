@@ -67,6 +67,7 @@ export default function AgentScreen() {
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const modelPath = useSettingsStore((s) => s.modelPath);
+  const mmprojPath = useSettingsStore((s) => s.mmprojPath);
   const [input, setInput] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<AgentAttachment[]>([]);
   const [showPicker, setShowPicker] = useState(false);
@@ -88,12 +89,12 @@ export default function AgentScreen() {
   useEffect(() => {
     if (currentProvider === "local" && modelPath && !isModelLoaded() && !loadingRef.current) {
       loadingRef.current = true;
-      loadModel(modelPath).catch(() => { }).finally(() => { loadingRef.current = false; });
+      loadModel(modelPath, undefined, mmprojPath).catch(() => { }).finally(() => { loadingRef.current = false; });
     }
     if (currentProvider === "nim" && isModelLoaded()) {
       unloadModel().catch(() => { });
     }
-  }, [currentProvider, modelPath]);
+  }, [currentProvider, modelPath, mmprojPath]);
 
   useEffect(() => {
     if (messages.length > 0) {

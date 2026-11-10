@@ -28,6 +28,8 @@ import { TierBadge } from "@/components/ui/TierBadge";
 import { BackupSection } from "@/components/BackupSection";
 import { WidgetsSection } from "@/components/settings/WidgetsSection";
 import { RemindersCheck } from "@/components/settings/RemindersCheck";
+import { VisionProjectorPicker } from "@/components/settings/VisionProjectorPicker";
+import { unloadModel } from "@/services/local-llama";
 
 const storageCategories = [
   { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
@@ -215,6 +217,7 @@ export default function SettingsScreen() {
       const dest = `${modelDir}${fileName}`;
       await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
       await FileSystem.copyAsync({ from: ggufPath, to: dest });
+      await unloadModel(); // the Agent tab reloads the new file
       setModelPath(dest);
       setGgufPath(dest);
       setModalConfig({ title: "Saved", message: `Model copied and ready. (${ggufFileName})` });
@@ -375,6 +378,8 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
                 <Text className="text-white text-sm font-semibold">Save</Text>
               </TouchableOpacity>
+
+              <VisionProjectorPicker onMessage={(title, message) => setModalConfig({ title, message })} />
 
               <View className="h-px bg-ink-100 my-4" />
 

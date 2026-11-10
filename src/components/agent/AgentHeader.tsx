@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useAgentStore } from "@/stores/agent-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { categorizeModel, getTierLabel } from "@/services/nim-models";
-import { loadModel } from "@/services/local-llama";
+import { isVisionReady, loadModel } from "@/services/local-llama";
 import { LOCAL_TOOL_NAMES } from "@/services/agent-engine";
 import { useColors } from "@/theme/ThemeProvider";
 
@@ -140,6 +140,7 @@ function LocalStatus() {
   const progress = useAgentStore((s) => s.modelProgress);
   const error = useAgentStore((s) => s.modelError);
   const modelPath = useSettingsStore((s) => s.modelPath);
+  const mmprojPath = useSettingsStore((s) => s.mmprojPath);
 
   if (!modelPath) {
     return <StatusRow icon="download" action={{ label: "Choose", onPress: () => router.push("/settings") }}>No on-device model yet — pick a GGUF file</StatusRow>;
@@ -159,13 +160,14 @@ function LocalStatus() {
   }
   if (state === "error") {
     return (
-      <StatusRow icon="alert-circle" tone="error" action={{ label: "Retry", onPress: () => { loadModel(modelPath).catch(() => {}); } }}>
+      <StatusRow icon="alert-circle" tone="error" action={{ label: "Retry", onPress: () => { loadModel(modelPath, undefined, mmprojPath).catch(() => {}); } }}>
         {error ? `Couldn't load model: ${error}` : "Couldn't load the model"}
       </StatusRow>
     );
   }
   if (state === "ready") {
-    return <StatusRow icon="check-circle" tone="ok">{ggufName(modelPath)} · ready, private, offline</StatusRow>;
+    const sees = isVisionReady() ? " · sees images" : "";
+    return <StatusRow icon="check-circle" tone="ok">{ggufName(modelPath)} · ready, private, offline{sees}</StatusRow>;
   }
   return <StatusRow icon="cpu">{ggufName(modelPath)} · starting…</StatusRow>;
 }

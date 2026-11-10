@@ -22,6 +22,8 @@ interface SettingsState {
   nimLargeModel: string | null;
   nimCachedModels: string[];
   modelPath: string | null;
+  /** Vision projector (mmproj .gguf) paired with modelPath; lets the local model see attached images. */
+  mmprojPath: string | null;
   cleanupPolicies: CleanupPolicy;
   notificationFilter: string[];
   /** Selected alarm ringtone. Empty/null means the system default alarm sound. */
@@ -35,6 +37,7 @@ interface SettingsState {
   setNimLargeModel: (model: string | null) => void;
   setNimCachedModels: (models: string[]) => void;
   setModelPath: (path: string | null) => void;
+  setMmprojPath: (path: string | null) => void;
   setCleanupPolicies: (policies: Partial<CleanupPolicy>) => void;
   setNotificationFilter: (packages: string[]) => void;
   setAlarmRingtone: (uri: string | null, name: string) => void;
@@ -65,6 +68,7 @@ function readSettings() {
     nimLargeModel: settingsStorage.getString("nimLargeModel") || null,
     nimCachedModels: readJSON<string[]>("nimCachedModels", []),
     modelPath: settingsStorage.getString("modelPath") || null,
+    mmprojPath: settingsStorage.getString("mmprojPath") || null,
     cleanupPolicies: { ...DEFAULT_CLEANUP, ...readJSON<Partial<CleanupPolicy>>("cleanupPolicies", {}) },
     notificationFilter: readJSON<string[]>("notificationFilter", []),
     alarmRingtoneUri: settingsStorage.getString("alarmRingtoneUri") || null,
@@ -142,6 +146,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (path) settingsStorage.set("modelPath", path);
     else settingsStorage.remove("modelPath");
     set({ modelPath: path });
+  },
+
+  setMmprojPath: (path) => {
+    if (path) settingsStorage.set("mmprojPath", path);
+    else settingsStorage.remove("mmprojPath");
+    set({ mmprojPath: path });
   },
 
   setCleanupPolicies: (policies) => {

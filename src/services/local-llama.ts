@@ -1,4 +1,8 @@
+import { Platform } from "react-native";
 import { initLlama, LlamaContext, releaseAllLlama, installJsi, type ContextParams } from "llama.rn";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("local-llama");
 
 export type ModelState = "unloaded" | "loading" | "ready" | "error";
 
@@ -6,6 +10,10 @@ let _context: LlamaContext | null = null;
 let _state: ModelState = "unloaded";
 let _progress = 0;
 let _error: string | null = null;
+/** A vision projector (mmproj) is loaded, so chat messages may carry images. */
+let _vision = false;
+/** Images cost ~1 token per 32×32 px; the vision fine-tune (training/) is trained at ≤256. */
+const IMAGE_MAX_TOKENS = 256;
 
 const listeners = new Set<() => void>();
 
@@ -25,6 +33,7 @@ async function releaseContext() {
   const ctx = _context;
   if (!ctx) return;
   _context = null;
+  _vision = false;
   await ctx.stopCompletion().catch(() => {});
   await exclusive(() => ctx.release());
 }
@@ -50,7 +59,21 @@ export function isModelLoaded() {
   return _state === "ready" && _context !== null;
 }
 
-export async function loadModel(modelPath: string, onProgress?: (pct: number) => void) {
+/** True when the loaded model can see images (a multimodal GGUF + its mmproj file). */
+export function isVisionReady() {
+  return _vision && isModelLoaded();
+}
+
+/** llama.rn reads local files only; content:// and remote URIs can't be passed to the model. */
+export function isLocalImageUri(uri: string) {
+  return uri.startsWith("file://") || uri.startsWith("/");
+}
+
+/**
+ * Load a GGUF. With `mmprojPath` (the model's vision projector) the model can
+ * also see images; if the projector fails to load the model still runs text-only.
+ */
+export async function loadModel(modelPath: string, onProgress?: (pct: number) => void, mmprojPath?: string | null) {
   if (_state === "loading") return;
   _state = "loading";
   _progress = 0;
@@ -76,6 +99,16 @@ export async function loadModel(modelPath: string, onProgress?: (pct: number) =>
       onProgress?.(pct);
       notify();
     });
+
+    if (mmprojPath) {
+      try {
+        // GPU offload helps on iOS (Metal); most Android GPUs are slower than the CPU here.
+        _vision = await _context.initMultimodal({ path: mmprojPath, use_gpu: Platform.OS === "ios", image_max_tokens: IMAGE_MAX_TOKENS });
+      } catch (e) {
+        _vision = false;
+        log.warn("vision projector failed to load; running text-only", e);
+      }
+    }
 
     _state = "ready";
     _progress = 100;
@@ -138,10 +171,16 @@ export async function generateResponse(
   });
 }
 
+/** One part of a multimodal user turn (OpenAI format, as llama.rn expects). */
+export type LocalContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 /** OpenAI-style chat turn; tool fields pass through to the model's jinja template. */
 export interface LocalChatMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string;
+  /** Plain text, or image + text parts when the model has a vision projector loaded. */
+  content: string | LocalContentPart[];
   tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
   tool_call_id?: string;
 }

@@ -961,7 +961,8 @@ export async function runAgentLoop(
     let reply = "";
     try {
       const { runLocalAgent } = require("./local-agent") as typeof import("./local-agent");
-      reply = await runLocalAgent(userInput, extractedContext);
+      const imageUris = attachments?.filter((a) => a.type === "image").map((a) => a.uri);
+      reply = await runLocalAgent(userInput, extractedContext, imageUris);
     } catch (e) {
       reply = `Error: ${e instanceof Error ? e.message : "Unknown error"}`;
       agentStore.addMessage({ id: `msg-${Date.now()}-err`, role: "assistant", content: reply, timestamp: new Date().toISOString(), provider: "local" });

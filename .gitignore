@@ -22,3 +22,5 @@ coverage/
 # training outputs
 training/data/
 *.gguf
+training/data_vision*/
+__pycache__/

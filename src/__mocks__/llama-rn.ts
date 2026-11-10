@@ -5,6 +5,7 @@ export async function initLlama(_params: unknown, _onProgress?: (pct: number) =>
     },
     stopCompletion: async () => {},
     release: async () => {},
+    initMultimodal: async (_opts: unknown) => true,
   };
   return mockContext;
 }
