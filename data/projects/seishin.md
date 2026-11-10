@@ -4,6 +4,7 @@
 Serverless Expo/RN life-management app; Android-first dev builds, MMKV storage.
 
 ## Current Focus
+- 2026-11-10: `training/` — Colab notebook fine-tunes a fast on-device tool-calling model (Qwen2.5-0.5B → GGUF) on the app's real tool schemas. Not yet run.
 - 2026-10-16: Ported WIP prefs onto main's theme store (12/24h clock, week start, text size, density, start tab), new paged onboarding, TierBadge. Fixed backup restore not re-arming event alarms. Typecheck + 175 tests green; 7 commits unpushed.
 - 2026-10-13: Production hardening — CI green again (TS 6 types), NIM key in SecureStore, llama.rn job queue, dead music deps removed, SDK 57 patches aligned (Hermes fix). Needs a new dev build.
 - 2026-10-09: Merged feature branch to main. One close-safe `Sheet` for every bottom sheet (fixes floating empty sheets); live sync (60 s open / 15 min closed). Local theme/widgets WIP parked on `wip/local-theme-widgets`.
@@ -12,6 +13,7 @@ Serverless Expo/RN life-management app; Android-first dev builds, MMKV storage.
 - 2026-10-07: Calendar redesign (timeline/agenda/upcoming, quick add) + runtime theming (ADR 0001).
 
 ## Open Threads
+- Run `training/seishin_agent_colab.ipynb` on a Colab T4; QA the GGUF on device (tool calls, latency of ~2.2k-token tool prompt).
 - On-device QA after new build: NIM key survives upgrade (migrated to SecureStore); Smart capture while agent chat is generating.
 - Remaining `npm audit` items are build-toolchain; runtime `query-string` (expo-router) waits for the next SDK.
 - On-device QA: local agent tool calls with the real GGUF (add task/event/note, multi-step), Stop button mid-tool.

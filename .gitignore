@@ -18,3 +18,7 @@ ios/
 .graphify/
 graphify-out/
 coverage/
+
+# training outputs
+training/data/
+*.gguf

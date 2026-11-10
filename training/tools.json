@@ -1,0 +1,406 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "add_event",
+      "description": "Add an event to the calendar",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Event title"
+          },
+          "startDate": {
+            "type": "string",
+            "description": "Start date/time in ISO format (e.g. 2024-03-15T14:00:00.000Z)"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "End date/time in ISO format"
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional event description"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional freeform notes for the event"
+          }
+        },
+        "required": [
+          "title",
+          "startDate"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_events",
+      "description": "List all calendar events",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_inbox",
+      "description": "List recent notifications/emails/chats in your inbox. Use this to see what notifications you've received.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "number",
+            "description": "Max items to return (default 20)"
+          },
+          "unreadOnly": {
+            "type": "boolean",
+            "description": "Only show unread items"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "update_event",
+      "description": "Edit an existing calendar event. Identify it by id or by its current title (query), then change any of title, start/end time, or description.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Current title (or part of it) of the event to edit"
+          },
+          "id": {
+            "type": "string",
+            "description": "Exact event id, if known"
+          },
+          "title": {
+            "type": "string",
+            "description": "New title"
+          },
+          "startDate": {
+            "type": "string",
+            "description": "New start date/time in ISO format"
+          },
+          "endDate": {
+            "type": "string",
+            "description": "New end date/time in ISO format"
+          },
+          "description": {
+            "type": "string",
+            "description": "New description"
+          },
+          "notes": {
+            "type": "string",
+            "description": "New freeform notes for the event"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "delete_event",
+      "description": "Delete/remove a calendar event, identified by id or by its title (query).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Title (or part of it) of the event to delete"
+          },
+          "id": {
+            "type": "string",
+            "description": "Exact event id, if known"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "add_todo",
+      "description": "Add a task with an optional due date, a checklist of items to do/answer, and reminders. Use reminder \"persistent\" when the user wants to be reminded until it's done (e.g. homework, bills).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Task title"
+          },
+          "priority": {
+            "type": "string",
+            "description": "Priority: low, medium, or high"
+          },
+          "dueDate": {
+            "type": "string",
+            "description": "Optional due date/time in ISO format (local time)"
+          },
+          "reminder": {
+            "type": "string",
+            "description": "persistent (keep reminding until done), normal (before the deadline), or off"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional checklist: questions or steps, as strings"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_todos",
+      "description": "List tasks, soonest deadline first, with overdue ones flagged, checklist progress and where they came from (Todoist, Notion, a course feed). By default only open tasks.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "includeCompleted": {
+            "type": "boolean",
+            "description": "Include completed tasks"
+          },
+          "withinDays": {
+            "type": "number",
+            "description": "Only tasks due within this many days (overdue always included)"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "complete_todo",
+      "description": "Mark a todo as done (or reopen it), identified by id or by its title (query).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Title (or part of it) of the todo"
+          },
+          "id": {
+            "type": "string",
+            "description": "Exact todo id, if known"
+          },
+          "done": {
+            "type": "boolean",
+            "description": "true to mark done (default), false to reopen it"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "update_todo",
+      "description": "Edit an existing todo. Identify it by id or by its current title (query), then change title, priority, or due date.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Current title (or part of it) of the todo to edit"
+          },
+          "id": {
+            "type": "string",
+            "description": "Exact todo id, if known"
+          },
+          "title": {
+            "type": "string",
+            "description": "New title"
+          },
+          "priority": {
+            "type": "string",
+            "description": "New priority: low, medium, or high"
+          },
+          "dueDate": {
+            "type": "string",
+            "description": "New due date in ISO format"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "delete_todo",
+      "description": "Delete/remove a todo, identified by id or by its title (query).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Title (or part of it) of the todo to delete"
+          },
+          "id": {
+            "type": "string",
+            "description": "Exact todo id, if known"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "add_note",
+      "description": "Create a note in the note-taking app. Use for anything the user wants to jot down, save, or remember as free text (ideas, lists, meeting notes, thoughts) — as opposed to a dated task (add_todo) or a scheduled event (add_event).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Short note title"
+          },
+          "body": {
+            "type": "string",
+            "description": "The note content / body text"
+          },
+          "tags": {
+            "type": "string",
+            "description": "Comma-separated tags, e.g. 'work,ideas'"
+          },
+          "pinned": {
+            "type": "boolean",
+            "description": "Pin the note to the top"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_notes",
+      "description": "List saved notes (output includes each note's id). Optionally filter by a search query matching title, body, or tags.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Optional text to filter notes by"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "update_note",
+      "description": "Edit an existing note. Identify it by id or by its current title (query), then change title, body, tags, or pin.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Current title (or part of it) of the note to edit"
+          },
+          "id": {
+            "type": "string",
+            "description": "Exact note id, if known"
+          },
+          "title": {
+            "type": "string",
+            "description": "New title"
+          },
+          "body": {
+            "type": "string",
+            "description": "New body text (replaces the existing body)"
+          },
+          "tags": {
+            "type": "string",
+            "description": "New comma-separated tags (replaces existing tags)"
+          },
+          "pinned": {
+            "type": "boolean",
+            "description": "Pin (true) or unpin (false) the note"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "remember_entity",
+      "description": "Store an entity in your knowledge graph. Use this when the user tells you something important about a person, place, concept, or thing that they might want you to recall later.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Entity name"
+          },
+          "type": {
+            "type": "string",
+            "description": "Entity type (person, place, concept, project, preference, etc.)"
+          },
+          "description": {
+            "type": "string",
+            "description": "What to remember about this entity"
+          },
+          "tags": {
+            "type": "string",
+            "description": "Optional comma-separated tags"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "description"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "recall_memory",
+      "description": "Search your knowledge graph. Call this when the user asks about something they told you earlier, or when you need context from prior conversations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What to search for in the knowledge graph"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      }
+    }
+  }
+]
