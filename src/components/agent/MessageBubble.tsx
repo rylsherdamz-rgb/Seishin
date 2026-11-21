@@ -9,6 +9,7 @@ import { useFormatTime } from "@/stores/theme-store";
 
 /** "On-device · qwen2.5-1.5b" / "NVIDIA NIM · llama-3.1-8b-instruct". */
 function providerLabel(m: AgentMessage): string {
+  if (m.provider === "lite") return "Seishin Lite · instant";
   const name = m.model?.split("/").pop();
   const brain = m.provider === "local" ? "On-device" : "NVIDIA NIM";
   return name ? `${brain} · ${name}` : brain;
@@ -73,7 +74,7 @@ export const MessageBubble = memo(function MessageBubble({ item, copied, onCopy 
         <Text className="text-11 text-ink-400">{time}</Text>
         {item.role === "assistant" && item.provider ? (
           <View className="flex-row items-center gap-1 shrink" accessibilityLabel={`Answered by ${providerLabel(item)}`}>
-            <Feather name={item.provider === "local" ? "smartphone" : "cloud"} size={11} color={C.ink400} />
+            <Feather name={item.provider === "lite" ? "zap" : item.provider === "local" ? "smartphone" : "cloud"} size={11} color={C.ink400} />
             <Text className="text-11 text-ink-400 shrink" numberOfLines={1}>{providerLabel(item)}</Text>
           </View>
         ) : null}

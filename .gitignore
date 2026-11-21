@@ -21,3 +21,5 @@ coverage/
 credentials.json
 *.jks
 *.keystore
+ml/seishin-lite/.data/
+__pycache__/
