@@ -19,3 +19,5 @@ ios/
 graphify-out/
 coverage/
 credentials.json
+*.jks
+*.keystore

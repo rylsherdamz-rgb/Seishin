@@ -49,4 +49,20 @@ jobs:
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+      # preview/production use credentialsSource "local": rebuild the gitignored
+      # credentials.json + upload keystore from repo secrets for this run only.
+      - name: Write upload-key credentials
+        if: inputs.eas_profile != 'development'
+        env:
+          KEYSTORE_B64: ${{ secrets.SEISHIN_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SEISHIN_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SEISHIN_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SEISHIN_UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Set SEISHIN_UPLOAD_KEYSTORE_BASE64 and the SEISHIN_UPLOAD_* secrets to build ${{ inputs.eas_profile }}"
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > seishin-upload.jks
+          node -e 'const e=process.env; require("fs").writeFileSync("credentials.json", JSON.stringify({android:{keystore:{keystorePath:"seishin-upload.jks",keystorePassword:e.STORE_PASSWORD,keyAlias:e.KEY_ALIAS,keyPassword:e.KEY_PASSWORD}}}))'
       - run: eas build --platform android --profile ${{ inputs.eas_profile }} --non-interactive
