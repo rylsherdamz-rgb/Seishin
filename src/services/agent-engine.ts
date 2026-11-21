@@ -4,6 +4,7 @@ import { fetch as expoFetch } from "expo/fetch";
 import * as Notifications from "expo-notifications";
 import { useAgentStore, AgentMessage, AgentAttachment, type ToolCallData } from "@/stores/agent-store";
 import { isModelLoaded, getModelState, abortGeneration } from "./local-llama";
+import { askLite, LITE_HELP } from "./lite";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
@@ -914,10 +915,30 @@ export async function runAgentLoop(
   const attachments = opts?.attachments;
   const extractedContext = opts?.extractedContext?.trim();
 
+  // Seishin Lite first: quick questions about the day are answered instantly
+  // from the user's own events and tasks; everything else reaches the model.
+  const hasModel = currentProvider === "local" ? isModelLoaded() : !!nimKey;
+  if (!attachments?.length && !extractedContext) {
+    const lite = askLite(userInput, hasModel);
+    if (lite) {
+      const ts = Date.now();
+      agentStore.addMessage({ id: `msg-${ts}`, role: "user", content: userInput, timestamp: new Date(ts).toISOString() });
+      agentStore.addMessage({ id: `msg-${ts}-lite`, role: "assistant", content: lite.text, timestamp: new Date().toISOString(), provider: "lite", model: "Seishin Lite" });
+      appendToSessionLog(userInput, lite.text);
+      return;
+    }
+  }
+
   if (currentProvider === "local") {
     if (!isModelLoaded()) {
-      const { error } = getModelState();
-      const errMsg = error ? `Model error: ${error}` : "Local model is not loaded yet. Please wait for it to finish loading.";
+      const { error, modelPath } = { ...getModelState(), modelPath: useSettingsStore.getState().modelPath };
+      const errMsg = error
+        ? `Model error: ${error}`
+        : modelPath
+          ? "The on-device model is still loading — try again in a moment."
+          : `${LITE_HELP}
+
+For anything else (adding events, writing, general questions), pick a .gguf model in **Settings → AI**, or switch to NVIDIA NIM.`;
       if (!error) agentStore.addMessage({
         id: `msg-${Date.now()}`,
         role: "user", content: userInput,

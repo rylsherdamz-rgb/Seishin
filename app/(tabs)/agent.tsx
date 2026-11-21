@@ -25,10 +25,13 @@ import {
 } from "@/services/local-llama";
 import { useColors } from "@/theme/ThemeProvider";
 
+// Seishin Lite answers the first three instantly, with no model; the rest need the GGUF / NIM.
 const SUGGESTIONS = [
-  { icon: "list" as const, label: "Plan my day", action: "What's on my calendar today?" },
+  { icon: "sun" as const, label: "Today's lineup", action: "What's lined up today?" },
+  { icon: "check-square" as const, label: "What's due", action: "What's due this week?" },
+  { icon: "clock" as const, label: "When am I free?", action: "When am I free today?" },
   { icon: "calendar" as const, label: "Add an event", action: "Schedule a meeting tomorrow at 3pm" },
-  { icon: "check-square" as const, label: "Add a task", action: "Add a task to buy groceries" },
+  { icon: "plus-square" as const, label: "Add a task", action: "Add a task to buy groceries" },
   { icon: "file-text" as const, label: "New note", action: "Save a note about my project ideas" },
 ];
 
@@ -196,6 +199,7 @@ export default function AgentScreen() {
             </View>
             <Text className="text-base font-medium text-ink-500 text-center">Ask me anything</Text>
             <Text className="text-sm text-ink-400 mt-1 text-center max-w-[280px]">
+              Questions about your day — what's lined up, what's due, when you're free — are answered instantly, even offline.{" "}
               {currentProvider === "local"
                 ? "Runs on your phone, offline and private. I can add and change events, tasks and notes for you."
                 : hasKey
