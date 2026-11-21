@@ -6,6 +6,13 @@
 import { NativeModules, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 
+export interface AlarmAccess {
+  /** "Alarms & reminders": exact, on-the-minute alarms. */
+  exact: boolean;
+  /** Full-screen alarm over the lock screen (Android 14+ can revoke it). */
+  fullScreen: boolean;
+}
+
 /** Native full-screen alarm module (background/locked-screen rings). Absent in builds without it. */
 export const NativeAlarm = NativeModules.AlarmFullScreen as
   | {
@@ -18,6 +25,9 @@ export const NativeAlarm = NativeModules.AlarmFullScreen as
       /** Foreground "keep-alive" service + start at boot (on by default). */
       setKeepAlive?: (on: boolean) => void;
       isKeepAliveEnabled?: () => Promise<boolean>;
+      /** Android 12+/14+ switches the user (or Play) can turn off; off = late or heads-up-only alarms. */
+      alarmAccess?: () => Promise<AlarmAccess>;
+      openAlarmAccess?: (kind: keyof AlarmAccess) => void;
     }
   | undefined;
 

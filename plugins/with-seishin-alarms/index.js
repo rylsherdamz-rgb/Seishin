@@ -77,6 +77,8 @@ function withManifest(config) {
           "com.htc.intent.action.QUICKBOOT_POWERON",
           "android.intent.action.TIME_SET",
           "android.intent.action.TIMEZONE_CHANGED",
+          // Exact-alarm access granted later: re-arm so pending alarms become exact.
+          "android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED",
         ].map((n) => ({ $: { "android:name": n } })),
       }],
     });
