@@ -1,5 +1,12 @@
 import { settingsStorage } from "@/stores/mmkv";
 
+import {
+  scheduleEventReminder,
+  cancelEventReminder,
+} from "@/services/notification-service";
+import * as Notifications from "expo-notifications";
+import type { CalendarEvent } from "@/stores/calendar-store";
+
 jest.mock("expo-notifications", () => {
   let counter = 0;
   const schedule = jest.fn(async () => `notif-${counter++}`);
@@ -17,13 +24,6 @@ jest.mock("expo-notifications", () => {
     __cancel: cancel,
   };
 });
-
-import {
-  scheduleEventReminder,
-  cancelEventReminder,
-} from "@/services/notification-service";
-import * as Notifications from "expo-notifications";
-import type { CalendarEvent } from "@/stores/calendar-store";
 
 const schedule = (Notifications as unknown as { __schedule: jest.Mock }).__schedule;
 const cancel = (Notifications as unknown as { __cancel: jest.Mock }).__cancel;

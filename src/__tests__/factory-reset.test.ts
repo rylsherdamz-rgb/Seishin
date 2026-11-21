@@ -1,3 +1,10 @@
+import { factoryReset } from "@/services/factory-reset";
+import { useCalendarStore } from "@/stores/calendar-store";
+import { useTodoStore } from "@/stores/todo-store";
+import { useNotesStore } from "@/stores/notes-store";
+import { eventsStorage } from "@/stores/mmkv";
+import { getToken, setToken } from "@/services/connectors/secrets";
+
 jest.mock("expo-mlkit-ocr", () => ({ recognizeText: jest.fn() }));
 const mockCancelAll = jest.fn(async () => {});
 jest.mock("expo-notifications", () => ({
@@ -11,13 +18,6 @@ jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jes
 jest.mock("@/services/background-sync", () => ({ BACKGROUND_SYNC_TASK: "t" }));
 const mockUnregister = jest.fn(async () => {});
 jest.mock("expo-background-task", () => ({ unregisterTaskAsync: (...a: unknown[]) => mockUnregister(...(a as [])) }));
-
-import { factoryReset } from "@/services/factory-reset";
-import { useCalendarStore } from "@/stores/calendar-store";
-import { useTodoStore } from "@/stores/todo-store";
-import { useNotesStore } from "@/stores/notes-store";
-import { eventsStorage } from "@/stores/mmkv";
-import { getToken, setToken } from "@/services/connectors/secrets";
 
 describe("factoryReset", () => {
   it("clears storage, in-memory stores, secrets, reminders and background sync", async () => {

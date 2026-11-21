@@ -1,8 +1,8 @@
-jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
-jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: jest.fn(async () => 0), cancelTaskReminders: jest.fn(async () => {}) }));
-
 import { useTodoStore } from "@/stores/todo-store";
 import { useCalendarStore } from "@/stores/calendar-store";
+
+jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
+jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: jest.fn(async () => 0), cancelTaskReminders: jest.fn(async () => {}) }));
 
 // Auto-sync reloads both stores every minute and treats a new array as a user
 // edit; an unchanged reload must keep the same array or sync loops forever.

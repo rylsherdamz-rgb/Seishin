@@ -1,3 +1,5 @@
+import { createDefaultTools } from "@/services/agent-engine";
+import { useTodoStore } from "@/stores/todo-store";
 jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: jest.fn(async () => 0), cancelTaskReminders: jest.fn(async () => {}) }));
 jest.mock("expo-mlkit-ocr", () => ({ recognizeText: jest.fn() }));
@@ -5,8 +7,6 @@ jest.mock("expo-notifications", () => ({ scheduleNotificationAsync: jest.fn(), c
 jest.mock("expo/fetch", () => ({ fetch: jest.fn() }));
 jest.mock("openai", () => jest.fn());
 jest.mock("@/services/local-llama", () => ({ generateResponse: jest.fn(), isModelLoaded: () => false, getModelState: () => ({}), abortGeneration: jest.fn() }));
-import { createDefaultTools } from "@/services/agent-engine";
-import { useTodoStore } from "@/stores/todo-store";
 
 const tool = (name: string) => createDefaultTools().tools.find((t) => t.name === name)!;
 const run = async (name: string, args: Record<string, unknown>) => (await tool(name).call(args)).toString();

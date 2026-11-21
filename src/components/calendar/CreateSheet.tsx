@@ -6,9 +6,9 @@ import { useColors } from "@/theme/ThemeProvider";
 import { COPY, LIMITS } from "@/constants/copy";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { formatClock, atMinutes, formatDuration, nextSlotMinutes, parseQuickAdd, relativeDayLabel, type QuickParse } from "./calendar-utils";
+import type { CreateKind } from "./actions";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
-import type { CreateKind } from "./actions";
 export type { CreateKind };
 
 export const TEMPLATES: { title: string; icon: IconName; minutes: number }[] = [

@@ -1,3 +1,10 @@
+import { runLocalAgent, MAX_LOCAL_STEPS } from "@/services/local-agent";
+import { LOCAL_TOOL_NAMES } from "@/services/agent-engine";
+import { completeText } from "@/services/ai-complete";
+import { useAgentStore } from "@/stores/agent-store";
+import { useTodoStore } from "@/stores/todo-store";
+import { useSettingsStore } from "@/stores/settings-store";
+
 jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: jest.fn(async () => 0), cancelTaskReminders: jest.fn(async () => {}) }));
 jest.mock("expo-notifications", () => ({ scheduleNotificationAsync: jest.fn(async () => "") }));
@@ -11,13 +18,6 @@ jest.mock("@/services/local-llama", () => ({
   getModelState: () => ({ state: "ready", progress: 100, error: null }),
   abortGeneration: jest.fn(),
 }));
-
-import { runLocalAgent, MAX_LOCAL_STEPS } from "@/services/local-agent";
-import { LOCAL_TOOL_NAMES } from "@/services/agent-engine";
-import { completeText } from "@/services/ai-complete";
-import { useAgentStore } from "@/stores/agent-store";
-import { useTodoStore } from "@/stores/todo-store";
-import { useSettingsStore } from "@/stores/settings-store";
 
 beforeEach(() => {
   mockChat.mockReset();

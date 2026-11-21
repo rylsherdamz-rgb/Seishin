@@ -1,11 +1,11 @@
-jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
-jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: jest.fn(async () => 0), cancelTaskReminders: jest.fn(async () => {}) }));
-// Internal helper the library uses to turn JSX into the native widget tree.
-const { buildWidgetTree } = require("react-native-android-widget/lib/commonjs/api/build-widget-tree") as { buildWidgetTree: (el: React.JSX.Element) => unknown };
 import { renderSeishinWidget, WIDGET_NAMES, setMonthOffset } from "@/widgets/render";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { settingsStorage } from "@/stores/mmkv";
+jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
+jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: jest.fn(async () => 0), cancelTaskReminders: jest.fn(async () => {}) }));
+// Internal helper the library uses to turn JSX into the native widget tree.
+const { buildWidgetTree } = require("react-native-android-widget/lib/commonjs/api/build-widget-tree") as { buildWidgetTree: (el: React.JSX.Element) => unknown };
 
 const soon = (h: number) => new Date(Date.now() + h * 3600000).toISOString();
 

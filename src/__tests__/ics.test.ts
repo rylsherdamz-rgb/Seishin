@@ -1,5 +1,5 @@
-jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 import { parseIcs, parseIcsDate, parseDuration, parseRrule, looksLikeDeadline } from "@/services/connectors/ics";
+jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 
 const FEED = [
   "BEGIN:VCALENDAR",

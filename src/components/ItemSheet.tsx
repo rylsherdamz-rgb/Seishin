@@ -1,9 +1,8 @@
 import { useRef, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { router } from "expo-router";
-import { useNotesStore } from "@/stores/notes-store";
+import { useNotesStore, NoteAttachment } from "@/stores/notes-store";
 import { useTodoStore } from "@/stores/todo-store";
-import { NoteAttachment } from "@/stores/notes-store";
 import { Recurrence } from "@/stores/calendar-store";
 import { recurrenceLabel } from "@/utils/recurrence";
 import { AlertDialog } from "@/components/ui/AlertDialog";
