@@ -18,7 +18,31 @@ npx jest lite-                               # parity with Python and the hand-w
 ```
 The trainer prints accuracy on unseen phrasings and on `probe.py`, a hand-written exam kept apart from the templates. It also writes parity vectors, which the jest suite checks against the TypeScript port. If you change `features.py`, make the same change in `features.ts`.
 
-## Current numbers (seed 1)
-- **Unseen template phrasings:** 51% answered by Seishin Lite itself, 90% of those exactly right, 0.4% given an answer from the wrong family (schedule vs tasks vs chat).
-- **Hand-written exam (70 questions):** 73% answered itself, 96% of those exactly right; 1 general question answered by mistake (a search that finds no event falls through to the model).
-- Everything else goes to the language model. With no model set up, it accepts a lower confidence (0.3) and takes its best guess.
+## Routing
+Seishin Lite answers when the probability of the top intent's *family* (schedule, tasks or chat) is at least the threshold (0.55). A question split between agenda and next_event is still a sure schedule question, and either answer serves. With no language model set up, the bar is 0.4 and it takes its best guess.
+
+## Results
+Settings were tuned on validation only: held-out templates plus `probe.py`. `final_exam.py` (79 hand-written questions) was written before round-2 tuning and scored once at the end:
+
+| Final exam (unseen) | Round 1 | Round 2 (shipped) |
+|---|---|---|
+| Answered by Seishin Lite itself | 75% | 71% |
+| Exactly right, of those | 86% | 95% |
+| Wrong kind of answer | 6.3% | 2.5% |
+| Actions/general questions answered by mistake | 3 of 18 | 1 of 18 |
+
+What changed in round 2:
+- Questions composed from parts: 500 per intent, training only.
+- A hyperparameter search over size, epochs and weight decay with 3 seeds each. The winner is 32 hidden units, 6 epochs, weight decay 3e-3.
+- Family confidence for routing.
+
+Tried and rejected:
+- More composed data (1,000 or 2,000 per intent): it crowds out natural phrasings and coverage drops.
+- A 3-seed ensemble: about the same as the best single model at 3× the size.
+
+Known misses on the final exam: short "help" phrasings ("help pls", "paano ka gumagana"), and "what's 12 times 13" read as an agenda question. Don't tune against the final exam. Add new phrasings to `dataset.py` and write a new exam instead.
+
+```sh
+python3 ml/seishin-lite/search.py              # validation search (~40 s)
+python3 ml/seishin-lite/train.py --final       # train the shipped settings and score the final exam
+```

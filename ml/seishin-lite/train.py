@@ -24,12 +24,18 @@ FAMILY = {"agenda": "sched", "next_event": "sched", "free_time": "sched", "find_
           "tasks_due": "tasks", "overdue": "tasks", "greeting": "chat", "thanks": "chat", "help": "chat", "other": "other"}
 
 
+def family_confidence(labels, p, k):
+    """How sure the model is about the *kind* of question: the top intent's whole family."""
+    fam = FAMILY[labels[k]]
+    return sum(p[i] for i, l in enumerate(labels) if FAMILY[l] == fam)
+
+
 def route(labels, P, texts, threshold):
     """What the app does: rules first, then the model; None = hand to the LLM."""
     out = []
     for p, t in zip(P, texts):
         k = int(p.argmax())
-        if is_command(t) or labels[k] == "other" or p[k] < threshold:
+        if is_command(t) or labels[k] == "other" or family_confidence(labels, p, k) < threshold:
             out.append(None)
         else:
             out.append(labels[k])
@@ -127,15 +133,17 @@ def report(name, params, X, y, labels):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hidden", type=int, default=32)
-    ap.add_argument("--epochs", type=int, default=8)
+    ap.add_argument("--epochs", type=int, default=6)
     ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--wd", type=float, default=3e-3)
     ap.add_argument("--seed", type=int, default=1)
-    ap.add_argument("--threshold", type=float, default=0.45)
+    ap.add_argument("--threshold", type=float, default=0.55)
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--composed", type=int, default=500, help="composed training questions per intent (0 = round 1)")
+    ap.add_argument("--final", action="store_true", help="also score final_exam.py (only once tuning is done)")
     a = ap.parse_args()
 
-    labels, train_rows, test_rows = build()
+    labels, train_rows, test_rows = build(composed=a.composed)
     Xtr, ytr = matrix(train_rows)
     Xte, yte = matrix(test_rows)
     print(f"train {len(ytr)}  test {len(yte)}  features {DIM}  hidden {a.hidden}  classes {len(labels)}")
@@ -152,6 +160,17 @@ def main():
         for (t, l), g, p in zip(PROBE, got, Pp0):
             if g != (None if l == "other" else l):
                 print(f"    {t!r:45s} want {l:10s} got {g} ({labels[int(p.argmax())]} {p.max():.2f})")
+
+    if a.final:
+        from final_exam import FINAL
+        final_rows = [(t, labels.index(l)) for t, l in FINAL]
+        Xf, _ = matrix(final_rows)
+        _, Pf = forward(params, Xf)
+        got = score("FINAL exam (unseen)", labels, Pf, final_rows, a.threshold)
+        if a.verbose:
+            for (t, l), g, p in zip(FINAL, got, Pf):
+                if g != (None if l == "other" else l):
+                    print(f"    {t!r:45s} want {l:10s} got {g} ({labels[int(p.argmax())]} {p.max():.2f})")
 
     q1, s1 = quantize(params[0])
     q2, s2 = quantize(params[2])
@@ -170,6 +189,7 @@ def main():
         "hidden": a.hidden,
         "labels": labels,
         "threshold": a.threshold,
+        "confidence": "family",
         "w1": base64.b64encode(q1.tobytes()).decode(),
         "s1": s1,
         "b1": [round(float(x), 6) for x in params[1]],

@@ -65,7 +65,22 @@ export function predict(text: string): number[] {
   return e.map((v) => v / total);
 }
 
-export interface Classification { intent: Intent; confidence: number; command: boolean }
+export interface Classification {
+  intent: Intent;
+  /** How sure the model is about the kind of question (see FAMILY) — compared with THRESHOLD. */
+  confidence: number;
+  command: boolean;
+}
+
+/**
+ * Intents whose answers overlap. "What's next on my schedule" split between
+ * agenda and next_event is still a sure schedule question, and either answer
+ * serves — so routing uses the top intent's family total (train.py does the same).
+ */
+export const FAMILY: Record<Intent, "sched" | "tasks" | "chat" | "other"> = {
+  agenda: "sched", next_event: "sched", free_time: "sched", find_event: "sched",
+  tasks_due: "tasks", overdue: "tasks", greeting: "chat", thanks: "chat", help: "chat", other: "other",
+};
 
 /** Best intent; commands ("add …", "remind me to …") are always "other". */
 export function classify(text: string): Classification {
@@ -73,5 +88,7 @@ export function classify(text: string): Classification {
   const p = predict(text);
   let k = 0;
   for (let i = 1; i < p.length; i++) if (p[i] > p[k]) k = i;
-  return { intent: LABELS[k], confidence: p[k], command: false };
+  const fam = FAMILY[LABELS[k]];
+  const confidence = p.reduce((sum, v, i) => (FAMILY[LABELS[i]] === fam ? sum + v : sum), 0);
+  return { intent: LABELS[k], confidence, command: false };
 }

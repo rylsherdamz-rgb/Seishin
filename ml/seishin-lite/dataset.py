@@ -172,7 +172,7 @@ def _style(s: str, rng: random.Random, label: str) -> str:
     return s
 
 
-def build(per_template: int = 40, test_share: float = 0.2, seed: int = 7):
+def build(per_template: int = 40, test_share: float = 0.2, seed: int = 7, composed: int = 500):
     rng = random.Random(seed)
     labels = list(T)
     train, test = [], []
@@ -185,5 +185,88 @@ def build(per_template: int = 40, test_share: float = 0.2, seed: int = 7):
             n = per_template if "{" in tpl else max(6, per_template // 4)
             for _ in range(n):
                 bucket.append((_style(_fill(tpl, rng), rng, label), li))
+    if composed:
+        train.extend(compose(composed))
     rng.shuffle(train)
     return labels, train, test
+
+
+# ---- Round 2: questions composed from parts (training only) -------------------------------------
+OBJ_EN = ["meetings", "classes", "events", "plans", "appointments", "anything", "stuff", "things", "work", "school", "practice"]
+OBJ_TL = ["meeting", "klase", "lakad", "pasok", "event", "ganap", "lakaran", "gala", "exam", "trabaho", "practice"]
+TASK_EN = ["tasks", "homework", "assignments", "deadlines", "todos", "projects", "requirements", "submissions", "reports"]
+TASK_TL = ["assignment", "gawain", "task", "requirements", "ipapasa", "deadline", "homework", "project", "takdang aralin"]
+END = ["", "", "", "?", " pls", " po", " ba", " please", " thanks", " haha", " rn", " ngayon na"]
+
+COMPOSE = {
+    "agenda": [
+        lambda r: f"do i have any {r.choice(OBJ_EN)} {r.choice(WHEN)}",
+        lambda r: f"what {r.choice(OBJ_EN)} do i have {r.choice(WHEN)}",
+        lambda r: f"any {r.choice(OBJ_EN)} {r.choice(WHEN)}",
+        lambda r: f"{r.choice(['show', 'list', 'check', 'open', 'see'])} my {r.choice(['schedule', 'calendar', 'agenda', 'day', 'plans'])} {r.choice(WHEN)}",
+        lambda r: f"what does {r.choice(['today', 'tomorrow', 'friday', 'my monday', 'next week', 'the weekend', 'my day'])} look like",
+        lambda r: f"may {r.choice(OBJ_TL)} ba ako {r.choice(WHEN)}",
+        lambda r: f"meron ba akong {r.choice(OBJ_TL)} {r.choice(WHEN)}",
+        lambda r: f"ano {r.choice(['mga ', ''])}{r.choice(['lakad', 'ganap', 'schedule', 'sched', 'plano', 'events', 'klase'])} ko {r.choice(WHEN)}",
+        lambda r: f"{r.choice(['ganap', 'sched', 'schedule', 'lakad', 'agenda', 'plans'])} {r.choice(WHEN)}",
+        lambda r: f"is {r.choice(['today', 'tomorrow', 'my friday', 'next week', 'this weekend', 'monday'])} {r.choice(['busy', 'packed', 'full', 'free', 'clear'])}",
+        lambda r: f"what's {r.choice(['going on', 'happening', 'planned', 'scheduled', 'on'])} {r.choice(WHEN)}",
+    ],
+    "free_time": [
+        lambda r: f"am i {r.choice(['free', 'available', 'open', 'busy'])} at {r.choice(TIME)} {r.choice(WHEN + [''])}",
+        lambda r: f"is {r.choice(TIME)} {r.choice(['free', 'open', 'available', 'taken', 'ok'])} {r.choice(WHEN + [''])}",
+        lambda r: f"{r.choice(['free', 'bakante', 'available', 'pwede'])} ba ako {r.choice(['ng ', 'mamayang ', 'sa ', 'by '])}{r.choice(TIME)}",
+        lambda r: f"when {r.choice(['am i free', 'do i have time', 'can i meet', 'is a good time', 'do i have a break', 'can i fit a call'])} {r.choice(WHEN + [''])}",
+        lambda r: f"{r.choice(['any', 'find', 'show', 'list'])} {r.choice(['free time', 'free slots', 'gaps', 'openings', 'breaks', 'open time'])} {r.choice(WHEN)}",
+        lambda r: f"kailan ako {r.choice(['free', 'bakante', 'pwede', 'available', 'walang ginagawa'])} {r.choice(WHEN + [''])}",
+        lambda r: f"may {r.choice(['oras', 'free time', 'bakanteng oras', 'break'])} ba ako {r.choice(WHEN + ['ng ' + t for t in TIME])}",
+        lambda r: f"can i {r.choice(['squeeze in', 'fit', 'book', 'do'])} something at {r.choice(TIME)}",
+    ],
+    "tasks_due": [
+        lambda r: f"what {r.choice(TASK_EN)} {r.choice(['are due', 'do i have', 'are left', 'are pending', 'should i do'])} {r.choice(WHEN + [''])}",
+        lambda r: f"any {r.choice(TASK_EN)} {r.choice(['due', 'left', 'pending'])} {r.choice(WHEN + [''])}",
+        lambda r: f"what do i {r.choice(['need to submit', 'have to finish', 'need to do', 'have to turn in', 'owe'])} {r.choice(WHEN + [''])}",
+        lambda r: f"may {r.choice(TASK_TL)} ba ako {r.choice(WHEN + [''])}",
+        lambda r: f"ano {r.choice(['mga ', ''])}{r.choice(TASK_TL)} ko {r.choice(WHEN + [''])}",
+        lambda r: f"ano {r.choice(['dapat kong', 'kailangan kong', 'pa ang'])} {r.choice(['gawin', 'tapusin', 'ipasa', 'gagawin'])} {r.choice(WHEN + [''])}",
+        lambda r: f"{r.choice(['my', 'show', 'list', 'check'])} {r.choice(TASK_EN)} {r.choice(WHEN + [''])}",
+        lambda r: f"what's due {r.choice(WHEN + ['', 'soon', 'next'])}",
+    ],
+    "next_event": [
+        lambda r: f"what's my next {r.choice(['meeting', 'class', 'event', 'appointment', 'thing', 'activity'])}",
+        lambda r: f"when {r.choice(['is', 'does'])} my next {r.choice(['class', 'meeting', 'event'])}{r.choice(['', ' start'])}",
+        lambda r: f"ano {r.choice(['susunod', 'next', 'kasunod'])} {r.choice(['kong lakad', 'na klase ko', 'sa sched ko', 'ko', 'na event'])}",
+        lambda r: f"{r.choice(['next', 'upcoming', 'coming up'])} {r.choice(['', 'for me', 'event', 'meeting', 'on my calendar'])}",
+    ],
+    "overdue": [
+        lambda r: f"{r.choice(['what', 'which', 'any'])} {r.choice(TASK_EN)} {r.choice(['are overdue', 'did i miss', 'are late', 'did i forget', 'are past due'])}",
+        lambda r: f"ano {r.choice(['mga ', ''])}{r.choice(['na-miss', 'nakalimutan', 'hindi natapos', 'late', 'overdue', 'lumagpas'])} ko",
+        lambda r: f"{r.choice(['show', 'list', 'check'])} {r.choice(['overdue', 'late', 'missed'])} {r.choice(['tasks', 'stuff', 'deadlines', ''])}",
+    ],
+    "find_event": [
+        lambda r: f"{r.choice(['when', 'what time', 'what day', 'what date'])} is {r.choice(['my', 'the', 'our'])} {r.choice(THING)}",
+        lambda r: f"{r.choice(['kailan', 'kelan', 'anong oras', 'anong araw'])} {r.choice(['ang ', 'yung ', ''])}{r.choice(THING)}{r.choice([' ko', ' namin', ''])}",
+        lambda r: f"when's {r.choice(['my', 'the'])} {r.choice(THING)}",
+    ],
+    "other": [
+        lambda r: f"{r.choice(['add', 'create', 'schedule', 'book', 'put'])} {r.choice(['a', 'my', 'the'])} {r.choice(THING)} {r.choice(WHEN)}",
+        lambda r: f"remind me {r.choice(['to', 'na', 'about'])} {r.choice(TASK + THING)}",
+        lambda r: f"{r.choice(['move', 'cancel', 'delete', 'reschedule', 'rename'])} {r.choice(['my', 'the'])} {r.choice(THING)}",
+        lambda r: f"{r.choice(['when', 'what time', 'what year', 'what day'])} {r.choice(['did ww2 end', 'is it in tokyo', 'was rizal born', 'is christmas', 'is the next eclipse', 'did the philippines get independence', 'is it now'])}",
+        lambda r: f"{r.choice(['what is', 'whats', 'ano ang', 'explain', 'define', 'who is'])} {r.choice(['a black hole', 'inflation', 'the capital of france', 'photosynthesis', 'dna', 'jose rizal', 'machine learning', 'gravity'])}",
+        lambda r: f"{r.choice(['write', 'make', 'gawa ka ng', 'draft'])} {r.choice(['a poem', 'an email', 'a caption', 'a story', 'an essay', 'a speech', 'a message to my mom'])}",
+        lambda r: f"{r.choice(['how do i', 'how to', 'paano'])} {r.choice(['cook rice', 'study better', 'fix my wifi', 'learn python', 'save money', 'sleep earlier'])}",
+        lambda r: f"i {r.choice(['feel', 'am', 'm'])} {r.choice(['sad', 'stressed', 'tired', 'bored', 'anxious about my exam'])}",
+    ],
+}
+
+
+def compose(n_per_label: int = 500, seed: int = 11):
+    rng = random.Random(seed)
+    labels = list(T)
+    rows = []
+    for label, makers in COMPOSE.items():
+        for _ in range(n_per_label):
+            s = rng.choice(makers)(rng).strip() + rng.choice(END)
+            rows.append((_style(" ".join(s.split()), rng, label), labels.index(label)))
+    return rows

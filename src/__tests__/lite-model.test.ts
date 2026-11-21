@@ -3,7 +3,7 @@
  * match what train.py measured in Python, and must pass the hand-written exam.
  */
 import model from "@/services/lite/model.json";
-import { classify, predict, decodeInt8, LABELS, THRESHOLD } from "@/services/lite/model";
+import { classify, predict, decodeInt8, FAMILY, LABELS, THRESHOLD } from "@/services/lite/model";
 import { featureKeys, normalize, isCommand, fnv1a } from "@/services/lite/features";
 
 test("probabilities match the Python trainer (parity vectors)", () => {
@@ -14,23 +14,19 @@ test("probabilities match the Python trainer (parity vectors)", () => {
 });
 
 test("hand-written probe: safe routing", () => {
-  const FAMILY: Record<string, string> = {
-    agenda: "sched", next_event: "sched", free_time: "sched", find_event: "sched",
-    tasks_due: "tasks", overdue: "tasks", greeting: "chat", thanks: "chat", help: "chat", other: "other",
-  };
   let answered = 0, wrongFamily = 0, actionsAnswered = 0;
   for (const [text, want] of model.probe as [string, string][]) {
     const c = classify(text);
     const got = c.intent !== "other" && c.confidence >= THRESHOLD ? c.intent : null;
     if (!got) continue;
     answered++;
-    if (FAMILY[got] !== FAMILY[want]) wrongFamily++;
+    if (FAMILY[got] !== FAMILY[want as keyof typeof FAMILY]) wrongFamily++;
     if (want === "other") actionsAnswered++;
   }
   const n = model.probe.length;
   expect(answered / n).toBeGreaterThan(0.65);
-  expect(wrongFamily).toBeLessThanOrEqual(1);
-  expect(actionsAnswered).toBeLessThanOrEqual(1);
+  expect(wrongFamily).toBe(0);
+  expect(actionsAnswered).toBe(0);
 });
 
 test("features: placeholders, cue groups and the command guard", () => {
@@ -45,4 +41,5 @@ test("features: placeholders, cue groups and the command guard", () => {
 test("int8 decoding", () => {
   expect(Array.from(decodeInt8("AH+Bgf8="))).toEqual([0, 127, -127, -127, -1]);
   expect(LABELS).toContain("other");
+  expect(model.confidence).toBe("family");
 });
