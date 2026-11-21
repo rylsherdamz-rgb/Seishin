@@ -4,14 +4,14 @@
  * int8 weights, ~50 KB. No native code, no download, a few microseconds a call.
  */
 import raw from "./model.json";
-import { DIM, featurize, isCommand } from "./features";
+import { DIM, aboutMe, featurize, isCommand } from "./features";
 
 export type Intent =
   | "agenda" | "next_event" | "free_time" | "tasks_due" | "overdue" | "find_event"
   | "greeting" | "thanks" | "help" | "other";
 
 interface ModelFile {
-  dim: number; hidden: number; labels: Intent[]; threshold: number;
+  dim: number; hidden: number; labels: Intent[]; threshold: number; solo_threshold: number;
   w1: string; s1: number; b1: number[]; w2: string; s2: number; b2: number[];
 }
 
@@ -41,7 +41,10 @@ const load = () => (weights ??= { w1: decodeInt8(file.w1), w2: decodeInt8(file.w
 if (file.dim !== DIM) throw new Error(`Seishin Lite: model dim ${file.dim} != features ${DIM}`);
 
 export const LABELS = file.labels;
+/** Bar when a language model can take over (precision first). */
 export const THRESHOLD = file.threshold;
+/** Bar when Seishin Lite is all there is (coverage matters more). Both chosen on validation in train.py. */
+export const SOLO_THRESHOLD = file.solo_threshold;
 
 /** Intent probabilities for a message, in LABELS order. */
 export function predict(text: string): number[] {
@@ -70,6 +73,8 @@ export interface Classification {
   /** How sure the model is about the kind of question (see FAMILY) — compared with THRESHOLD. */
   confidence: number;
   command: boolean;
+  /** False for schedule/task intents (except find_event) when the message isn't about the user ("weather this week"). */
+  aboutMe: boolean;
 }
 
 /**
@@ -84,11 +89,12 @@ export const FAMILY: Record<Intent, "sched" | "tasks" | "chat" | "other"> = {
 
 /** Best intent; commands ("add …", "remind me to …") are always "other". */
 export function classify(text: string): Classification {
-  if (isCommand(text)) return { intent: "other", confidence: 1, command: true };
+  if (isCommand(text)) return { intent: "other", confidence: 1, command: true, aboutMe: false };
   const p = predict(text);
   let k = 0;
   for (let i = 1; i < p.length; i++) if (p[i] > p[k]) k = i;
   const fam = FAMILY[LABELS[k]];
   const confidence = p.reduce((sum, v, i) => (FAMILY[LABELS[i]] === fam ? sum + v : sum), 0);
-  return { intent: LABELS[k], confidence, command: false };
+  // find_event guards itself: answer.ts replies only when one of the user's events matches.
+  return { intent: LABELS[k], confidence, command: false, aboutMe: fam === "chat" || LABELS[k] === "find_event" || aboutMe(text) };
 }

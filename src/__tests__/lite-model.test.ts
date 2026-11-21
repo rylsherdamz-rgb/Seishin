@@ -3,7 +3,7 @@
  * match what train.py measured in Python, and must pass the hand-written exam.
  */
 import model from "@/services/lite/model.json";
-import { classify, predict, decodeInt8, FAMILY, LABELS, THRESHOLD } from "@/services/lite/model";
+import { classify, predict, decodeInt8, FAMILY, LABELS, SOLO_THRESHOLD, THRESHOLD } from "@/services/lite/model";
 import { featureKeys, normalize, isCommand, fnv1a } from "@/services/lite/features";
 
 test("probabilities match the Python trainer (parity vectors)", () => {
@@ -13,20 +13,29 @@ test("probabilities match the Python trainer (parity vectors)", () => {
   }
 });
 
-test("hand-written probe: safe routing", () => {
+test.each([
+  ["with a model (strict)", THRESHOLD, true, 0.5],
+  ["no model (best guess)", SOLO_THRESHOLD, false, 0.65],
+])("hand-written probe, %s: never the wrong kind of answer", (_, bar, guard, minAnswered) => {
   let answered = 0, wrongFamily = 0, actionsAnswered = 0;
   for (const [text, want] of model.probe as [string, string][]) {
     const c = classify(text);
-    const got = c.intent !== "other" && c.confidence >= THRESHOLD ? c.intent : null;
+    const got = c.intent !== "other" && (!guard || c.aboutMe) && c.confidence >= (bar as number) ? c.intent : null;
     if (!got) continue;
     answered++;
     if (FAMILY[got] !== FAMILY[want as keyof typeof FAMILY]) wrongFamily++;
     if (want === "other") actionsAnswered++;
   }
-  const n = model.probe.length;
-  expect(answered / n).toBeGreaterThan(0.65);
+  expect(answered / model.probe.length).toBeGreaterThan(minAnswered as number);
   expect(wrongFamily).toBe(0);
   expect(actionsAnswered).toBe(0);
+});
+
+test("off-topic questions with date words are not about the user", () => {
+  for (const t of ["what does the weather look like this week", "what's happening in ny"]) {
+    expect(classify(t).aboutMe).toBe(false);
+  }
+  for (const t of ["what's next", "ano ganap ko bukas", "am i free at 3"]) expect(classify(t).aboutMe).toBe(true);
 });
 
 test("features: placeholders, cue groups and the command guard", () => {
@@ -42,4 +51,5 @@ test("int8 decoding", () => {
   expect(Array.from(decodeInt8("AH+Bgf8="))).toEqual([0, 127, -127, -127, -1]);
   expect(LABELS).toContain("other");
   expect(model.confidence).toBe("family");
+  expect(SOLO_THRESHOLD).toBeLessThan(THRESHOLD);
 });

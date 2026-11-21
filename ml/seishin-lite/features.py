@@ -110,3 +110,18 @@ def is_command(text: str) -> bool:
     s = unicodedata.normalize("NFD", text.lower().strip())
     s = "".join(c for c in s if not unicodedata.combining(c)).replace("\u2019", "'")
     return bool(_COMMAND.match(s))
+
+
+# Seishin Lite only answers questions about *the user's* day: the message must say "my / I / ako / ko …"
+# or use a schedule/task word. "What's the weather this week" and "what's happening in NY" share the
+# date words but neither, so they go to the language model. Keep in sync with features.ts.
+PERSONAL = set("i im ive id me my mine myself we our us ako ko akin aking natin namin kami tayo atin amin".split())
+DOMAIN = set(("schedule sched schedules agenda calendar lined lineup plans planned ganap lakad pasok klase class classes "
+              "meeting meetings event events appointment appointments busy free available bakante slot slots "
+              "due deadline deadlines task tasks todo todos homework assignment assignments ipapasa tapusin gagawin "
+              "overdue late missed upcoming susunod next").split())
+
+
+def about_me(text: str) -> bool:
+    toks = set(normalize(text))
+    return bool(toks & PERSONAL or toks & DOMAIN)

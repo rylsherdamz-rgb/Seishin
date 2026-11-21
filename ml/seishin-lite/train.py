@@ -16,7 +16,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 from dataset import build  # noqa: E402
-from features import DIM, featurize, is_command  # noqa: E402
+from features import DIM, about_me, featurize, is_command  # noqa: E402
 from probe import PROBE  # noqa: E402
 
 # Intents whose answers overlap (each shows the day's events), so mixing them up is harmless.
@@ -35,7 +35,10 @@ def route(labels, P, texts, threshold):
     out = []
     for p, t in zip(P, texts):
         k = int(p.argmax())
-        if is_command(t) or labels[k] == "other" or family_confidence(labels, p, k) < threshold:
+        fam = FAMILY[labels[k]]
+        # find_event guards itself in the app: it answers only when one of the user's events matches.
+        guarded = fam != "chat" and labels[k] != "find_event"
+        if is_command(t) or labels[k] == "other" or family_confidence(labels, p, k) < threshold or (guarded and not about_me(t)):
             out.append(None)
         else:
             out.append(labels[k])
@@ -75,8 +78,12 @@ def forward(params, X):
     return H, P / P.sum(1, keepdims=True)
 
 
-def train(X, y, k, hidden, epochs, lr, wd, seed):
+def train(X, y, k, hidden, epochs, lr, wd, seed, balance=0.0):
+    """balance > 0 up-weights rare intents: weight ∝ (1 / class frequency) ** balance."""
     rng = np.random.default_rng(seed)
+    freq = np.bincount(y, minlength=k).astype(np.float32)
+    cw = (freq.sum() / np.maximum(freq, 1) / k) ** balance
+    cw = (cw / cw[y].mean()).astype(np.float32)
     params = [rng.normal(0, np.sqrt(2 / DIM), (hidden, DIM)).astype(np.float32), np.zeros(hidden, np.float32),
               rng.normal(0, np.sqrt(2 / hidden), (k, hidden)).astype(np.float32), np.zeros(k, np.float32)]
     m = [np.zeros_like(p) for p in params]
@@ -96,7 +103,7 @@ def train(X, y, k, hidden, epochs, lr, wd, seed):
             Z = Hd @ W2.T + b2
             Z -= Z.max(1, keepdims=True)
             P = np.exp(Z); P /= P.sum(1, keepdims=True)
-            dZ = (P - yb) / len(idx)
+            dZ = (P - yb) * cw[y[idx]][:, None] / len(idx)
             gW2 = dZ.T @ Hd + wd * W2
             gb2 = dZ.sum(0)
             dH = (dZ @ W2) * mask * (H > 0)
@@ -130,6 +137,24 @@ def report(name, params, X, y, labels):
     return P
 
 
+def real_report(name, labels, P, rows, threshold):
+    """Real questions: coverage per family, and how often anything else gets answered by mistake."""
+    got = route(labels, P, [t for t, _ in rows], threshold)
+    truth = [labels[y] for _, y in rows]
+    out = []
+    for fam in ("sched", "tasks", "chat"):
+        idx = [i for i, t in enumerate(truth) if FAMILY[t] == fam]
+        if not idx:
+            continue
+        ans = [i for i in idx if got[i] is not None]
+        right_fam = sum(1 for i in ans if FAMILY[got[i]] == fam)
+        out.append(f"{fam} {len(ans) / len(idx):.2f} answered ({right_fam}/{len(ans)} right family)")
+    oth = [i for i, t in enumerate(truth) if t == "other"]
+    wrong = sum(1 for i in oth if got[i] is not None)
+    print(f"{name}: " + "; ".join(out) + f"; other answered by mistake {wrong}/{len(oth)} ({wrong / max(1, len(oth)):.3%})")
+    return got
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hidden", type=int, default=32)
@@ -137,17 +162,27 @@ def main():
     ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--wd", type=float, default=3e-3)
     ap.add_argument("--seed", type=int, default=1)
-    ap.add_argument("--threshold", type=float, default=0.55)
+    ap.add_argument("--threshold", type=float, default=0.75)
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--composed", type=int, default=500, help="composed training questions per intent (0 = round 1)")
-    ap.add_argument("--final", action="store_true", help="also score final_exam.py (only once tuning is done)")
+    ap.add_argument("--final", action="store_true", help="also score final_exam.py and the public test split (only once tuning is done)")
+    ap.add_argument("--public", action="store_true", help="add real questions from SLURP + CLINC150 (public_data.py --fetch)")
+    ap.add_argument("--other-cap", type=int, default=12000)
+    ap.add_argument("--balance", type=float, default=0.3, help="class weighting strength (0 = off, 1 = fully balanced)")
+    ap.add_argument("--solo-threshold", type=float, default=0.55, help="bar when no language model is set up")
+    ap.add_argument("--public-weight", type=int, default=1, help="repeat public rows this many times")
     a = ap.parse_args()
 
     labels, train_rows, test_rows = build(composed=a.composed)
+    if a.public:
+        import public_data
+        pub = [(t, labels.index(l)) for t, l in public_data.load("train", other_cap=a.other_cap)]
+        train_rows = train_rows + pub * a.public_weight
+        dev = [(t, labels.index(l)) for t, l in public_data.load("dev")]
     Xtr, ytr = matrix(train_rows)
     Xte, yte = matrix(test_rows)
     print(f"train {len(ytr)}  test {len(yte)}  features {DIM}  hidden {a.hidden}  classes {len(labels)}")
-    params = train(Xtr, ytr, len(labels), a.hidden, a.epochs, a.lr, a.wd, a.seed)
+    params = train(Xtr, ytr, len(labels), a.hidden, a.epochs, a.lr, a.wd, a.seed, a.balance)
     report("train", params, Xtr, ytr, labels)
     P = report("held-out phrasings", params, Xte, yte, labels)
 
@@ -161,7 +196,17 @@ def main():
             if g != (None if l == "other" else l):
                 print(f"    {t!r:45s} want {l:10s} got {g} ({labels[int(p.argmax())]} {p.max():.2f})")
 
+    if a.public:
+        Xd, _ = matrix(dev)
+        _, Pd = forward(params, Xd)
+        real_report("public dev (real people)", labels, Pd, dev, a.threshold)
     if a.final:
+        if a.public:
+            import public_data
+            test = [(t, labels.index(l)) for t, l in public_data.load("test")]
+            Xt, _ = matrix(test)
+            _, Pt = forward(params, Xt)
+            real_report("PUBLIC TEST (real people, unseen)", labels, Pt, test, a.threshold)
         from final_exam import FINAL
         final_rows = [(t, labels.index(l)) for t, l in FINAL]
         Xf, _ = matrix(final_rows)
@@ -189,7 +234,9 @@ def main():
         "hidden": a.hidden,
         "labels": labels,
         "threshold": a.threshold,
+        "solo_threshold": a.solo_threshold,
         "confidence": "family",
+        "guard": "about_me",
         "w1": base64.b64encode(q1.tobytes()).decode(),
         "s1": s1,
         "b1": [round(float(x), 6) for x in params[1]],

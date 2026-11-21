@@ -39,7 +39,15 @@ const data: LiteData = {
   ],
 };
 
-const ask = (q: string, hasModel = true) => askLite(q, hasModel, data);
+// Answer content is checked in no-model mode (the widest); strict mode is pinned separately below.
+const ask = (q: string, hasModel = false) => askLite(q, hasModel, data);
+
+test("strict mode (a model can take over): sure, personal questions only", () => {
+  expect(ask("what's lined up today?", true)?.intent).toBe("agenda");
+  expect(ask("am i free at 3pm", true)?.intent).toBe("free_time");
+  expect(ask("what does the weather look like this week", true)).toBeNull();
+  expect(ask("whats happening this weekend", true)).toBeNull(); // not clearly about the user: the model answers
+});
 
 test("what's lined up today: events in order, what's due, overdue nudge", () => {
   const r = ask("what's lined up today?")!;

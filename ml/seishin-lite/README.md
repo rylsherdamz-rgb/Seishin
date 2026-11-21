@@ -18,31 +18,36 @@ npx jest lite-                               # parity with Python and the hand-w
 ```
 The trainer prints accuracy on unseen phrasings and on `probe.py`, a hand-written exam kept apart from the templates. It also writes parity vectors, which the jest suite checks against the TypeScript port. If you change `features.py`, make the same change in `features.ts`.
 
-## Routing
-Seishin Lite answers when the probability of the top intent's *family* (schedule, tasks or chat) is at least the threshold (0.55). A question split between agenda and next_event is still a sure schedule question, and either answer serves. With no language model set up, the bar is 0.4 and it takes its best guess.
+## Training data
+- **Synthetic** (`dataset.py`): English, Tagalog and Taglish templates, plus questions composed from parts, with typo noise.
+- **Real** (`public_data.py`): about 10.6k training questions from SLURP and CLINC150. These include 1,300+ real calendar questions, every add/change/remove command, and 12k off-topic questions, keeping every one that sounds like a schedule question ("what's the weather this week"). Fetch them with `python3 ml/seishin-lite/public_data.py --fetch`. See NOTICE.md for licences.
+- Each dataset's own test split is never trained on. It's the "real people" scorecard.
 
-## Results
-Settings were tuned on validation only: held-out templates plus `probe.py`. `final_exam.py` (79 hand-written questions) was written before round-2 tuning and scored once at the end:
+## Routing (what the app does)
+1. A message that starts like a command ("add …", "remind me to …", "ilipat …") goes to the language model.
+2. Confidence is the probability of the top intent's *family* (schedule, tasks or chat).
+3. **With a language model set up (strict):** answer only at confidence ≥ 0.75, and only if the message is about the user. That means "my / I / ako / ko …" or a schedule/task word; "when is X" is exempt, because it answers only when an event matches. Precision first: anything less certain gets a full answer from the model.
+4. **With no language model:** answer at confidence ≥ 0.55, with no guard. A reasonable best guess beats "I can't help". Both bars were chosen on validation.
 
-| Final exam (unseen) | Round 1 | Round 2 (shipped) |
-|---|---|---|
-| Answered by Seishin Lite itself | 75% | 71% |
-| Exactly right, of those | 86% | 95% |
-| Wrong kind of answer | 6.3% | 2.5% |
-| Actions/general questions answered by mistake | 3 of 18 | 1 of 18 |
+## Results on unseen data
+| | Round 1 | Round 2 | Round 3 strict (shipped) | Round 3, no model |
+|---|---|---|---|---|
+| Final exam: wrong kind of answer | 6.3% | 2.5% | **0%** | 2.0% |
+| Final exam: exactly right, of answered | 86% | 95% | 97% | 94% |
+| Final exam: answered by Seishin Lite | 75% | 71% | 42% | 82% |
+| Real off-topic questions answered by mistake (8,117) | — | ~8.9%* | **0.26%** | 1.3% |
 
-What changed in round 2:
-- Questions composed from parts: 500 per intent, training only.
-- A hyperparameter search over size, epochs and weight decay with 3 seeds each. The winner is 32 hidden units, 6 epochs, weight decay 3e-3.
-- Family confidence for routing.
+\* Measured on the public dev split.
 
-Tried and rejected:
-- More composed data (1,000 or 2,000 per intent): it crowds out natural phrasings and coverage drops.
-- A 3-seed ensemble: about the same as the best single model at 3× the size.
+The public test labels are noisy. "do i have any appointments today" and "what am i doing today" are labelled off-topic, so the real-question precision figures understate the model. The final exam has now been scored three times (round 2, round 3, and round 3 after the find_event exemption). It was never used to choose settings, but write a fresh exam before the next round.
 
-Known misses on the final exam: short "help" phrasings ("help pls", "paano ka gumagana"), and "what's 12 times 13" read as an agenda question. Don't tune against the final exam. Add new phrasings to `dataset.py` and write a new exam instead.
+What didn't help:
+- 10× or 100× more epochs: train accuracy is capped by regularisation, and unseen accuracy moved under 1 point.
+- Bigger hidden layers (48, 64, 96).
+- More composed data.
+- A 3-seed ensemble.
 
 ```sh
-python3 ml/seishin-lite/search.py              # validation search (~40 s)
-python3 ml/seishin-lite/train.py --final       # train the shipped settings and score the final exam
+python3 ml/seishin-lite/public_data.py --fetch
+python3 ml/seishin-lite/train.py --public --final --verbose
 ```

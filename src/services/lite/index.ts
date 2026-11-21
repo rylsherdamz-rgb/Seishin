@@ -8,13 +8,10 @@ import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { createLogger } from "@/utils/logger";
-import { classify, THRESHOLD, type Intent } from "./model";
+import { classify, SOLO_THRESHOLD, THRESHOLD, type Intent } from "./model";
 import { answer, type LiteData } from "./answer";
 
 const log = createLogger("seishin-lite");
-
-/** With no language model to fall back on, take a reasonable best guess instead of giving up. */
-const SOLO_THRESHOLD = 0.4;
 
 export interface LiteReply { intent: Intent; confidence: number; text: string }
 
@@ -26,7 +23,10 @@ export function askLite(text: string, hasModel: boolean, data?: LiteData): LiteR
   const q = text.trim();
   if (!q || q.length > 200) return null; // long messages are requests, not quick questions
   const c = classify(q);
+  // With a model to take over: only sure, personal questions (precision first).
+  // Alone: a reasonable best guess beats "I can't help" (chosen on validation in train.py).
   if (c.intent === "other" || c.confidence < (hasModel ? THRESHOLD : SOLO_THRESHOLD)) return null;
+  if (hasModel && !c.aboutMe) return null;
   const d = data ?? currentData();
   try {
     const reply = answer(c.intent, q, d);
