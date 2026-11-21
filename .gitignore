@@ -10,7 +10,7 @@ dist/
 web-build/
 .expo-shared/
 .env
-android/
+/android/
 ios/
 *.tsbuildinfo
 
@@ -18,3 +18,6 @@ ios/
 .graphify/
 graphify-out/
 coverage/
+credentials.json
+*.jks
+*.keystore

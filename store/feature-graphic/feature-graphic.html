@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Seishin feature graphic</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=block" rel="stylesheet" />
+<style>
+  html, body { margin: 0; width: 1024px; height: 500px; overflow: hidden; }
+  body { background: #f4f1ec; font-family: "Outfit", sans-serif; position: relative; }
+
+  /* soft accent field behind the phones */
+  .glow { position: absolute; right: -120px; top: -160px; width: 640px; height: 640px; border-radius: 50%;
+          background: radial-gradient(circle at 50% 50%, #e11d48 0%, #e11d48 52%, rgba(225,29,72,0) 53%); }
+  .ring { position: absolute; right: -40px; top: -80px; width: 480px; height: 480px; border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.35); }
+
+  .copy { position: absolute; left: 64px; top: 0; bottom: 0; width: 470px; display: flex; flex-direction: column; justify-content: center; }
+  .lockup { display: flex; align-items: center; gap: 20px; }
+  .icon { width: 84px; height: 84px; border-radius: 22px; background: #fff; box-shadow: 0 14px 30px rgba(17,17,17,0.14); }
+  .word { font-size: 78px; font-weight: 700; letter-spacing: -0.05em; color: #111; line-height: 1; }
+  .tag { margin-top: 26px; font-size: 40px; font-weight: 600; letter-spacing: -0.02em; color: #111; line-height: 1.1; }
+  .tag em { font-style: normal; color: #e11d48; }
+  .feats { margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .feats span { font-size: 17px; font-weight: 500; color: #444; background: #fff; border: 1px solid #e6e1d9; padding: 8px 16px; border-radius: 999px; }
+
+  .phone { position: absolute; width: 230px; height: 460px; border-radius: 34px; background: #111; padding: 9px;
+           box-sizing: border-box; box-shadow: 0 30px 60px rgba(17,17,17,0.28); }
+  .phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 26px; display: block; }
+  .back { right: 56px; top: 92px; transform: rotate(8deg); }
+  .front { right: 238px; top: 58px; transform: rotate(-4deg); }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="ring"></div>
+
+  <div class="copy">
+    <div class="lockup">
+      <img class="icon" src="../../assets/icon.png" alt="" />
+      <div class="word">Seishin</div>
+    </div>
+    <div class="tag">Plan less. <em>Live more.</em></div>
+    <div class="feats"><span>Calendar</span><span>Tasks</span><span>Notes</span><span>Alarms</span></div>
+  </div>
+
+  <div class="phone back"><img src="../screenshots/03-tasks.png" alt="" /></div>
+  <div class="phone front"><img src="../screenshots/01-calendar.png" alt="" /></div>
+</body>
+</html>

@@ -1,76 +1,74 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { memo, useState, useEffect, useCallback, useMemo } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { useTodoStore, Todo } from "@/stores/todo-store";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Feather from "@expo/vector-icons/Feather";
+import { useTodoStore } from "@/stores/todo-store";
+import { useThemeStore } from "@/stores/theme-store";
 import { uid } from "@/utils/id";
-import { dateKey } from "@/utils/recurrence";
+import { groupTasks, type TaskListRow } from "@/utils/task-groups";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
-import { Card } from "@/components/ui/Card";
-import { Chip } from "@/components/ui/Chip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { AlertDialog } from "@/components/ui/AlertDialog";
-import { ItemSheet } from "@/components/ItemSheet";
-import { Logo } from "@/components/Logo";
-import { loadTodoDraft, saveTodoDraft, clearTodoDraft } from "@/utils/drafts";
-import Feather from "@expo/vector-icons/Feather";
+import { TaskComposer } from "@/components/tasks/TaskComposer";
 import { useColors } from "@/theme/ThemeProvider";
 
-type TodoFilter = "all" | "active" | "completed";
+type TaskRow = Extract<TaskListRow, { kind: "task" }>;
 
-const priorityColors: Record<string, string> = {
-  low: "text-ink-300",
-  medium: "text-black",
-  high: "text-danger",
-};
+/** One task: round checkbox (as on the widget), title, due line. Memoized so ticking one task re-renders one row. */
+const TaskItem = memo(function TaskItem({ row, onToggle }: { row: TaskRow; onToggle: (id: string) => void }) {
+  const C = useColors();
+  const { todo } = row;
+  const sub = [row.due, row.progress ? `${row.progress} done` : ""].filter(Boolean).join(" · ");
+  return (
+    <TouchableOpacity
+      onPress={() => router.push({ pathname: "/task", params: { id: todo.id } })}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      className="flex-row items-center min-h-[56px] pr-4"
+    >
+      <TouchableOpacity
+        onPress={() => onToggle(todo.id)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: todo.completed }}
+        accessibilityLabel={`Mark ${todo.title} ${todo.completed ? "not done" : "done"}`}
+        className="w-14 h-14 items-center justify-center"
+      >
+        <View className={`w-[22px] h-[22px] rounded-full border-2 items-center justify-center ${todo.completed ? "bg-accent border-accent" : row.overdue ? "border-danger" : "border-ink-300"}`}>
+          {todo.completed ? <Feather name="check" size={13} color={C.onAccent} /> : null}
+        </View>
+      </TouchableOpacity>
+      <View className="flex-1 py-2">
+        <Text className={`text-[15px] ${todo.completed ? "line-through text-ink-400" : "text-black"}`} numberOfLines={2}>
+          {todo.title}
+        </Text>
+        {sub ? <Text className={`text-xs mt-0.5 ${row.overdue ? "text-danger" : "text-ink-500"}`} numberOfLines={1}>{sub}</Text> : null}
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function TodoScreen() {
-  const T = useColors();
+  const C = useColors();
+  const insets = useSafeAreaInsets();
   const { eventId, add } = useLocalSearchParams<{ eventId?: string; add?: string }>();
   const todos = useTodoStore((s) => s.todos);
-  const storeFilter = useTodoStore((s) => s.filter);
   const loadTodos = useTodoStore((s) => s.loadTodos);
   const addTodo = useTodoStore((s) => s.addTodo);
   const toggleTodo = useTodoStore((s) => s.toggleTodo);
-  const deleteTodo = useTodoStore((s) => s.deleteTodo);
   const clearCompleted = useTodoStore((s) => s.clearCompleted);
-  const setFilter = useTodoStore((s) => s.setFilter);
-  const [filter, localFilter] = useState<TodoFilter>(storeFilter);
-  // `add=1` when opened from the Tasks / Quick add widget.
-  const [showAdd, setShowAdd] = useState(add === "1");
+  const timeFormat = useThemeStore((s) => s.timeFormat);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [sheetItem, setSheetItem] = useState<Todo | null>(null);
-  const [newTitle, setNewTitle] = useState(() => loadTodoDraft().title ?? "");
-  const [newDueDate, setNewDueDate] = useState<Date | null>(() => {
-    const iso = loadTodoDraft().dueDate;
-    return iso ? new Date(iso) : null;
-  });
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const keyboardPadding = useKeyboardPadding();
 
   useEffect(() => { loadTodos(); }, [loadTodos]);
+  const rows = useMemo(() => groupTasks(todos, new Date(), { showCompleted, timeFormat }), [todos, showCompleted, timeFormat]);
+  const openCount = useMemo(() => todos.reduce((n, t) => n + (t.completed ? 0 : 1), 0), [todos]);
+  const doneCount = todos.length - openCount;
 
-  // Autosave the in-progress todo, so it survives leaving this screen.
-  useEffect(() => {
-    saveTodoDraft({
-      title: newTitle,
-      dueDate: newDueDate ? newDueDate.toISOString() : undefined,
-    });
-  }, [newTitle, newDueDate]);
-
-  const filtered = useMemo(() => {
-    if (filter === "active") return todos.filter((t) => !t.completed);
-    if (filter === "completed") return todos.filter((t) => t.completed);
-    return todos;
-  }, [todos, filter]);
-  const stats = useMemo(() => {
-    const completed = todos.filter((t) => t.completed).length;
-    return { total: todos.length, active: todos.length - completed, completed };
-  }, [todos]);
-
-  const handleAdd = useCallback(() => {
-    const title = newTitle.trim();
-    if (!title) return;
+  const handleAdd = useCallback((title: string, due: Date | null) => {
     addTodo({
       id: uid("todo"),
       title,
@@ -79,210 +77,77 @@ export default function TodoScreen() {
       category: "general",
       tags: [],
       createdAt: new Date().toISOString(),
-      dueDate: newDueDate ? newDueDate.toISOString() : undefined,
+      dueDate: due ? due.toISOString() : undefined,
       eventId: eventId || undefined,
     });
-    setNewTitle("");
-    setNewDueDate(null);
-    clearTodoDraft();
-    setShowAdd(false);
-  }, [newTitle, newDueDate, eventId, addTodo]);
+  }, [eventId, addTodo]);
 
-  const handleFilterChange = useCallback((f: TodoFilter) => {
-    localFilter(f);
-    setFilter(f);
-  }, [setFilter]);
+  const onToggle = useCallback((id: string) => { toggleTodo(id); }, [toggleTodo]);
 
-  const renderItem = useCallback(({ item }: { item: Todo }) => {
-    const todayStr = new Date().toLocaleDateString("en-CA");
-    const dueStr = item.dueDate ? new Date(item.dueDate).toLocaleDateString("en-CA") : null;
-    const overdue = !!dueStr && dueStr < todayStr && !item.completed;
-    const dueToday = !!dueStr && dueStr === todayStr && !item.completed;
+  const renderItem = useCallback(({ item }: { item: TaskListRow }) => {
+    if (item.kind === "task") return <TaskItem row={item} onToggle={onToggle} />;
+    const completed = item.section === "completed";
     return (
-    <TouchableOpacity onPress={() => router.push({ pathname: "/task", params: { id: item.id } })} activeOpacity={0.7}>
-      <Card variant="elevated" className="flex-row items-center gap-3 mb-2.5">
+      <View className="flex-row items-center justify-between px-4 pt-5 pb-1">
         <TouchableOpacity
-          onPress={(e) => { e.stopPropagation(); toggleTodo(item.id); }}
-          hitSlop={12}
-          className={`w-5 h-5 rounded-md border-2 items-center justify-center ${
-            item.completed ? "bg-black border-black" : "border-ink-300"
-          }`}
+          disabled={!completed}
+          onPress={() => setShowCompleted((v) => !v)}
+          accessibilityRole={completed ? "button" : "header"}
+          accessibilityState={completed ? { expanded: showCompleted } : undefined}
+          className="flex-row items-center gap-1 h-8"
         >
-          {item.completed && <Feather name="check" size={10} color={T.white} />}
-        </TouchableOpacity>
-        <View className="flex-1">
-          <Text className={`text-sm ${item.completed ? "line-through text-ink-300" : "text-black"}`}>
-            {item.title}
+          <Text className={`text-xs font-bold tracking-widest ${item.section === "overdue" ? "text-danger" : "text-ink-500"}`}>
+            {item.label.toUpperCase()} · {item.count}
           </Text>
-          {item.dueDate && (
-            <View className="flex-row items-center gap-1.5 mt-1">
-              <Feather name="clock" size={10} color={overdue ? T.black : T.ink300} />
-              <Text className={`text-xs ${overdue ? "text-black font-medium" : "text-ink-300"}`}>
-                {new Date(item.dueDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-              </Text>
-              {overdue && (
-                <View className="px-1.5 py-0.5 bg-black rounded-full">
-                  <Text className="text-[9px] font-bold text-white tracking-wide">OVERDUE</Text>
-                </View>
-              )}
-              {dueToday && (
-                <View className="px-1.5 py-0.5 bg-ink-100 rounded-full">
-                  <Text className="text-[9px] font-bold text-ink-600 tracking-wide">TODAY</Text>
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-        <Text className={`text-xs font-semibold ${priorityColors[item.priority]}`}>
-          {item.priority}
-        </Text>
-        <Feather name="chevron-up" size={14} color={T.ink200} />
-      </Card>
-    </TouchableOpacity>
+          {completed ? <Feather name={showCompleted ? "chevron-up" : "chevron-down"} size={14} color={C.ink500} /> : null}
+        </TouchableOpacity>
+        {completed ? (
+          <TouchableOpacity onPress={() => setShowClearConfirm(true)} accessibilityRole="button" hitSlop={8} className="h-8 justify-center">
+            <Text className="text-xs font-semibold text-ink-500">Clear</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     );
-  }, [toggleTodo]);
-
-  const handleSheetClose = useCallback(() => setSheetItem(null), []);
+  }, [onToggle, showCompleted, C]);
 
   return (
-    <View className="flex-1 bg-white" style={{ paddingBottom: keyboardPadding }}>
+    <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
-      <View className="px-4 pt-3 pb-2 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-3">
-          <TouchableOpacity onPress={() => router.back()} hitSlop={6} className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
-            <Feather name="arrow-left" size={16} color={T.black} />
-          </TouchableOpacity>
-          <Logo size={32} />
-          <View>
-            <Text className="text-[30px] font-extrabold tracking-tightest text-black">Tasks</Text>
-            <Text className="text-sm text-ink-500 mt-0.5">
-              {stats.active} pending · {stats.completed} done
-            </Text>
-          </View>
-        </View>
-        {stats.completed > 0 && (
-          <TouchableOpacity
-            onPress={() => setShowClearConfirm(true)}
-            hitSlop={6}
-            className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center"
-          >
-            <Feather name="check-circle" size={14} color={T.ink500} />
-          </TouchableOpacity>
-        )}
+      <View className="flex-row items-center h-14 px-1">
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" className="w-12 h-12 items-center justify-center">
+          <Feather name="arrow-left" size={22} color={C.ink800} />
+        </TouchableOpacity>
+        <Text className="flex-1 text-lg font-bold text-black">Tasks</Text>
+        <Text className="text-sm text-ink-500 pr-4">{openCount} open</Text>
       </View>
 
-      <View className="flex-row px-4 gap-2 mb-4">
-        {(["all", "active", "completed"] as const).map((f) => (
-          <Chip
-            key={f}
-            label={f.charAt(0).toUpperCase() + f.slice(1)}
-            active={filter === f}
-            onPress={() => handleFilterChange(f)}
-          />
-        ))}
-      </View>
+      {/* `add=1` when opened from the Tasks / Quick add widget. */}
+      <TaskComposer onAdd={handleAdd} autoFocus={add === "1"} />
 
-      <TouchableOpacity
-        onPress={() => setShowAdd(!showAdd)}
-        className="mx-4 mb-3 h-11 border-2 border-dashed border-ink-200 rounded-xl items-center justify-center flex-row gap-2"
-      >
-        <Feather name="plus" size={16} color={T.ink300} />
-        <Text className="text-sm text-ink-300 font-medium">Add task</Text>
-      </TouchableOpacity>
-
-      {showAdd && (
-        <Card variant="elevated" className="mx-4 mb-4">
-          <TextInput
-            className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-2"
-            placeholder="What needs to be done?"
-            placeholderTextColor={T.ink300}
-            value={newTitle}
-            onChangeText={setNewTitle}
-            onSubmitEditing={handleAdd}
-            autoFocus
-          />
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            className="flex-row items-center gap-2 mb-3 h-11 bg-ink-50 rounded-xl px-4"
-          >
-            <Feather name="calendar" size={14} color={T.ink300} />
-            <Text className={`text-sm flex-1 ${newDueDate ? "text-black" : "text-ink-300"}`}>
-              {newDueDate
-                ? newDueDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
-                : "Set due date"}
-            </Text>
-            {newDueDate && (
-              <TouchableOpacity onPress={() => setNewDueDate(null)} hitSlop={12}>
-                <Feather name="x-circle" size={14} color={T.ink200} />
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
-          {showDatePicker && (
-            <View className="mb-3">
-              <DateTimePicker
-                value={newDueDate || new Date()}
-                mode="date"
-                onChange={(_, d) => { setShowDatePicker(false); if (d) setNewDueDate(d); }}
-              />
-            </View>
-          )}
-          <View className="flex-row gap-2">
-            <TouchableOpacity
-              onPress={() => setShowAdd(false)}
-              className="flex-1 h-12 bg-white border border-ink-200 rounded-xl items-center justify-center"
-            >
-              <Text className="text-base text-ink-500 font-semibold">Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleAdd}
-              activeOpacity={0.85}
-              className="flex-1 h-12 bg-black rounded-xl items-center justify-center shadow-raised"
-            >
-              <Text className="text-base text-white font-semibold">Add</Text>
-            </TouchableOpacity>
-          </View>
-        </Card>
+      {rows.length > 0 ? (
+        <FlashList
+          data={rows}
+          keyExtractor={(r) => r.id}
+          getItemType={(r) => r.kind}
+          renderItem={renderItem}
+          extraData={showCompleted}
+          contentContainerStyle={{ paddingBottom: insets.bottom + keyboardPadding + 24 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        />
+      ) : (
+        <EmptyState icon="check-square" title="No tasks yet" subtitle="Type above to add your first task" />
       )}
-
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        contentContainerClassName="px-4 pb-8"
-        alwaysBounceVertical
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-        initialNumToRender={8}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          <EmptyState icon="check-square" title="No tasks yet" subtitle="Tap + to add your first task" />
-        }
-      />
 
       <AlertDialog
         visible={showClearConfirm}
         onClose={() => setShowClearConfirm(false)}
-        title="Clear Completed"
-        message="Delete all completed tasks? This can't be undone."
+        title="Clear completed"
+        message={`Delete ${doneCount} completed task${doneCount === 1 ? "" : "s"}? This can't be undone.`}
         confirmLabel="Clear"
         confirmDestructive
         onConfirm={clearCompleted}
       />
-      {sheetItem && (
-        <ItemSheet
-          todo={{
-            id: sheetItem.id,
-            title: sheetItem.title,
-            date: sheetItem.dueDate ? dateKey(new Date(sheetItem.dueDate)) : undefined,
-            priority: sheetItem.priority,
-            completed: sheetItem.completed,
-            todoId: sheetItem.id,
-          }}
-          onTodoToggle={(id) => toggleTodo(id)}
-          onTodoDelete={(id) => deleteTodo(id)}
-          onClose={handleSheetClose}
-        />
-      )}
     </View>
   );
 }

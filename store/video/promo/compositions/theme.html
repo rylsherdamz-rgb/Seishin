@@ -1,0 +1,58 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
+    #thm-ground { position: absolute; inset: 0; background: #f4f1ec; }
+    #thm-copy { position: absolute; left: 150px; top: 300px; font-size: 150px; font-weight: 700; letter-spacing: -0.045em; line-height: 1.05; }
+    .thm-line { display: block; }
+    #thm-card { position: absolute; left: 1010px; top: 210px; width: 760px; height: 660px; border-radius: 48px; background: #ffffff; padding: 50px; font-family: "Roboto"; box-shadow: 0 40px 90px rgba(0,0,0,.18); }
+    #thm-h { font-size: 52px; font-weight: 700; color: #111; }
+    .thm-pill { display: inline-block; margin-top: 30px; padding: 18px 34px; border-radius: 26px; background: #e11d48; color: #fff; font-size: 34px; font-weight: 700; }
+    .thm-ev { margin-top: 28px; border-radius: 24px; padding: 22px 28px; background: #fde4ea; border-left: 8px solid #e11d48; }
+    .thm-ev div { font-size: 32px; font-weight: 600; color: #111; } .thm-ev small { font-size: 24px; color: #777; }
+    #thm-name { position: absolute; left: 1010px; top: 880px; width: 760px; text-align: center; font-size: 34px; font-weight: 600; color: #888; letter-spacing: .1em; }
+  </style>
+  <div id="root" data-composition-id="theme" data-width="1920" data-height="1080">
+    <div id="thm-ground"></div>
+    <div id="thm-copy" data-layout-allow-overlap>
+      <span class="thm-line" id="thm-l1" style="color:#111">Light.</span>
+      <span class="thm-line" id="thm-l2" style="color:#e8ecf5">Dark.</span>
+      <span class="thm-line" id="thm-l3" style="color:#fb7185">Yours.</span>
+    </div>
+    <div id="thm-card">
+      <div id="thm-h">Today</div>
+      <span class="thm-pill" id="thm-pill">Thu 22</span>
+      <div class="thm-ev"><div>Calculus II lecture</div><small>9:00 – 10:30 AM</small></div>
+      <div class="thm-ev"><div>Lunch with Mara</div><small>12:30 – 1:30 PM</small></div>
+      <div class="thm-ev"><div>Study group: Physics</div><small>3:00 – 5:00 PM</small></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Mono Light → Midnight + Blue → AMOLED + Rose → Paper + Orange, one per beat.
+    const T = [
+      { at: 0.0, ground: "#f4f1ec", card: "#ffffff", ink: "#111111", sub: "#777777", ev: "#fde4ea", acc: "#e11d48" },
+      { at: 0.9, ground: "#0e1424", card: "#182036", ink: "#e8ecf5", sub: "#8e9ab5", ev: "#1f3256", acc: "#60a5fa" },
+      { at: 1.6, ground: "#000000", card: "#111111", ink: "#f2f2f2", sub: "#8a8a8a", ev: "#3a1520", acc: "#fb7185" },
+      { at: 2.3, ground: "#efe7d8", card: "#faf5ec", ink: "#2a2118", sub: "#8a7c6a", ev: "#fbe0c4", acc: "#ea580c" },
+    ];
+    tl.fromTo("#thm-card", { y: 900, rotation: 3 }, { y: 0, rotation: 0, duration: 0.6, ease: "expo.out" }, 0);
+    T.slice(1).forEach((t) => {
+      const d = 0.35, e = "power2.inOut";
+      tl.to("#thm-ground", { backgroundColor: t.ground, duration: d, ease: e }, t.at);
+      tl.to("#thm-card", { backgroundColor: t.card, duration: d, ease: e }, t.at);
+      tl.to("#thm-h, .thm-ev div", { color: t.ink, duration: d, ease: e }, t.at);
+      tl.to(".thm-ev small", { color: t.sub, duration: d, ease: e }, t.at);
+      tl.to(".thm-ev", { backgroundColor: t.ev, borderLeftColor: t.acc, duration: d, ease: e }, t.at);
+      tl.to("#thm-pill", { backgroundColor: t.acc, duration: d, ease: e }, t.at);
+    });
+    tl.fromTo("#thm-l1", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 0.25);
+    tl.to("#thm-l1", { color: "#e8ecf5", duration: 0.35, ease: "power2.inOut" }, 0.9);
+    tl.fromTo("#thm-l2", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 1.0);
+    tl.fromTo("#thm-l3", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 1.7);
+    tl.to(["#thm-l1", "#thm-l2"], { color: "#2a2118", duration: 0.35, ease: "power2.inOut" }, 2.3);
+    tl.to("#thm-l3", { color: "#ea580c", duration: 0.35, ease: "power2.inOut" }, 2.3);
+    tl.to("#thm-card", { scale: 0.5, opacity: 0, filter: "blur(14px)", duration: 0.3, ease: "power3.in" }, 2.9);
+    tl.to("#thm-copy", { opacity: 0, filter: "blur(12px)", duration: 0.25 }, 2.9);
+    window.__timelines["theme"] = tl;
+  </script>
+</template>

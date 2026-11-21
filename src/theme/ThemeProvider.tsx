@@ -50,7 +50,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const fs = TEXT_SCALE[useThemeStore((s) => s.textSize)];
   const d = DENSITY_SCALE[useThemeStore((s) => s.density)];
   // --fs / --d scale the type ramp and padding/gap (tailwind.config.js).
-  const style = useMemo(() => vars({ ...paletteToVars(colors), "--fs": String(fs), "--d": String(d) }), [colors, fs, d]);
+  // Must be numbers: native calc() drops the whole style if var() yields a string.
+  const style = useMemo(() => vars({ ...paletteToVars(colors), "--fs": fs, "--d": d }), [colors, fs, d]);
   return (
     <View style={[{ flex: 1, backgroundColor: colors.white }, style]}>
       {children}

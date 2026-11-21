@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity, Alert, Linking, Platform } from "react-native";
+import { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, Alert, AppState, Linking, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
-import { ensureEventChannels, ensureNotificationPermission, REMINDER_CHANNEL } from "@/services/notify-core";
+import { ensureEventChannels, ensureNotificationPermission, NativeAlarm, REMINDER_CHANNEL, type AlarmAccess } from "@/services/notify-core";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
 
@@ -14,6 +14,7 @@ type IconName = React.ComponentProps<typeof Feather>["name"];
 export function RemindersCheck() {
   const C = useColors();
   const [sent, setSent] = useState(false);
+  const access = useAlarmAccess();
 
   const test = async () => {
     if (!(await ensureNotificationPermission())) {
@@ -41,6 +42,18 @@ export function RemindersCheck() {
 
   return (
     <View className="rounded-[20px] bg-ink-50 overflow-hidden mb-4">
+      {access && !access.exact ? (
+        <>
+          <Row C={C} icon="alert-circle" label="Allow alarms & reminders" sub="Off: alarms can ring minutes late. Turn on “Alarms & reminders” for Seishin" onPress={() => NativeAlarm?.openAlarmAccess?.("exact")} />
+          <View className="h-px bg-ink-75 mx-4" />
+        </>
+      ) : null}
+      {access && !access.fullScreen ? (
+        <>
+          <Row C={C} icon="alert-circle" label="Allow full-screen alarms" sub="Off: alarms only show as a notification on the lock screen" onPress={() => NativeAlarm?.openAlarmAccess?.("fullScreen")} />
+          <View className="h-px bg-ink-75 mx-4" />
+        </>
+      ) : null}
       <Row C={C} icon="bell" label="Send a test reminder" sub={sent ? "Arrives in 5 seconds — lock the phone to see it" : "Check that reminders show on this phone"} onPress={test} />
       <View className="h-px bg-ink-75 mx-4" />
       <Row C={C} icon="settings" label="Notification settings" sub="Allow notifications, sound and pop-up" onPress={() => Linking.openSettings()} />
@@ -52,6 +65,19 @@ export function RemindersCheck() {
       ) : null}
     </View>
   );
+}
+
+/** Alarm switches from the native module, re-read when the user comes back from system settings. */
+function useAlarmAccess(): AlarmAccess | null {
+  const [access, setAccess] = useState<AlarmAccess | null>(null);
+  useEffect(() => {
+    if (Platform.OS !== "android" || !NativeAlarm?.alarmAccess) return;
+    const read = () => { NativeAlarm?.alarmAccess?.().then(setAccess).catch(() => setAccess(null)); };
+    read();
+    const sub = AppState.addEventListener("change", (s) => { if (s === "active") read(); });
+    return () => sub.remove();
+  }, []);
+  return access;
 }
 
 function Row({ C, icon, label, sub, onPress }: { C: ReturnType<typeof useColors>; icon: IconName; label: string; sub: string; onPress: () => void }) {

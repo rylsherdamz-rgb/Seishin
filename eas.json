@@ -12,12 +12,20 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
+      },
+      "credentialsSource": "local"
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "credentialsSource": "local"
+    },
+    "apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
       }
     }
   },

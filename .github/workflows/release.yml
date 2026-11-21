@@ -1,0 +1,151 @@
+name: Release
+
+# Every run builds a signed Seishin .apk on EAS (eas.json profile "apk":
+# production settings, new versionCode each time) and publishes it as a
+# GitHub Release. Run it from the Actions tab, or push a tag like v1.0.0.
+# To publish APK builds that already exist on EAS, pass their ids in
+# "eas_build_ids" — nothing is rebuilt.
+on:
+  workflow_dispatch:
+    inputs:
+      eas_build_ids:
+        description: "Publish existing EAS build ids instead (comma-separated; leave empty to build)"
+        required: false
+        default: ""
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    if: inputs.eas_build_ids == ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --ci
+
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        env:
+          IDS: ${{ inputs.eas_build_ids }}
+        run: |
+          if [ -n "$IDS" ]; then
+            m=$(echo "$IDS" | tr ',' '\n' | sed 's/ //g' | grep . | jq -R '{id: ., profile: ""}' | jq -sc .)
+          else
+            m='[{"id":"","profile":"apk"}]'
+          fi
+          echo "matrix=$m" >> "$GITHUB_OUTPUT"
+          echo "$m"
+
+  build:
+    needs: [plan, check]
+    # check is skipped when publishing existing builds
+    if: always() && needs.plan.result == 'success' && (needs.check.result == 'success' || needs.check.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: npm }
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Write upload-key credentials
+        if: matrix.id == ''
+        env:
+          SEISHIN_UPLOAD_KEYSTORE_BASE64: ${{ secrets.SEISHIN_UPLOAD_KEYSTORE_BASE64 }}
+          SEISHIN_UPLOAD_STORE_PASSWORD: ${{ secrets.SEISHIN_UPLOAD_STORE_PASSWORD }}
+          SEISHIN_UPLOAD_KEY_ALIAS: ${{ secrets.SEISHIN_UPLOAD_KEY_ALIAS }}
+          SEISHIN_UPLOAD_KEY_PASSWORD: ${{ secrets.SEISHIN_UPLOAD_KEY_PASSWORD }}
+        run: scripts/ci/eas-credentials.sh
+
+      - name: Build on EAS (${{ matrix.profile }})
+        if: matrix.id == ''
+        run: |
+          eas build --platform android --profile "${{ matrix.profile }}" --non-interactive --wait --json > build.raw.json
+          jq 'if type == "array" then .[0] else . end' build.raw.json > build.json
+
+      - name: Fetch existing EAS build ${{ matrix.id }}
+        if: matrix.id != ''
+        run: |
+          eas build:view "${{ matrix.id }}" --json > build.raw.json
+          jq 'if type == "array" then .[0] else . end' build.raw.json > build.json
+
+      - name: Download artifact
+        id: dl
+        run: |
+          status=$(jq -r .status build.json)
+          [ "$status" = "FINISHED" ] || { echo "::error::EAS build $(jq -r .id build.json) is $status"; exit 1; }
+          url=$(jq -r '.artifacts.buildUrl // .artifacts.applicationArchiveUrl' build.json)
+          profile=$(jq -r .buildProfile build.json)
+          ver=$(jq -r .appVersion build.json)
+          code=$(jq -r .appBuildVersion build.json)
+          ext="${url##*.}"
+          [ "$ext" = "apk" ] || { echo "::error::EAS build $(jq -r .id build.json) is a .$ext, releases are APK only"; exit 1; }
+          mkdir -p dist
+          file="dist/seishin-${ver}-${code}.apk"
+          curl -fsSL --retry 3 -o "$file" "$url"
+          jq -c '{id, buildProfile, appVersion, appBuildVersion, gitCommitHash}' build.json > "dist/build-$(jq -r .id build.json).json"
+          echo "name=${profile}-${{ strategy.job-index }}" >> "$GITHUB_OUTPUT"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eas-${{ steps.dl.outputs.name }}
+          path: dist/
+          retention-days: 7
+
+  release:
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          meta=$(jq -s . dist/build-*.json)
+          ver=$(echo "$meta" | jq -r '.[0].appVersion')
+          code=$(echo "$meta" | jq -r 'map(.appBuildVersion | tonumber) | max')
+          built_from=$(echo "$meta" | jq -r '.[0].gitCommitHash // empty')
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then tag="$GITHUB_REF_NAME"; else tag="v${ver}-build.${code}"; fi
+          {
+            echo "Seishin ${ver} (versionCode ${code})"
+            echo
+            echo "Signed APK — download it on your phone and open it to install."
+            echo
+            echo "$meta" | jq -r '.[] | "- [EAS build \(.id)](https://expo.dev/accounts/3x656/projects/seishin/builds/\(.id))"'
+            echo
+            echo "Built from commit: ${built_from:-$GITHUB_SHA}"
+          } > notes.md
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/*.apk --clobber
+          else
+            # Tag the commit this run used (an older EAS build's commit may no longer exist after a rebase).
+            gh release create "$tag" dist/*.apk --target "$GITHUB_SHA" --title "Seishin ${ver} (build ${code})" --notes-file notes.md --generate-notes
+          fi
+          echo "Released $tag" >> "$GITHUB_STEP_SUMMARY"

@@ -26,8 +26,11 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM",
-        "android.permission.RECEIVE_BOOT_COMPLETED"
-      ]
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ],
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -85,7 +88,8 @@
               "targetCellWidth": 4,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/agenda.png"
             },
             {
               "name": "Tasks",
@@ -96,7 +100,8 @@
               "targetCellWidth": 4,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/tasks.png"
             },
             {
               "name": "Month",
@@ -107,7 +112,8 @@
               "targetCellWidth": 4,
               "targetCellHeight": 3,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/month.png"
             },
             {
               "name": "NextUp",
@@ -118,7 +124,8 @@
               "targetCellWidth": 2,
               "targetCellHeight": 2,
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "previewImage": "./assets/widgets/nextup.png"
             },
             {
               "name": "Quick",
@@ -128,11 +135,30 @@
               "minHeight": "60dp",
               "targetCellWidth": 4,
               "targetCellHeight": 1,
-              "resizeMode": "horizontal"
+              "resizeMode": "horizontal",
+              "previewImage": "./assets/widgets/quick.png"
             }
           ]
         }
+      ],
+      "./plugins/with-seishin-alarms",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# Seishin native code: alarm module, receivers, services, activity\n-keep class com.seishin.app.** { *; }\n# llama.rn: JNI bridge to llama.cpp\n-keep class com.rnllama.** { *; }\n# MMKV / Nitro modules: JNI + generated specs\n-keep class com.margelo.nitro.** { *; }\n# Home-screen widgets\n-keep class com.reactnativeandroidwidget.** { *; }\n# Worklets (Reanimated 4)\n-keep class com.swmansion.worklets.** { *; }\n-keepclasseswithmembernames,includedescriptorclasses class * { native <methods>; }"
+          }
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9b82acba-07b4-4876-a19d-1eafbac78f56"
+      }
+    },
+    "owner": "3x656"
   }
 }

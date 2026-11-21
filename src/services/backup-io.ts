@@ -14,7 +14,19 @@ import { buildBackup, countBackup, mergeById, noteIsNewer, parseBackup, PORTABLE
 const log = createLogger("backup");
 const LAST_KEY = "settings:backup:last";
 
+/**
+ * Stores load lazily (each tab loads its own), so a backup made from Settings
+ * right after launch would miss notes, and a merge would overwrite them.
+ * Read everything from disk first.
+ */
+function loadAll() {
+  useCalendarStore.getState().loadEvents();
+  useTodoStore.getState().loadTodos();
+  useNotesStore.getState().loadNotes();
+}
+
 function currentBackup(): Backup {
+  loadAll();
   const prefs: Record<string, string> = {};
   for (const k of PORTABLE_PREF_KEYS) {
     const v = settingsStorage.getString(k);
@@ -61,6 +73,7 @@ export async function pickBackup(): Promise<Backup | null> {
 
 /** "merge" keeps everything on the phone and adds what's missing; "replace" swaps it all. */
 export function restoreBackup(b: Backup, mode: "merge" | "replace"): BackupCounts {
+  loadAll();
   const cal = useCalendarStore.getState();
   const own = cal.events.filter((e) => e.source !== "calendar" && e.source !== "feed");
   const nextEvents = mode === "replace" ? b.events : mergeById(own, b.events);
@@ -69,7 +82,7 @@ export function restoreBackup(b: Backup, mode: "merge" | "replace"): BackupCount
   if (cal.applyImport(nextEvents, removeIds)) {
     // applyImport doesn't touch alarms: drop them for removed events, (re)arm restored ones.
     removeIds.forEach((id) => cancelEventReminder(id).catch((e) => log.warn("could not cancel reminder", id, e)));
-    nextEvents.filter((e) => e.reminder).forEach((e) => scheduleEventReminder(e).catch((err) => log.warn("could not schedule reminder", e.id, err)));
+    nextEvents.filter((e) => e.reminder).forEach((e) => scheduleEventReminder(e, new Date(), { catchUp: false }).catch((err) => log.warn("could not schedule reminder", e.id, err)));
   }
 
   const todos = useTodoStore.getState();

@@ -72,6 +72,8 @@ export function DayTimeline({ date, today, items, onOpen, onToggleTodo, onCreate
           {HOURS.map((h) => (
             <HourRow key={h} hour={h} onPress={(half) => onCreateAt(h * 60 + (half ? 30 : 0))} />
           ))}
+          {/* Drawn before the events: it shows in the gaps and never strikes through a title. */}
+          {isToday && <NowLine minutes={nowMin} />}
           {width > 0 &&
             placed.map((p) => (
               <EventBlock
@@ -82,7 +84,6 @@ export function DayTimeline({ date, today, items, onOpen, onToggleTodo, onCreate
                 onPress={() => onOpen(p.item)}
               />
             ))}
-          {isToday && <NowLine minutes={nowMin} />}
         </View>
       </ScrollView>
     </View>
@@ -115,9 +116,11 @@ function EventBlock({ placed, width, past, onPress }: { placed: PlacedEvent; wid
       activeOpacity={0.75}
       accessibilityRole="button"
       accessibilityLabel={`${COPY.terms.event}: ${item.title}, ${item.time ?? ""}${item.endTime ? ` to ${item.endTime}` : ""}`}
-      className={`absolute rounded-lg bg-accent/15 border-l-[3px] border-accent px-2 overflow-hidden ${past ? "opacity-50" : ""}`}
+      className={`absolute rounded-lg bg-white border-l-[3px] border-accent px-2 overflow-hidden ${past ? "opacity-70" : ""}`}
       style={{ top: (start / 60) * HOUR_H + 7, left: GUTTER + col * colW + 2, width: colW - 4, height }}
     >
+      {/* Tint over a solid page-coloured base, so the now line behind it stays hidden. */}
+      <View pointerEvents="none" className="absolute inset-0 bg-accent/15" />
       <View className={compact ? "flex-row items-center gap-1.5 flex-1" : "pt-1"}>
         <Text className="text-[13px] font-semibold text-black" numberOfLines={compact ? 1 : 2}>
           {item.title}

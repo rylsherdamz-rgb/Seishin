@@ -1,4 +1,4 @@
-import { planImport, planExport, eventHash, importId, taskDeadlineEvents, toDeviceRecurrence, type RemoteEvent } from "@/services/calendar-sync-plan";
+import { planImport, planExport, eventHash, importId, taskDeadlineEvents, toDeviceRecurrence, groupCalendarsByAccount, chosenAccounts, setAccountChosen, type RemoteEvent } from "@/services/calendar-sync-plan";
 import type { CalendarEvent } from "@/stores/calendar-store";
 
 const WINDOW = { from: new Date("2026-10-01T00:00:00Z"), to: new Date("2026-12-31T00:00:00Z") };
@@ -102,5 +102,52 @@ describe("device quirks", () => {
     expect(remoteToLocal({ ...base, alarmMinutes: 30 }, { defaultReminder: 10 }).reminder).toBe(30);
     expect(remoteToLocal({ ...base, alarmMinutes: null }, { defaultReminder: 10 }).reminder).toBe(10);
     expect(remoteToLocal({ ...base }, { defaultReminder: 0 }).reminder).toBeUndefined();
+  });
+});
+
+describe("groupCalendarsByAccount", () => {
+  const cal = (id: string, account: string, synced = true) => ({ id, account, synced });
+
+  it("groups by account in input order and drops unsynced calendars", () => {
+    const groups = groupCalendarsByAccount([
+      cal("1", "b@gmail.com"),
+      cal("2", "a@gmail.com"),
+      cal("3", "b@gmail.com"),
+      cal("4", "a@gmail.com", false),
+      cal("5", "c@gmail.com", false),
+    ]);
+    expect(groups.map((g) => g.account)).toEqual(["b@gmail.com", "a@gmail.com"]);
+    expect(groups[0].calendars.map((c) => c.id)).toEqual(["1", "3"]);
+    expect(groups[1].calendars.map((c) => c.id)).toEqual(["2"]);
+  });
+});
+
+describe("account picking", () => {
+  const cals = [
+    { id: "a1", account: "a@gmail.com", synced: true, writable: true, primary: true },
+    { id: "a2", account: "a@gmail.com", synced: true, writable: false, primary: false },
+    { id: "a3", account: "a@gmail.com", synced: false, writable: true, primary: false },
+    { id: "b1", account: "b@gmail.com", synced: true, writable: true, primary: true },
+  ];
+  const none = { accounts: [], importIds: [], exportId: null };
+
+  it("first pick shows the account's synced calendars and saves to its primary", () => {
+    expect(setAccountChosen(none, cals, "a@gmail.com", true)).toEqual({ accounts: ["a@gmail.com"], importIds: ["a1", "a2"], exportId: "a1" });
+  });
+
+  it("later picks keep the existing save target", () => {
+    const a = setAccountChosen(none, cals, "a@gmail.com", true);
+    expect(setAccountChosen(a, cals, "b@gmail.com", true)).toEqual({ accounts: ["a@gmail.com", "b@gmail.com"], importIds: ["a1", "a2", "b1"], exportId: "a1" });
+  });
+
+  it("removing an account hides its calendars and clears a save target inside it", () => {
+    const both = { accounts: ["a@gmail.com", "b@gmail.com"], importIds: ["a1", "b1"], exportId: "a1" };
+    expect(setAccountChosen(both, cals, "a@gmail.com", false)).toEqual({ accounts: ["b@gmail.com"], importIds: ["b1"], exportId: null });
+    expect(setAccountChosen(both, cals, "b@gmail.com", false).exportId).toBe("a1");
+  });
+
+  it("older installs derive accounts from shown calendars", () => {
+    expect(chosenAccounts(undefined, ["b1"], cals)).toEqual(["b@gmail.com"]);
+    expect(chosenAccounts([], ["b1"], cals)).toEqual([]);
   });
 });

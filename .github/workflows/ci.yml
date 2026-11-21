@@ -6,11 +6,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      eas_profile:
-        description: "EAS build profile to run after checks (leave empty to skip)"
-        required: false
-        default: ""
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -32,21 +27,3 @@ jobs:
       - run: npm test -- --ci
         env:
           TZ: Asia/Manila
-
-  # Native builds cost EAS credits — run them on demand, not on every push.
-  eas-build:
-    needs: check
-    if: github.event_name == 'workflow_dispatch' && inputs.eas_profile != ''
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-      - run: eas build --platform android --profile ${{ inputs.eas_profile }} --non-interactive

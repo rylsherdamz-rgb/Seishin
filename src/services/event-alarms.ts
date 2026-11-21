@@ -124,14 +124,17 @@ export async function cancelEventReminder(eventId: string): Promise<void> {
   try { NativeAlarm?.cancelAlarms(eventId); } catch { /* optional native module */ }
 }
 
-/** Schedule one event right after it's added or edited (recurring: next 30 days). */
-export async function scheduleEventReminder(event: CalendarEvent, now = new Date()): Promise<void> {
+/**
+ * Schedule one event right after it's added or edited (recurring: next 30 days).
+ * `catchUp: false` (restore) skips the "reminder moment just passed" ring.
+ */
+export async function scheduleEventReminder(event: CalendarEvent, now = new Date(), opts: { catchUp?: boolean } = {}): Promise<void> {
   await cancelEventReminder(event.id);
   if (!event.reminder) return;
   if (!(await ensureNotificationPermission())) return;
   await ensureEventChannels();
   const slots = planEventAlarms([event], now, { horizonDays: 30, max: 60 });
-  const late = catchUpSlot(event, now);
+  const late = opts.catchUp === false ? null : catchUpSlot(event, now);
   if (late) slots.unshift(late);
   const map = readMap();
   await apply(map, slots);

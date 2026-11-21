@@ -1,0 +1,30 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #f4f1ec; font-family: "Outfit"; overflow: hidden; }
+    #end-lockup { position: absolute; left: 0; right: 0; top: 300px; display: flex; align-items: center; justify-content: center; gap: 44px; }
+    #end-icon { width: 200px; height: 200px; border-radius: 48px; box-shadow: 0 30px 60px rgba(17, 17, 17, 0.18); }
+    #end-word { font-size: 170px; font-weight: 700; letter-spacing: -0.05em; color: #111; }
+    .end-l { display: inline-block; }
+    #end-tag { position: absolute; left: 0; right: 0; top: 590px; text-align: center; font-size: 52px; font-weight: 500; color: #555; }
+    #end-cta { position: absolute; left: 50%; top: 720px; transform: translateX(-50%); }
+    #end-pill { font-size: 38px; font-weight: 700; color: #fff; background: #111; padding: 22px 52px; border-radius: 999px; white-space: nowrap; }
+  </style>
+  <div id="root" data-composition-id="endcard" data-width="1920" data-height="1080">
+    <div id="end-lockup">
+      <img id="end-icon" src="assets/icon.png" alt="Seishin" />
+      <div id="end-word"><span class="end-l">S</span><span class="end-l">e</span><span class="end-l">i</span><span class="end-l">s</span><span class="end-l">h</span><span class="end-l">i</span><span class="end-l">n</span></div>
+    </div>
+    <div id="end-tag" data-var-text="tagline">Plan less. Live more.</div>
+    <div id="end-cta"><div id="end-pill" data-var-text="cta">Now on Google Play</div></div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#end-icon", { scale: 0.4, opacity: 0, filter: "blur(12px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "back.out(1.4)" }, 0.05);
+    gsap.utils.toArray("#end-word .end-l").forEach((el, i) => {
+      tl.fromTo(el, { opacity: 0.15, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14 }, 0.35 + i * 0.06);
+    });
+    tl.fromTo("#end-tag", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2 }, 0.95);
+    tl.fromTo("#end-pill", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.4)" }, 1.2);
+    window.__timelines["endcard"] = tl;
+  </script>
+</template>

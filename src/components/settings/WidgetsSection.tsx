@@ -20,7 +20,7 @@ async function pin(name: string, label: string) {
   } catch {
     Alert.alert(
       "Add it from your home screen",
-      `Long-press an empty spot on your home screen → Widgets → Seishin → "${label}".`,
+      `Long-press an empty spot on your home screen > Widgets > Seishin > "${label}".`,
     );
   }
 }

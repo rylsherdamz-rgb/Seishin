@@ -15,14 +15,19 @@ export function AppearancePicker() {
   const options: ThemeMode[] = ["system", ...THEME_ORDER];
   return (
     <View>
-      <View className="flex-row flex-wrap gap-2.5">
-        {options.map((m) => (
-          <ThemeSwatch key={m} mode={m} active={mode === m} onPress={() => setMode(m)} />
+      {/* Fixed rows of three: percentage widths plus a scaled gap wrapped to two columns. */}
+      <View style={{ gap: 8 }}>
+        {[0, 3].map((start) => (
+          <View key={start} className="flex-row" style={{ gap: 8 }}>
+            {options.slice(start, start + 3).map((m) => (
+              <ThemeSwatch key={m} mode={m} active={mode === m} onPress={() => setMode(m)} />
+            ))}
+          </View>
         ))}
       </View>
 
       <Text className="text-xs font-semibold text-ink-400 mt-5 mb-2.5">Accent color</Text>
-      <View className="flex-row flex-wrap gap-3">
+      <View className="flex-row justify-between">
         {ACCENT_ORDER.map((id) => {
           const a = ACCENTS[id];
           const hex = (dark ? a.dark : a.light) ?? C.black;
@@ -65,7 +70,9 @@ function ThemeSwatch({ mode, active, onPress }: { mode: ThemeMode; active: boole
       onPress={onPress}
       activeOpacity={0.8}
       className={`rounded-2xl p-1 ${active ? "border-2 border-accent" : "border-2 border-transparent"}`}
-      style={{ width: "31%" }}
+      style={{ flex: 1 }}
+      accessibilityRole="radio"
+      accessibilityLabel={`${isSystem ? "System" : theme.name} theme`}
       accessibilityState={{ selected: active }}
     >
       <View className="h-20 rounded-xl overflow-hidden flex-row border border-ink-100">

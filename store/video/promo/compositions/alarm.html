@@ -1,0 +1,39 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0f0f11; font-family: "Outfit"; overflow: hidden; }
+    #alm-copy { position: absolute; left: 150px; top: 400px; color: #f4f1ec; font-size: 104px; font-weight: 700; letter-spacing: -0.04em; line-height: 1.04; }
+    .alm-w { display: inline-block; margin-right: 0.22em; }
+    #alm-card { position: absolute; left: 1080px; top: 110px; width: 640px; height: 860px; border-radius: 56px; background: #17171a; border: 2px solid #26262b; display: flex; flex-direction: column; align-items: center; font-family: "Roboto"; color: #fff; }
+    #alm-ring1, #alm-ring2 { position: absolute; left: 230px; top: 110px; width: 180px; height: 180px; border-radius: 50%; border: 3px solid #fb7185; }
+    #alm-icon { margin-top: 110px; width: 180px; height: 180px; border-radius: 50%; background: #222227; display: flex; align-items: center; justify-content: center; position: relative; }
+    #alm-icon img { width: 120px; height: 120px; border-radius: 30px; }
+    #alm-title { margin-top: 60px; font-size: 72px; font-weight: 700; } #alm-time { margin-top: 14px; font-size: 44px; font-weight: 300; } #alm-date { margin-top: 10px; font-size: 26px; color: #888; }
+    #alm-btns { position: absolute; bottom: 70px; left: 50px; right: 50px; display: flex; gap: 24px; }
+    .alm-b { flex: 1; height: 110px; border-radius: 30px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 700; }
+    #alm-snooze { border: 2px solid #3a3a40; color: #fff; } #alm-dismiss { background: #fff; color: #111; }
+  </style>
+  <div id="root" data-composition-id="alarm" data-width="1920" data-height="1080">
+    <div id="alm-copy"><span class="alm-w">Reminders</span><br /><span class="alm-w">you</span><span class="alm-w" style="color:#fb7185">can't</span><span class="alm-w">miss.</span></div>
+    <div id="alm-card" data-layout-allow-overflow>
+      <div id="alm-ring1"></div><div id="alm-ring2"></div>
+      <div id="alm-icon"><img src="assets/icon.png" alt="" /></div>
+      <div id="alm-title">Gym</div><div id="alm-time">6:30 PM – 7:30 PM</div><div id="alm-date">Thursday, October 22</div>
+      <div id="alm-btns"><div class="alm-b" id="alm-snooze">Snooze</div><div class="alm-b" id="alm-dismiss">Dismiss</div></div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#alm-card", { y: 1000 }, { y: 0, duration: 0.6, ease: "expo.out" }, 0);
+    tl.fromTo("#alm-icon", { rotation: 0 }, { rotation: 0, duration: 0.01 }, 0);
+    // One ring of the alarm: icon shakes, two rings spread once.
+    tl.to("#alm-icon", { keyframes: { rotation: [0, -12, 12, -9, 9, -5, 5, 0] }, duration: 0.6, ease: "none" }, 0.55);
+    [["#alm-ring1", 0.55], ["#alm-ring2", 0.8]].forEach(([id, at]) => tl.fromTo(id, { scale: 1, opacity: 0.9 }, { scale: 2.2, opacity: 0, duration: 0.9, ease: "power2.out" }, at));
+    ["#alm-title", "#alm-time", "#alm-date"].forEach((id, i) => tl.fromTo(id, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4, ease: "expo.out" }, 0.35 + i * 0.08));
+    tl.fromTo("#alm-btns", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.4, ease: "expo.out" }, 0.6);
+    gsap.utils.toArray("#alm-copy .alm-w").forEach((el, i) => tl.fromTo(el, { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.14 }, 0.45 + i * 0.09));
+    tl.to("#alm-dismiss", { scale: 0.92, duration: 0.08 }, 2.1).to("#alm-dismiss", { scale: 1, duration: 0.12 }, 2.18);
+    tl.to("#alm-card", { y: -1100, filter: "blur(14px)", duration: 0.35, ease: "power3.in" }, 2.45);
+    tl.to("#alm-copy", { opacity: 0, filter: "blur(12px)", duration: 0.25 }, 2.45);
+    window.__timelines["alarm"] = tl;
+  </script>
+</template>
