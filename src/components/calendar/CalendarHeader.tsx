@@ -32,10 +32,10 @@ export function CalendarHeader({ month, expanded, showToday, onToggleExpanded, o
         <TouchableOpacity onPress={onToggleExpanded} activeOpacity={0.7} className="flex-row items-center gap-1.5" accessibilityRole="button"
           accessibilityLabel={COPY.calendar.toggleMonth}
           accessibilityState={{ expanded }}>
-          <Text className="text-[26px] font-bold tracking-tightest text-black">
+          <Text className="text-26 font-bold tracking-tightest text-black">
             {d.toLocaleDateString(undefined, { month: "long" })}
           </Text>
-          <Text className="text-[26px] font-light tracking-tightest text-ink-300">{d.getFullYear()}</Text>
+          <Text className="text-26 font-light tracking-tightest text-ink-300">{d.getFullYear()}</Text>
           <View className={`w-6 h-6 rounded-full items-center justify-center ml-0.5 ${expanded ? "bg-black" : "bg-ink-75"}`}>
             <Feather name={expanded ? "chevron-up" : "chevron-down"} size={14} color={expanded ? C.white : C.ink500} />
           </View>
@@ -75,6 +75,7 @@ export function ViewSwitcher({ value, onChange }: { value: CalendarView; onChang
         const active = v.key === value;
         return (
           <TouchableOpacity
+            hitSlop={4}
             key={v.key}
             onPress={() => onChange(v.key)}
             activeOpacity={0.8}
@@ -105,7 +106,7 @@ export function DaySummary({ label, events, tasks, done, booked }: {
   ].filter(Boolean);
   return (
     <View className="flex-row items-baseline justify-between px-4 pt-4 pb-2">
-      <Text className="text-[15px] font-bold text-black">{label}</Text>
+      <Text className="text-15 font-bold text-black">{label}</Text>
       <Text className="text-xs text-ink-400">{parts.length ? parts.join(" · ") : COPY.calendar.freeDay}</Text>
     </View>
   );

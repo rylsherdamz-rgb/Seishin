@@ -59,3 +59,19 @@ test("string vars are dropped by native calc() (why ThemeProvider passes numbers
   expect(box.padding).toBeUndefined();
   expect(label.fontSize).toBeUndefined();
 });
+
+test("exact-pixel tokens (text-15 …) follow the Text size setting", async () => {
+  await compile("text-15 text-10");
+  let tree!: TestRenderer.ReactTestRenderer;
+  act(() => {
+    tree = TestRenderer.create(
+      <Box style={vars({ "--fs": 1.25, "--d": 1 } as any)}>
+        <Label testID="t15" className="text-15">x</Label>
+        <Label testID="t10" className="text-10">x</Label>
+      </Box>,
+    );
+  });
+  const size = (id: string) => tree.root.findAll((n) => typeof n.type === "string" && n.props.testID === id)[0].props.style?.fontSize;
+  expect(size("t15")).toBeCloseTo(18.75);
+  expect(size("t10")).toBeCloseTo(12.5);
+});

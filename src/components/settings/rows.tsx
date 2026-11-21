@@ -7,7 +7,7 @@ type IconName = React.ComponentProps<typeof Feather>["name"];
 
 export function SectionHeader({ title }: { title: string }) {
   return (
-    <Text className="text-[11px] font-extrabold text-ink-500 uppercase tracking-widest mb-2.5 mt-7 first:mt-0">
+    <Text className="text-11 font-extrabold text-ink-500 uppercase tracking-widest mb-2.5 mt-7 first:mt-0">
       {title}
     </Text>
   );
@@ -27,7 +27,7 @@ export function MenuRow({ icon, label, subtitle, right, onPress }: {
         <Feather name={icon} size={16} color={T.black} />
       </View>
       <View className="flex-1">
-        <Text className="text-[15px] font-semibold text-black">{label}</Text>
+        <Text className="text-15 font-semibold text-black">{label}</Text>
         {subtitle && <Text className="text-xs text-ink-400 mt-0.5">{subtitle}</Text>}
       </View>
       {right || (onPress && <Feather name="chevron-right" size={16} color={T.ink150} />)}

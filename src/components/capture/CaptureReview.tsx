@@ -52,6 +52,7 @@ export const CaptureReview = memo(function CaptureReview({ value: v, onChange, u
             const on = v.kind === k;
             return (
               <TouchableOpacity
+                hitSlop={2}
                 key={k}
                 onPress={() => onChange({ kind: k })}
                 accessibilityRole="radio"
@@ -59,7 +60,7 @@ export const CaptureReview = memo(function CaptureReview({ value: v, onChange, u
                 className={`flex-row items-center gap-1.5 h-10 px-3.5 rounded-lg border ${on ? "bg-accent/15 border-transparent" : "border-ink-150"}`}
               >
                 <Feather name={on ? "check" : KIND_ICONS[k]} size={14} color={on ? C.black : C.ink600} />
-                <Text className={`text-[13px] font-semibold ${on ? "text-black" : "text-ink-700"}`}>{KIND_LABELS[k]}</Text>
+                <Text className={`text-13 font-semibold ${on ? "text-black" : "text-ink-700"}`}>{KIND_LABELS[k]}</Text>
               </TouchableOpacity>
             );
           })}
@@ -73,7 +74,7 @@ export const CaptureReview = memo(function CaptureReview({ value: v, onChange, u
           placeholder="What is it called?"
           placeholderTextColor={C.ink400}
           maxLength={120}
-          className="h-12 rounded-xl bg-ink-50 px-4 text-[15px] font-semibold text-black"
+          className="h-12 rounded-xl bg-ink-50 px-4 text-15 font-semibold text-black"
           accessibilityLabel="Title"
         />
         <TextInput
@@ -92,13 +93,13 @@ export const CaptureReview = memo(function CaptureReview({ value: v, onChange, u
           <View className="flex-row gap-2">
             <TouchableOpacity onPress={onPickDate} accessibilityRole="button" className="flex-1 h-12 rounded-xl bg-ink-50 px-4 flex-row items-center gap-2">
               <Feather name="calendar" size={15} color={C.ink600} />
-              <Text className="text-[15px] font-semibold text-black">
+              <Text className="text-15 font-semibold text-black">
                 {v.due.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onPickTime} accessibilityRole="button" className="h-12 rounded-xl bg-ink-50 px-4 flex-row items-center gap-2">
               <Feather name="clock" size={15} color={C.ink600} />
-              <Text className="text-[15px] font-semibold text-black">
+              <Text className="text-15 font-semibold text-black">
                 {v.dueHasTime ? formatClock(v.due) : "End of day"}
               </Text>
             </TouchableOpacity>
@@ -119,7 +120,7 @@ export const CaptureReview = memo(function CaptureReview({ value: v, onChange, u
           {v.items.map((item, i) => (
             <View key={`${i}-${item}`} className="flex-row items-start gap-3 py-2 border-b border-ink-75">
               <Text className="w-6 text-sm font-bold text-ink-500 pt-0.5">{i + 1}.</Text>
-              <Text className="flex-1 text-[15px] leading-[21px] text-black">{item}</Text>
+              <Text className="flex-1 text-15 leading-[21px] text-black">{item}</Text>
               <TouchableOpacity
                 onPress={() => onChange({ items: v.items.filter((_, j) => j !== i) })}
                 hitSlop={8}
@@ -163,7 +164,7 @@ export const CaptureReview = memo(function CaptureReview({ value: v, onChange, u
                 {on ? <View className="w-2.5 h-2.5 rounded-full bg-accent" /> : null}
               </View>
               <View className="flex-1">
-                <Text className="text-[15px] font-semibold text-black">{r.label}</Text>
+                <Text className="text-15 font-semibold text-black">{r.label}</Text>
                 <Text className="text-xs text-ink-500 mt-0.5">{r.hint}</Text>
               </View>
             </TouchableOpacity>

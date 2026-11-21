@@ -51,11 +51,11 @@ export const WeekStrip = memo(function WeekStrip({ selected, today, marks, onSel
               accessibilityRole="button"
               accessibilityState={{ selected: isSel }}
             >
-              <Text className={`text-[11px] font-semibold ${isSel ? "text-accent-on opacity-80" : "text-ink-300"}`}>
+              <Text className={`text-11 font-semibold ${isSel ? "text-accent-on opacity-80" : "text-ink-300"}`}>
                 {WEEKDAY_SHORT[keyToDate(key).getDay()]}
               </Text>
               <Text
-                className={`text-[17px] font-bold mt-0.5 ${isSel ? "text-accent-on" : isToday ? "text-accent" : "text-black"}`}
+                className={`text-17 font-bold mt-0.5 ${isSel ? "text-accent-on" : isToday ? "text-accent" : "text-black"}`}
               >
                 {Number(key.slice(8))}
               </Text>

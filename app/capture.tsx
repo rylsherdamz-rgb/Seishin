@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
@@ -14,6 +14,7 @@ import { Photo } from "@/components/ui/Photo";
 import { PickerModal } from "@/components/ui/PickerModal";
 import { CaptureReview, type ReviewState } from "@/components/capture/CaptureReview";
 import { saveCapture, type CapturedFile } from "@/components/capture/save-capture";
+import { showAlert } from "@/components/ui/dialog";
 
 type Phase = "pick" | "reading" | "review";
 const MAX_FILES = 10;
@@ -58,7 +59,7 @@ export default function CaptureScreen() {
       const r = await launchCameraAsync({ mediaTypes: ["images"], quality: 0.85 });
       if (!r.canceled) addFiles(r.assets.map((a) => ({ uri: a.uri, name: a.fileName ?? undefined, mimeType: a.mimeType ?? "image/jpeg", size: a.fileSize })));
     } catch {
-      Alert.alert("Camera unavailable", "Allow camera access in system settings, then try again.");
+      showAlert("Camera unavailable", "Allow camera access in system settings, then try again.");
     }
   }, [addFiles]);
 
@@ -67,7 +68,7 @@ export default function CaptureScreen() {
       const r = await launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.85, allowsMultipleSelection: true, selectionLimit: MAX_FILES });
       if (!r.canceled) addFiles(r.assets.map((a) => ({ uri: a.uri, name: a.fileName ?? undefined, mimeType: a.mimeType ?? "image/jpeg", size: a.fileSize })));
     } catch {
-      Alert.alert("Can't open photos", "Allow photo access in system settings, then try again.");
+      showAlert("Can't open photos", "Allow photo access in system settings, then try again.");
     }
   }, [addFiles]);
 
@@ -78,7 +79,7 @@ export default function CaptureScreen() {
       const r = await getDocumentAsync({ type: ["image/*", "application/pdf"], multiple: true, copyToCacheDirectory: true });
       if (!r.canceled) addFiles(r.assets.map((a) => ({ uri: a.uri, name: a.name, mimeType: a.mimeType ?? undefined, size: a.size ?? undefined })));
     } catch {
-      Alert.alert("Can't open files", "The file picker couldn't be opened. Please try again.");
+      showAlert("Can't open files", "The file picker couldn't be opened. Please try again.");
     }
   }, [addFiles]);
 
@@ -119,7 +120,7 @@ export default function CaptureScreen() {
       if (todoId) router.replace({ pathname: "/task", params: { id: todoId } });
       else router.replace({ pathname: "/note", params: { id: noteId } });
     } catch {
-      Alert.alert("Couldn't save", "Something went wrong saving this. Please try again.");
+      showAlert("Couldn't save", "Something went wrong saving this. Please try again.");
     }
   }, [review, files, text]);
 
@@ -152,7 +153,7 @@ export default function CaptureScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 4, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
         {phase === "pick" && (
           <>
-            <Text className="text-[22px] font-bold text-black">Dump your photos here</Text>
+            <Text className="text-22 font-bold text-black">Dump your photos here</Text>
             <Text className="text-sm text-ink-600 mt-1 leading-5">
               Assignments, worksheets, exam notices, posters — Seishin reads them, finds what's due and what to answer, and keeps reminding you.
             </Text>
@@ -172,7 +173,7 @@ export default function CaptureScreen() {
               ) : (
                 <View key={`${f.uri}-${i}`} className="w-[100px] h-[100px] rounded-xl bg-ink-50 items-center justify-center p-2">
                   <Feather name="file-text" size={22} color={C.ink600} />
-                  <Text className="text-[10px] text-ink-600 mt-1 text-center" numberOfLines={2}>{f.name ?? "PDF"}</Text>
+                  <Text className="text-10 text-ink-600 mt-1 text-center" numberOfLines={2}>{f.name ?? "PDF"}</Text>
                 </View>
               ),
             )}
@@ -260,7 +261,7 @@ function Source({ icon, label, onPress }: { icon: React.ComponentProps<typeof Fe
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.75} accessibilityRole="button" className="flex-1 h-24 rounded-2xl bg-ink-50 items-center justify-center gap-2">
       <Feather name={icon} size={24} color={C.black} />
-      <Text className="text-[13px] font-semibold text-black">{label}</Text>
+      <Text className="text-13 font-semibold text-black">{label}</Text>
     </TouchableOpacity>
   );
 }

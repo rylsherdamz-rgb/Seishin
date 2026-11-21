@@ -1,6 +1,7 @@
-import { View, Text, TouchableOpacity, Alert, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Platform } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
+import { showAlert } from "@/components/ui/dialog";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
 
@@ -18,7 +19,7 @@ async function pin(name: string, label: string) {
     const ok = await requestPinWidget({ widgetName: name });
     if (!ok) throw new Error("unsupported");
   } catch {
-    Alert.alert(
+    showAlert(
       "Add it from your home screen",
       `Long-press an empty spot on your home screen > Widgets > Seishin > "${label}".`,
     );
@@ -39,7 +40,7 @@ export function WidgetsSection() {
               <Feather name={w.icon} size={16} color={C.black} />
             </View>
             <View className="flex-1">
-              <Text className="text-[15px] font-semibold text-black">{w.label}</Text>
+              <Text className="text-15 font-semibold text-black">{w.label}</Text>
               <Text className="text-xs mt-0.5 text-ink-500">{w.sub}</Text>
             </View>
             <View className="h-8 px-3 rounded-full bg-white items-center justify-center">

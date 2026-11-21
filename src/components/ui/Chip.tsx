@@ -26,6 +26,7 @@ export function Chip({
   const T = useColors();
   return (
     <TouchableOpacity
+      hitSlop={4}
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.7}

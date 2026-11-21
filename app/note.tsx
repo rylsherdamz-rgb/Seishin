@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type GestureResponderEvent } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
@@ -20,6 +20,7 @@ import { extractVideoId, getTranscript, summarizeTranscript, downloadThumbnail }
 import { useTheme } from "@/theme/ThemeProvider";
 import { isNoteColorId, noteBackground, type NoteColorId } from "@/theme/note-colors";
 import { formatClock } from "@/components/calendar/calendar-utils";
+import { showAlert } from "@/components/ui/dialog";
 
 /** Height of the bottom app bar (excluding the safe-area inset). */
 const BAR_H = 56;
@@ -226,7 +227,7 @@ export default function NoteEditorScreen() {
       }
     } catch {
       // OCR is best-effort; nothing is attached when scanning text only.
-      Alert.alert("Scan failed", "Couldn't read text from that image.");
+      showAlert("Scan failed", "Couldn't read text from that image.");
     } finally {
       setOcrBusy(false);
     }
@@ -238,14 +239,14 @@ export default function NoteEditorScreen() {
       if (result.canceled || !result.assets[0]) return;
       runOcrIntoBody(result.assets[0].uri);
     } catch {
-      Alert.alert("Picker failed", "Could not open the photo picker. Check app permissions and try again.");
+      showAlert("Picker failed", "Could not open the photo picker. Check app permissions and try again.");
     }
   }, [runOcrIntoBody]);
 
   const fetchYoutubeTranscript = useCallback(async () => {
     const vid = extractVideoId(youtubeUrl.trim());
     if (!vid) {
-      Alert.alert("Invalid URL", "Please enter a valid YouTube video URL (e.g. https://youtube.com/watch?v=...)");
+      showAlert("Invalid URL", "Please enter a valid YouTube video URL (e.g. https://youtube.com/watch?v=...)");
       return;
     }
     setYoutubeBusy(true);
@@ -273,7 +274,7 @@ export default function NoteEditorScreen() {
       setShowYoutubeInput(false);
       setYoutubeUrl("");
     } catch (e) {
-      Alert.alert("Transcript Error", (e instanceof Error && e.message) || "Could not fetch transcript for this video.");
+      showAlert("Transcript Error", (e instanceof Error && e.message) || "Could not fetch transcript for this video.");
     } finally {
       setYoutubeBusy(false);
     }
@@ -297,7 +298,7 @@ export default function NoteEditorScreen() {
       setAttachments(next);
       persist({ attachments: next });
     } catch {
-      Alert.alert(
+      showAlert(
         fromCamera ? "Camera unavailable" : "Photo unavailable",
         "Could not open the picker. Check app permissions and try again."
       );
@@ -374,7 +375,7 @@ export default function NoteEditorScreen() {
             </View>
           ) : null}
           <TextInput
-            className="text-[22px] font-semibold text-black py-2"
+            className="text-22 font-semibold text-black py-2"
             placeholder="Title"
             placeholderTextColor={T.ink400}
             value={title}
@@ -405,13 +406,14 @@ export default function NoteEditorScreen() {
             <View className="flex-row flex-wrap items-center gap-2 mt-4">
               {tags.map((t) => (
                 <TouchableOpacity
+                  hitSlop={6}
                   key={t}
                   onPress={() => removeTag(t)}
                   accessibilityRole="button"
                   accessibilityLabel={`Remove label ${t}`}
                   className="flex-row items-center gap-1 h-8 pl-3 pr-2 rounded-lg bg-black/5"
                 >
-                  <Text className="text-[13px] font-medium text-ink-800">{t}</Text>
+                  <Text className="text-13 font-medium text-ink-800">{t}</Text>
                   <Feather name="x" size={13} color={T.ink500} />
                 </TouchableOpacity>
               ))}
@@ -419,7 +421,7 @@ export default function NoteEditorScreen() {
                 <View className="flex-row items-center h-8 px-3 rounded-lg border border-ink-200 min-w-[140px]">
                   <Feather name="tag" size={13} color={T.ink500} />
                   <TextInput
-                    className="flex-1 text-[13px] text-black ml-1.5 py-0"
+                    className="flex-1 text-13 text-black ml-1.5 py-0"
                     placeholder="Label name"
                     placeholderTextColor={T.ink400}
                     value={tagInput}

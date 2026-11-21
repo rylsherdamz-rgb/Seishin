@@ -39,7 +39,7 @@ function Inline({ text, className = "" }: { text: string; className?: string }) 
       {tokens.map((tk, i) => {
         if (tk.t === "bold") return <Text key={i} className="font-semibold text-black">{tk.v}</Text>;
         if (tk.t === "italic") return <Text key={i} className="italic">{tk.v}</Text>;
-        if (tk.t === "code") return <Text key={i} className="font-mono text-[13px] text-black bg-ink-100 rounded px-1">{tk.v}</Text>;
+        if (tk.t === "code") return <Text key={i} className="font-mono text-13 text-black bg-ink-100 rounded px-1">{tk.v}</Text>;
         return <Text key={i}>{tk.v}</Text>;
       })}
     </Text>
@@ -87,7 +87,7 @@ export const Markdown = memo(function Markdown({ content }: { content: string })
         key: `code-${k++}`,
         render: () => (
           <View className="bg-ink-900 rounded-lg p-3 my-1.5">
-            <Text className="font-mono text-[12.5px] leading-5 text-white">{codeText}</Text>
+            <Text className="font-mono text-13 leading-5 text-white">{codeText}</Text>
           </View>
         ),
       });

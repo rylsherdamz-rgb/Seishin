@@ -94,6 +94,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 )}
               </View>
               <TouchableOpacity
+                hitSlop={4}
                 onPress={() => go(`/note?eventId=${event.id}`)}
                 className="flex-row items-center gap-1.5 h-9 px-3.5 bg-black rounded-full"
                 activeOpacity={0.8}
@@ -186,7 +187,11 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                 {eventTodos.map((t) => (
                   <View key={t.id} className="flex-row items-center gap-3 bg-ink-50 rounded-xl px-4 py-3 mb-1.5">
                     <TouchableOpacity
+                      hitSlop={10}
                       onPress={() => { onTodoToggle?.(t.id); }}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: !!t.completed }}
+                      accessibilityLabel={t.title}
                       className={`w-6 h-6 rounded-md border-2 items-center justify-center ${
                         t.completed ? "bg-black border-black" : "border-ink-300"
                       }`}
@@ -207,7 +212,7 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
                       t.priority === "high" ? "bg-danger-soft" :
                       t.priority === "low" ? "bg-ink-100" : "bg-ink-75"
                     }`}>
-                      <Text className={`text-[10px] font-medium ${
+                      <Text className={`text-10 font-medium ${
                         t.priority === "high" ? "text-danger" : "text-ink-400"
                       }`}>{t.priority}</Text>
                     </View>
@@ -246,7 +251,10 @@ export function ItemSheet({ event, todo, onEventDelete, onEventEdit, onTodoToggl
           <>
             <View className="flex-row items-center gap-3 mb-5">
               <TouchableOpacity
+                hitSlop={2}
                 onPress={() => { onTodoToggle?.(todo.todoId || todo.id); closeThen(); }}
+                accessibilityRole="button"
+                accessibilityLabel={todo.completed ? "Mark as not done" : "Mark as done"}
                 className={`w-10 h-10 rounded-full items-center justify-center ${todo.completed ? "bg-black" : "bg-ink-100"}`}
               >
                 <Feather name="check" size={16} color={todo.completed ? T.white : T.ink500} />

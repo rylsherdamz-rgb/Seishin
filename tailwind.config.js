@@ -64,6 +64,9 @@ module.exports = {
         "2xl": fs(21, 28),
         "3xl": fs(26.25, 31.5),
         "4xl": fs(31.5, 35),
+        // Exact pixel sizes that follow the Text size setting (text-[15px] would not).
+        // Size only, no line height, so they lay out like the arbitrary values they replace.
+        ...Object.fromEntries([10, 11, 13, 15, 17, 22, 26, 30].map((px) => [String(px), `calc(var(--fs) * ${px}px)`])),
       },
       padding: densitySpacing,
       gap: densitySpacing,

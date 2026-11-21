@@ -98,11 +98,11 @@ export function NimConfig({ onNotice }: { onNotice: Notice }) {
         {QUICK_MODELS.map((m) => (
           <TouchableOpacity key={m.id} onPress={() => setModel(m.id)} className={`px-3 py-2 mr-2 rounded-xl border ${model === m.id ? "bg-black border-black" : "bg-white border-ink-200"}`}>
             <Text className={`text-xs font-medium ${model === m.id ? "text-white" : "text-black"}`}>{m.label}</Text>
-            <Text className={`text-[10px] mt-0.5 ${model === m.id ? "text-white/70" : "text-ink-400"}`}>{m.desc}</Text>
+            <Text className={`text-10 mt-0.5 ${model === m.id ? "text-white/70" : "text-ink-400"}`}>{m.desc}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
-      <TouchableOpacity onPress={save} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
+      <TouchableOpacity hitSlop={4} onPress={save} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
         <Text className="text-white text-sm font-semibold">Save</Text>
       </TouchableOpacity>
       <ModelPicker open={pickerOpen} loading={loading} models={models} selected={model} onSelect={setModel} onClose={() => setPickerOpen(false)} />

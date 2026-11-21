@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import { Toggle } from "@/components/ui/Toggle";
@@ -9,6 +9,7 @@ import {
   suggestDefaults, writeSyncState, type CalendarSyncState, type DeviceCalendar,
 } from "@/services/calendar-sync";
 import { chosenAccounts, groupCalendarsByAccount, setAccountChosen } from "@/services/calendar-sync-plan";
+import { showAlert } from "@/components/ui/dialog";
 
 function ago(iso: string | null): string {
   if (!iso) return "never";
@@ -49,7 +50,7 @@ export function CalendarConnector() {
     setBusy(false);
     const after = readSyncState();
     setState(after);
-    if (after.lastError) Alert.alert("Sync didn't finish", after.lastError);
+    if (after.lastError) showAlert("Sync didn't finish", after.lastError);
   }, []);
 
   // Settings changes apply right away instead of at the next background run.
@@ -62,14 +63,14 @@ export function CalendarConnector() {
     setBusy(true);
     if (!(await ensureCalendarPermission())) {
       setBusy(false);
-      Alert.alert("Calendar access needed", "Allow calendar access in system settings so Seishin can sync with your Google calendar.");
+      showAlert("Calendar access needed", "Allow calendar access in system settings so Seishin can sync with your Google calendar.");
       return;
     }
     const list = await listDeviceCalendars().catch(() => []);
     setCals(list);
     if (list.length === 0) {
       setBusy(false);
-      Alert.alert("No calendars found", "Add your Google account in the phone's Settings > Accounts, turn on Calendar sync, then try again.");
+      showAlert("No calendars found", "Add your Google account in the phone's Settings > Accounts, turn on Calendar sync, then try again.");
       return;
     }
     setState(writeSyncState({ enabled: true, ...suggestDefaults(list), lastError: null }));
@@ -78,7 +79,7 @@ export function CalendarConnector() {
   }, [sync]);
 
   const disconnect = () =>
-    Alert.alert("Disconnect calendars?", "Synced events are removed from Seishin. Nothing is deleted from your Google or phone calendars.", [
+    showAlert("Disconnect calendars?", "Synced events are removed from Seishin. Nothing is deleted from your Google or phone calendars.", [
       { text: "Cancel", style: "cancel" },
       { text: "Disconnect", style: "destructive", onPress: () => { disconnectCalendars(); setState(readSyncState()); sync(); } },
     ]);
@@ -94,7 +95,7 @@ export function CalendarConnector() {
         </Text>
         <TouchableOpacity onPress={connect} disabled={busy} accessibilityRole="button" className="mt-3 h-12 rounded-xl bg-accent flex-row items-center justify-center gap-2">
           {busy ? <ActivityIndicator color={C.onAccent} /> : <Feather name="link" size={16} color={C.onAccent} />}
-          <Text className="text-[15px] font-bold text-accent-on">Connect calendars</Text>
+          <Text className="text-15 font-bold text-accent-on">Connect calendars</Text>
         </TouchableOpacity>
       </View>
     );
@@ -115,12 +116,12 @@ export function CalendarConnector() {
   return (
     <View>
       <View className="flex-row items-center justify-between">
-        <Text className={`flex-1 pr-3 text-[13px] font-medium ${state.lastError ? "text-danger" : "text-ink-600"}`} numberOfLines={2}>
+        <Text className={`flex-1 pr-3 text-13 font-medium ${state.lastError ? "text-danger" : "text-ink-600"}`} numberOfLines={2}>
           {state.lastError ? state.lastError : `Synced ${ago(state.lastSync)}`}
         </Text>
-        <TouchableOpacity onPress={sync} disabled={busy} accessibilityRole="button" className="h-10 px-4 rounded-full bg-ink-50 flex-row items-center gap-2">
+        <TouchableOpacity hitSlop={2} onPress={sync} disabled={busy} accessibilityRole="button" className="h-10 px-4 rounded-full bg-ink-50 flex-row items-center gap-2">
           {busy ? <ActivityIndicator size="small" color={C.black} /> : <Feather name="refresh-cw" size={14} color={C.black} />}
-          <Text className="text-[13px] font-semibold text-black">Sync now</Text>
+          <Text className="text-13 font-semibold text-black">Sync now</Text>
         </TouchableOpacity>
       </View>
 
@@ -128,7 +129,7 @@ export function CalendarConnector() {
         <Text className="text-xs font-bold tracking-wide text-ink-500">ACCOUNTS</Text>
         {cals && accounts.length > 0 ? (
           <TouchableOpacity onPress={() => setChooseAccounts(!chooseAccounts)} accessibilityRole="button" hitSlop={8} className="h-8 justify-center">
-            <Text className="text-[13px] font-semibold text-accent">{chooseAccounts ? "Done" : "Choose accounts"}</Text>
+            <Text className="text-13 font-semibold text-accent">{chooseAccounts ? "Done" : "Choose accounts"}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -147,7 +148,7 @@ export function CalendarConnector() {
                   {on ? <Feather name="check" size={12} color={C.onAccent} /> : null}
                 </View>
                 <View className="flex-1">
-                  <Text className="text-[15px] text-black" numberOfLines={1}>{g.account}</Text>
+                  <Text className="text-15 text-black" numberOfLines={1}>{g.account}</Text>
                   <Text className="text-xs text-ink-500">{g.calendars.length} calendar{g.calendars.length === 1 ? "" : "s"}</Text>
                 </View>
               </TouchableOpacity>
@@ -168,7 +169,7 @@ export function CalendarConnector() {
               className="flex-row items-center min-h-[52px]"
             >
               <View className="flex-1 pr-2">
-                <Text className="text-[15px] font-semibold text-black" numberOfLines={1}>{g.account}</Text>
+                <Text className="text-15 font-semibold text-black" numberOfLines={1}>{g.account}</Text>
                 <Text className="text-xs text-ink-500">{on} of {g.calendars.length} calendar{g.calendars.length === 1 ? "" : "s"} shown</Text>
               </View>
               <Feather name={open ? "chevron-up" : "chevron-down"} size={18} color={C.ink500} />
@@ -181,7 +182,7 @@ export function CalendarConnector() {
                       <View className="w-5 h-5 rounded-md items-center justify-center" style={{ backgroundColor: checked ? c.color : "transparent", borderWidth: 2, borderColor: c.color }}>
                         {checked ? <Feather name="check" size={12} color="#ffffff" /> : null}
                       </View>
-                      <Text className="flex-1 text-[15px] text-black" numberOfLines={1}>{calendarName(c)}</Text>
+                      <Text className="flex-1 text-15 text-black" numberOfLines={1}>{calendarName(c)}</Text>
                     </TouchableOpacity>
                   );
                 })
@@ -199,7 +200,7 @@ export function CalendarConnector() {
       >
         <View className="w-3 h-3 rounded-full" style={{ backgroundColor: target?.color ?? C.ink300 }} />
         <View className="flex-1">
-          <Text className="text-[15px] font-semibold text-black" numberOfLines={1}>{target ? calendarName(target) : "Don't send Seishin events"}</Text>
+          <Text className="text-15 font-semibold text-black" numberOfLines={1}>{target ? calendarName(target) : "Don't send Seishin events"}</Text>
           {target ? <Text className="text-xs text-ink-500" numberOfLines={1}>{target.account}</Text> : null}
         </View>
         <Feather name={pickTarget ? "chevron-up" : "chevron-down"} size={18} color={C.ink500} />
@@ -230,7 +231,7 @@ export function CalendarConnector() {
 
       <View className="flex-row items-center justify-between mt-3 min-h-[48px]">
         <View className="flex-1 pr-3">
-          <Text className="text-[15px] text-black">Add task deadlines</Text>
+          <Text className="text-15 text-black">Add task deadlines</Text>
           <Text className="text-xs text-ink-500">Shows "Due: …" in your calendar until the task is done</Text>
         </View>
         <Toggle value={state.exportTasks} onValueChange={(v) => update({ exportTasks: v })} />
@@ -255,7 +256,7 @@ function TargetRow({ label, color, on, onPress }: { label: string; color?: strin
         {on ? <View className="w-2.5 h-2.5 rounded-full bg-accent" /> : null}
       </View>
       {color ? <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} /> : null}
-      <Text className="flex-1 text-[15px] text-black" numberOfLines={1}>{label}</Text>
+      <Text className="flex-1 text-15 text-black" numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
 }

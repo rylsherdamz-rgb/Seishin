@@ -100,7 +100,7 @@ export function OnDeviceModel({ onNotice }: { onNotice: Notice }) {
           </Text>
         </View>
       )}
-      <TouchableOpacity onPress={save} disabled={copying || picked === (modelPath || "")} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
+      <TouchableOpacity hitSlop={4} onPress={save} disabled={copying || picked === (modelPath || "")} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
         <Text className="text-white text-sm font-semibold">Save</Text>
       </TouchableOpacity>
     </>

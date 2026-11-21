@@ -9,7 +9,7 @@ import { WEEKDAY_LETTER } from "./calendar-utils";
 type IconName = React.ComponentProps<typeof Feather>["name"];
 
 export function FieldLabel({ children }: { children: string }) {
-  return <Text className="text-[11px] font-bold tracking-widest text-ink-300 mb-2 mt-5">{children}</Text>;
+  return <Text className="text-11 font-bold tracking-widest text-ink-300 mb-2 mt-5">{children}</Text>;
 }
 
 /** Tappable value tile used for date / time fields. */
@@ -31,8 +31,8 @@ export function FieldCard({ icon, label, value, onPress, className = "" }: {
     >
       <Feather name={icon} size={16} color={C.ink500} />
       <View className="flex-1">
-        <Text className="text-[10px] font-semibold text-ink-400">{label}</Text>
-        <Text className="text-[15px] font-semibold text-black">{value}</Text>
+        <Text className="text-10 font-semibold text-ink-400">{label}</Text>
+        <Text className="text-15 font-semibold text-black">{value}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -73,6 +73,7 @@ export function WeekdayPicker({ value, onToggle }: { value: number[]; onToggle: 
         const on = value.includes(d);
         return (
           <TouchableOpacity
+            hitSlop={2}
             key={d}
             onPress={() => onToggle(d)}
             activeOpacity={0.7}
@@ -105,7 +106,7 @@ export function SwitchRow({ icon, label, value, onChange }: {
       accessibilityState={{ checked: value }}
     >
       <Feather name={icon} size={16} color={C.ink500} />
-      <Text className="flex-1 text-[15px] font-semibold text-black">{label}</Text>
+      <Text className="flex-1 text-15 font-semibold text-black">{label}</Text>
       <View className={`w-11 h-6 rounded-full p-0.5 ${value ? "bg-accent items-end" : "bg-ink-150 items-start"}`}>
         <View className={`w-5 h-5 rounded-full ${value ? "bg-accent-on" : "bg-white"}`} />
       </View>

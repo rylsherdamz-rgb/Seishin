@@ -41,7 +41,7 @@ export function NoteActionsSheet({ note, onClose }: Props) {
           <Text className="px-5 text-base font-semibold text-black" numberOfLines={1}>
             {live.title || live.body.split("\n")[0] || "Untitled note"}
           </Text>
-          <Text className="px-5 mt-3 text-[11px] font-bold tracking-widest text-ink-500">COLOR</Text>
+          <Text className="px-5 mt-3 text-11 font-bold tracking-widest text-ink-500">COLOR</Text>
           <NoteColorPicker value={live.color} onChange={setColor} />
           <View className="h-px bg-ink-75 mx-5 my-2" />
           <Row
@@ -74,7 +74,7 @@ function Row({ icon, label, onPress, destructive }: { icon: React.ReactNode; lab
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.6} accessibilityRole="button" className="flex-row items-center gap-4 px-5 h-14">
       {icon}
-      <Text className={`text-[15px] font-medium ${destructive ? "text-danger" : "text-black"}`}>{label}</Text>
+      <Text className={`text-15 font-medium ${destructive ? "text-danger" : "text-black"}`}>{label}</Text>
     </TouchableOpacity>
   );
 }

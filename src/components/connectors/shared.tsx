@@ -16,12 +16,12 @@ export function StatusLine({ lastSync, lastError, busy, onSync }: { lastSync: st
   const C = useColors();
   return (
     <View className="flex-row items-center justify-between gap-3">
-      <Text className={`flex-1 text-[13px] font-medium ${lastError ? "text-danger" : "text-ink-600"}`} numberOfLines={2}>
+      <Text className={`flex-1 text-13 font-medium ${lastError ? "text-danger" : "text-ink-600"}`} numberOfLines={2}>
         {lastError ?? `Synced ${ago(lastSync)}`}
       </Text>
-      <TouchableOpacity onPress={onSync} disabled={busy} accessibilityRole="button" className="h-10 px-4 rounded-full bg-ink-50 flex-row items-center gap-2">
+      <TouchableOpacity hitSlop={2} onPress={onSync} disabled={busy} accessibilityRole="button" className="h-10 px-4 rounded-full bg-ink-50 flex-row items-center gap-2">
         {busy ? <ActivityIndicator size="small" color={C.black} /> : <Feather name="refresh-cw" size={14} color={C.black} />}
-        <Text className="text-[13px] font-semibold text-black">Sync now</Text>
+        <Text className="text-13 font-semibold text-black">Sync now</Text>
       </TouchableOpacity>
     </View>
   );
@@ -43,13 +43,14 @@ export function Segmented<T extends string | number>({ label, options, value, on
           const on = value === o.value;
           return (
             <TouchableOpacity
+              hitSlop={2}
               key={String(o.value)}
               onPress={() => onChange(o.value)}
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
               className={`flex-1 h-10 rounded-xl items-center justify-center ${on ? "bg-white shadow-subtle" : ""}`}
             >
-              <Text className={`text-[13px] font-semibold ${on ? "text-black" : "text-ink-500"}`}>{o.label}</Text>
+              <Text className={`text-13 font-semibold ${on ? "text-black" : "text-ink-500"}`}>{o.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -67,13 +68,14 @@ export function ReminderChips({ value, onChange, label = "Remind me about import
           const on = value === l.value;
           return (
             <TouchableOpacity
+              hitSlop={2}
               key={l.value}
               onPress={() => onChange(l.value)}
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
               className={`flex-1 h-10 rounded-xl items-center justify-center ${on ? "bg-white shadow-subtle" : ""}`}
             >
-              <Text className={`text-[13px] font-semibold ${on ? "text-black" : "text-ink-500"}`}>{l.label}</Text>
+              <Text className={`text-13 font-semibold ${on ? "text-black" : "text-ink-500"}`}>{l.label}</Text>
             </TouchableOpacity>
           );
         })}
@@ -107,8 +109,8 @@ export function Steps({ steps }: { steps: string[] }) {
     <View className="gap-1.5">
       {steps.map((s, i) => (
         <View key={i} className="flex-row gap-2">
-          <Text className="w-4 text-[13px] font-bold text-ink-500">{i + 1}.</Text>
-          <Text className="flex-1 text-[13px] text-ink-700 leading-[19px]">{s}</Text>
+          <Text className="w-4 text-13 font-bold text-ink-500">{i + 1}.</Text>
+          <Text className="flex-1 text-13 text-ink-700 leading-[19px]">{s}</Text>
         </View>
       ))}
     </View>
@@ -121,7 +123,7 @@ export function PrimaryButton({ label, onPress, busy, disabled, icon = "link" }:
   return (
     <TouchableOpacity onPress={onPress} disabled={off} accessibilityRole="button" className={`mt-4 h-12 rounded-xl flex-row items-center justify-center gap-2 ${off ? "bg-ink-100" : "bg-accent"}`}>
       {busy ? <ActivityIndicator color={C.onAccent} /> : <Feather name={icon} size={16} color={off ? C.ink400 : C.onAccent} />}
-      <Text className={`text-[15px] font-bold ${off ? "text-ink-400" : "text-accent-on"}`}>{label}</Text>
+      <Text className={`text-15 font-bold ${off ? "text-ink-400" : "text-accent-on"}`}>{label}</Text>
     </TouchableOpacity>
   );
 }

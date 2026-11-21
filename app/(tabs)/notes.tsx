@@ -38,6 +38,7 @@ function FilterChip({ label, icon, selected, onPress }: {
   const T = useColors();
   return (
     <TouchableOpacity
+      hitSlop={4}
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
@@ -45,7 +46,7 @@ function FilterChip({ label, icon, selected, onPress }: {
       className={`flex-row items-center gap-1.5 h-9 px-3.5 rounded-lg border ${selected ? "bg-accent/15 border-transparent" : "border-ink-150"}`}
     >
       <Feather name={selected ? "check" : icon} size={14} color={selected ? T.black : T.ink600} />
-      <Text className={`text-[13px] font-semibold ${selected ? "text-black" : "text-ink-700"}`}>{label}</Text>
+      <Text className={`text-13 font-semibold ${selected ? "text-black" : "text-ink-700"}`}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -117,7 +118,7 @@ export default function NotesScreen() {
   const compact = layout === "grid";
   const renderNoteItem = useCallback(({ item }: { item: NoteRow }) =>
     item.kind === "header" ? (
-      <Text className="text-[11px] font-bold text-ink-600 tracking-widest px-3 pt-4 pb-1.5">{item.label}</Text>
+      <Text className="text-11 font-bold text-ink-600 tracking-widest px-3 pt-4 pb-1.5">{item.label}</Text>
     ) : (
       <NoteCard note={item.note} compact={compact} onOpen={openNote} onLongPress={setActionNote} />
     ), [compact, openNote]);

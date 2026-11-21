@@ -38,7 +38,7 @@ export default function SettingsScreen() {
           <View className="flex-row items-center gap-3 mb-6 pt-3">
             <Logo size={32} />
             <View>
-              <Text className="text-[30px] font-extrabold tracking-tightest text-black">Settings</Text>
+              <Text className="text-30 font-extrabold tracking-tightest text-black">Settings</Text>
               <Text className="text-sm text-ink-400">App configuration</Text>
             </View>
           </View>

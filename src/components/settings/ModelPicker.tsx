@@ -37,7 +37,7 @@ export function ModelPicker({ open, loading, models, selected, onSelect, onClose
     <Sheet open={open} onClose={close} snapPoints={SNAP} contentStyle={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}>
       <View className="flex-row items-center justify-between mb-4">
         <Text className="text-lg font-semibold tracking-tightest text-black">Select Model</Text>
-        <TouchableOpacity onPress={close} accessibilityLabel="Close" className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
+        <TouchableOpacity hitSlop={6} onPress={close} accessibilityLabel="Close" className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
           <Feather name="x" size={16} color={T.ink500} />
         </TouchableOpacity>
       </View>

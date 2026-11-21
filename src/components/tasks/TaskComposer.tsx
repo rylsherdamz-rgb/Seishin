@@ -77,7 +77,7 @@ export const TaskComposer = memo(function TaskComposer({
       <View className="flex-row items-center pl-4 pr-1.5 min-h-[52px]">
         <TextInput
           ref={input}
-          className="flex-1 text-[15px] text-black py-3"
+          className="flex-1 text-15 text-black py-3"
           placeholder="Add a task"
           placeholderTextColor={C.ink400}
           value={title}
@@ -91,6 +91,7 @@ export const TaskComposer = memo(function TaskComposer({
           accessibilityLabel="New task title"
         />
         <TouchableOpacity
+          hitSlop={2}
           onPress={submit}
           disabled={!canAdd}
           accessibilityRole="button"

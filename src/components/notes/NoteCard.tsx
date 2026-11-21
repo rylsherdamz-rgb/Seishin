@@ -91,7 +91,7 @@ function Chip({ icon, label }: { icon?: React.ComponentProps<typeof Feather>["na
   return (
     <View className="flex-row items-center gap-1 h-6 px-2 rounded-md bg-black/5">
       {icon ? <Feather name={icon} size={11} color={C.ink700} /> : null}
-      <Text className="text-[11px] font-medium text-ink-800" numberOfLines={1}>{label}</Text>
+      <Text className="text-11 font-medium text-ink-800" numberOfLines={1}>{label}</Text>
     </View>
   );
 }

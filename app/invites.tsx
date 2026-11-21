@@ -118,10 +118,10 @@ export default function InvitesScreen() {
           </View>
         </View>
         <View className="gap-2">
-          <TouchableOpacity onPress={handleShareInvite(item)} hitSlop={15}>
+          <TouchableOpacity onPress={handleShareInvite(item)} hitSlop={15} accessibilityRole="button" accessibilityLabel="Share invite">
             <Feather name="share-2" size={14} color={T.ink500} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handleDeleteTarget(item.id)} hitSlop={15}>
+          <TouchableOpacity onPress={() => handleDeleteTarget(item.id)} hitSlop={15} accessibilityRole="button" accessibilityLabel="Delete invite">
             <Feather name="trash-2" size={14} color={T.ink300} />
           </TouchableOpacity>
         </View>
@@ -133,10 +133,10 @@ export default function InvitesScreen() {
     <View className="flex-1 bg-white">
       <Stack.Screen options={{ headerShown: false }} />
       <View className="px-4 pt-3 pb-2 flex-row items-center gap-3">
-        <TouchableOpacity onPress={() => router.back()} hitSlop={6} className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={6} accessibilityRole="button" accessibilityLabel="Back" className="w-11 h-11 bg-ink-50 rounded-full items-center justify-center">
           <Feather name="arrow-left" size={16} color={T.black} />
         </TouchableOpacity>
-        <Text className="text-[30px] font-extrabold tracking-tightest text-black flex-1">Invites</Text>
+        <Text className="text-30 font-extrabold tracking-tightest text-black flex-1">Invites</Text>
         <Text className="text-xs text-ink-500">{invites.length} total</Text>
       </View>
 

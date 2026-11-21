@@ -50,7 +50,7 @@ export const MessageBubble = memo(function MessageBubble({ item, copied, onCopy 
           </View>
         ) : null}
         {isUser ? (
-          <Text className="text-[15px] leading-[21px] text-accent-on">{item.content}</Text>
+          <Text className="text-15 leading-[21px] text-accent-on">{item.content}</Text>
         ) : (
           <Markdown content={item.content} />
         )}
@@ -70,11 +70,11 @@ export const MessageBubble = memo(function MessageBubble({ item, copied, onCopy 
         ) : null}
       </View>
       <View className="flex-row items-center gap-3 mt-1 px-1">
-        <Text className="text-[11px] text-ink-400">{time}</Text>
+        <Text className="text-11 text-ink-400">{time}</Text>
         {item.role === "assistant" && item.provider ? (
           <View className="flex-row items-center gap-1 shrink" accessibilityLabel={`Answered by ${providerLabel(item)}`}>
             <Feather name={item.provider === "local" ? "smartphone" : "cloud"} size={11} color={C.ink400} />
-            <Text className="text-[11px] text-ink-400 shrink" numberOfLines={1}>{providerLabel(item)}</Text>
+            <Text className="text-11 text-ink-400 shrink" numberOfLines={1}>{providerLabel(item)}</Text>
           </View>
         ) : null}
         {!isUser ? (
@@ -86,7 +86,7 @@ export const MessageBubble = memo(function MessageBubble({ item, copied, onCopy 
             className="flex-row items-center gap-1"
           >
             <Feather name={copied ? "check" : "copy"} size={12} color={C.ink400} />
-            <Text className="text-[11px] font-semibold text-ink-400">{copied ? "Copied" : "Copy"}</Text>
+            <Text className="text-11 font-semibold text-ink-400">{copied ? "Copied" : "Copy"}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
