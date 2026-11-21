@@ -1,5 +1,5 @@
-jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 import { parseNotionId, detectProps } from "@/services/connectors/notion";
+jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 
 describe("parseNotionId", () => {
   it("extracts the id from share links and raw ids", () => {

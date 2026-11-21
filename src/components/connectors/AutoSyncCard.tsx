@@ -36,12 +36,12 @@ export function AutoSyncCard({ onSynced }: { onSynced?: () => void }) {
         </View>
       </View>
       <View className="flex-row items-center justify-between mt-3">
-        <Text className={`text-[13px] ${report?.errors.length ? "text-danger" : "text-ink-700"}`}>
+        <Text className={`text-13 ${report?.errors.length ? "text-danger" : "text-ink-700"}`}>
           {report ? `Last sync ${ago(report.at)}${report.errors.length ? ` · issue with ${report.errors.join(", ")}` : ""}` : "Not synced yet"}
         </Text>
-        <TouchableOpacity onPress={run} disabled={busy} accessibilityRole="button" className="h-10 px-4 rounded-full bg-white flex-row items-center gap-2">
+        <TouchableOpacity hitSlop={2} onPress={run} disabled={busy} accessibilityRole="button" className="h-10 px-4 rounded-full bg-white flex-row items-center gap-2">
           {busy ? <ActivityIndicator size="small" color={C.black} /> : <Feather name="zap" size={14} color={C.black} />}
-          <Text className="text-[13px] font-semibold text-black">Sync all now</Text>
+          <Text className="text-13 font-semibold text-black">Sync all now</Text>
         </TouchableOpacity>
       </View>
     </View>

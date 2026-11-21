@@ -40,7 +40,7 @@ export function AgentHeader({ onClear }: { onClear: () => void }) {
     <View className="px-4 pt-3 pb-2">
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-1 pr-3">
-          <Text className="text-[30px] font-extrabold tracking-tightest text-black">AI Agent</Text>
+          <Text className="text-30 font-extrabold tracking-tightest text-black">AI Agent</Text>
           <Text className="text-sm text-ink-500 mt-0.5" numberOfLines={1}>
             {provider === "local" ? "On your phone · works offline" : "NVIDIA NIM · cloud"}
             {isProcessing ? " · Thinking…" : ""}
@@ -71,10 +71,10 @@ export function AgentHeader({ onClear }: { onClear: () => void }) {
 
       <View className="flex-row flex-wrap items-center gap-1.5 mt-2.5">
         <Feather name="tool" size={12} color={C.ink400} />
-        <Text className="text-[11px] text-ink-400">Can manage:</Text>
+        <Text className="text-11 text-ink-400">Can manage:</Text>
         {AGENT_SKILLS.map((s) => (
           <View key={s} className="px-2 py-0.5 rounded-full bg-ink-50">
-            <Text className="text-[11px] font-medium text-ink-600">{s}</Text>
+            <Text className="text-11 font-medium text-ink-600">{s}</Text>
           </View>
         ))}
       </View>
@@ -111,8 +111,8 @@ function BrainOption({ icon, title, hint, active, onPress }: { icon: IconName; t
     >
       <Feather name={icon} size={16} color={active ? C.white : C.ink600} />
       <View className="flex-1">
-        <Text className={`text-[13px] font-bold ${active ? "text-white" : "text-black"}`} numberOfLines={1}>{title}</Text>
-        <Text className={`text-[11px] ${active ? "text-white opacity-75" : "text-ink-400"}`} numberOfLines={1}>{hint}</Text>
+        <Text className={`text-13 font-bold ${active ? "text-white" : "text-black"}`} numberOfLines={1}>{title}</Text>
+        <Text className={`text-11 ${active ? "text-white opacity-75" : "text-ink-400"}`} numberOfLines={1}>{hint}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -185,7 +185,7 @@ function NimStatus({ hasKey }: { hasKey: boolean }) {
         {nimLargeModel ? ` · hard questions use ${nimLargeModel.split("/").pop()}` : ""}
       </Text>
       <View className={`px-1.5 py-0.5 rounded-full ${style?.bg ?? "bg-ink-200"}`}>
-        <Text className={`text-[9px] font-semibold ${style?.text ?? "text-ink-500"}`}>{getTierLabel(tier)}</Text>
+        <Text className={`text-10 font-semibold ${style?.text ?? "text-ink-500"}`}>{getTierLabel(tier)}</Text>
       </View>
     </TouchableOpacity>
   );

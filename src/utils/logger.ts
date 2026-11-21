@@ -16,12 +16,10 @@ export function setLogLevel(level: LogLevel): void {
 function emit(level: Exclude<LogLevel, "silent">, scope: string, args: unknown[]): void {
   if (ORDER[level] < ORDER[threshold]) return;
   const prefix = `[${scope}]`;
-  /* eslint-disable no-console */
   if (level === "error") console.error(prefix, ...args);
   else if (level === "warn") console.warn(prefix, ...args);
   else if (level === "info") console.info(prefix, ...args);
   else console.debug(prefix, ...args);
-  /* eslint-enable no-console */
 }
 
 export interface Logger {

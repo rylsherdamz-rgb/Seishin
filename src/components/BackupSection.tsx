@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import { exportBackup, lastBackupAt, pickBackup, restoreBackup } from "@/services/backup-io";
 import type { Backup, BackupCounts } from "@/services/backup";
+import { showAlert } from "@/components/ui/dialog";
 
 const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 const summary = (c: BackupCounts) => `${count(c.events, "event")}, ${count(c.todos, "task")} and ${count(c.notes, "note")}`;
@@ -27,10 +28,10 @@ export function BackupSection() {
       const res = await exportBackup();
       if (res) {
         setLast(lastBackupAt());
-        Alert.alert("Backup saved", `Saved ${summary(res)}. Photos inside notes aren't included — keep them in your gallery or Drive.`);
+        showAlert("Backup saved", `Saved ${summary(res)}. Photos inside notes aren't included — keep them in your gallery or Drive.`);
       }
     } catch {
-      Alert.alert("Backup failed", "Couldn't write the file. Pick a different folder and try again.");
+      showAlert("Backup failed", "Couldn't write the file. Pick a different folder and try again.");
     } finally {
       setBusy(null);
     }
@@ -38,7 +39,7 @@ export function BackupSection() {
 
   const apply = (b: Backup, mode: "merge" | "replace") => {
     const res = restoreBackup(b, mode);
-    Alert.alert("Restored", `${mode === "merge" ? "Added" : "Restored"} ${summary(res)}.`);
+    showAlert("Restored", `${mode === "merge" ? "Added" : "Restored"} ${summary(res)}.`);
   };
 
   const doImport = async () => {
@@ -47,21 +48,21 @@ export function BackupSection() {
     try {
       b = await pickBackup();
     } catch (e) {
-      Alert.alert("Can't restore", e instanceof Error ? e.message : "That file couldn't be read.");
+      showAlert("Can't restore", e instanceof Error ? e.message : "That file couldn't be read.");
     } finally {
       setBusy(null);
     }
     if (!b) return;
     const backup = b;
     const made = backup.createdAt ? new Date(backup.createdAt).toLocaleDateString() : "an unknown date";
-    Alert.alert("Restore backup?", `From ${made}: ${summary({ events: backup.events.length, todos: backup.todos.length, notes: backup.notes.length })}.`, [
+    showAlert("Restore backup?", `From ${made}: ${summary({ events: backup.events.length, todos: backup.todos.length, notes: backup.notes.length })}.`, [
       { text: "Cancel", style: "cancel" },
       { text: "Merge", onPress: () => apply(backup, "merge") },
       {
         text: "Replace all",
         style: "destructive",
         onPress: () =>
-          Alert.alert("Replace everything?", "Your current events, tasks and notes on this phone will be replaced by the backup. This can't be undone.", [
+          showAlert("Replace everything?", "Your current events, tasks and notes on this phone will be replaced by the backup. This can't be undone.", [
             { text: "Cancel", style: "cancel" },
             { text: "Replace", style: "destructive", onPress: () => apply(backup, "replace") },
           ]),
@@ -87,7 +88,7 @@ export function BackupSection() {
           {rowBusy ? <ActivityIndicator size="small" color={C.black} /> : <Feather name={icon} size={16} color={C.black} />}
         </View>
         <View className="flex-1">
-          <Text className="text-[15px] font-semibold text-black">{label}</Text>
+          <Text className="text-15 font-semibold text-black">{label}</Text>
           <Text className={`text-xs mt-0.5 ${warn ? "text-danger" : "text-ink-500"}`}>{sub}</Text>
         </View>
         <Feather name="chevron-right" size={16} color={C.ink300} />

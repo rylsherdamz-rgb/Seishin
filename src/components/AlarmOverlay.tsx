@@ -138,7 +138,7 @@ export function AlarmOverlay() {
             {alarm?.snoozed ? (
               <View className="flex-row items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/10">
                 <View className="w-1.5 h-1.5 rounded-full bg-success" />
-                <Text className="text-white/70 text-[11px] font-semibold tracking-[0.3em]">
+                <Text className="text-white/70 text-11 font-semibold tracking-[0.3em]">
                   SNOOZED
                 </Text>
               </View>

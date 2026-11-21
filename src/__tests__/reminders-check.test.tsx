@@ -6,6 +6,8 @@ import React from "react";
 import { Platform, Text } from "react-native";
 import TestRenderer, { act } from "react-test-renderer";
 
+import { RemindersCheck } from "@/components/settings/RemindersCheck";
+
 const mockOpen = jest.fn();
 let mockAccess = { exact: true, fullScreen: true };
 
@@ -21,8 +23,6 @@ jest.mock("@/services/notify-core", () => ({
 jest.mock("@/theme/ThemeProvider", () => ({ useColors: () => ({ black: "#000", ink300: "#999" }) }));
 jest.mock("@expo/vector-icons/Feather", () => "Feather");
 jest.mock("expo-notifications", () => ({ scheduleNotificationAsync: jest.fn(), SchedulableTriggerInputTypes: { TIME_INTERVAL: "timeInterval" } }));
-
-import { RemindersCheck } from "@/components/settings/RemindersCheck";
 
 async function render() {
   let tree!: TestRenderer.ReactTestRenderer;

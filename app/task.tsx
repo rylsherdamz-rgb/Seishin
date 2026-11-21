@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Linking } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import { useColors } from "@/theme/ThemeProvider";
 import { Photo } from "@/components/ui/Photo";
 import { dueLabel, type ReminderLevel } from "@/services/reminder-plan";
 import { levelOf } from "@/services/task-reminders";
+import { showAlert } from "@/components/ui/dialog";
 
 const LEVELS: { value: ReminderLevel; label: string }[] = [
   { value: "persistent", label: "Until done" },
@@ -60,7 +61,7 @@ export default function TaskScreen() {
         <View className="flex-1" />
         <TouchableOpacity
           onPress={() =>
-            Alert.alert("Delete task?", "Its reminders stop too. The source note is kept. This can't be undone.", [
+            showAlert("Delete task?", "Its reminders stop too. The source note is kept. This can't be undone.", [
               { text: "Cancel", style: "cancel" },
               { text: "Delete", style: "destructive", onPress: () => { deleteTodo(todo.id); router.back(); } },
             ])
@@ -89,18 +90,19 @@ export default function TaskScreen() {
           returnKeyType="done"
           maxLength={200}
           accessibilityLabel="Task title"
-          className={`text-[26px] font-bold leading-8 mt-1 p-0 ${todo.completed ? "text-ink-400 line-through" : "text-black"}`}
+          className={`text-26 font-bold leading-8 mt-1 p-0 ${todo.completed ? "text-ink-400 line-through" : "text-black"}`}
         />
 
         <View className="flex-row items-center gap-2 mt-3">
           <TouchableOpacity
+            hitSlop={4}
             onPress={() => setPicking(true)}
             accessibilityRole="button"
             accessibilityLabel={due ? "Change due date" : "Add a due date"}
             className={`flex-row items-center gap-2 h-9 px-3.5 rounded-full shrink ${overdue ? "bg-danger-soft" : "bg-ink-50"}`}
           >
             <Feather name={due ? "clock" : "calendar"} size={14} color={overdue ? C.danger : C.ink700} />
-            <Text className={`shrink text-[13px] font-semibold ${overdue ? "text-danger" : "text-ink-800"}`} numberOfLines={1}>
+            <Text className={`shrink text-13 font-semibold ${overdue ? "text-danger" : "text-ink-800"}`} numberOfLines={1}>
               {due
                 ? `${todo.completed ? "Done" : dueLabel(due, new Date())} · ${due.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
                 : "Add due date"}
@@ -108,6 +110,7 @@ export default function TaskScreen() {
           </TouchableOpacity>
           {due ? (
             <TouchableOpacity
+              hitSlop={4}
               onPress={() => updateTodo(todo.id, { dueDate: undefined })}
               accessibilityRole="button"
               accessibilityLabel="Remove due date"
@@ -152,7 +155,7 @@ export default function TaskScreen() {
                 <View className={`w-6 h-6 rounded-md border-2 items-center justify-center mt-0.5 ${it.done ? "bg-accent border-accent" : "border-ink-300"}`}>
                   {it.done ? <Feather name="check" size={14} color={C.onAccent} /> : null}
                 </View>
-                <Text className={`flex-1 text-[15px] leading-[21px] ${it.done ? "text-ink-400 line-through" : "text-black"}`}>
+                <Text className={`flex-1 text-15 leading-[21px] ${it.done ? "text-ink-400 line-through" : "text-black"}`}>
                   {n + 1}. {it.text}
                 </Text>
               </TouchableOpacity>
@@ -166,13 +169,14 @@ export default function TaskScreen() {
             const on = level === l.value;
             return (
               <TouchableOpacity
+                hitSlop={2}
                 key={l.value}
                 onPress={() => updateTodo(todo.id, { reminder: l.value })}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: on }}
                 className={`flex-1 h-10 rounded-xl items-center justify-center ${on ? "bg-white shadow-subtle" : ""}`}
               >
-                <Text className={`text-[13px] font-semibold ${on ? "text-black" : "text-ink-500"}`}>{l.label}</Text>
+                <Text className={`text-13 font-semibold ${on ? "text-black" : "text-ink-500"}`}>{l.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -180,7 +184,7 @@ export default function TaskScreen() {
 
         {todo.external?.url ? (
           <TouchableOpacity
-            onPress={() => Linking.openURL(todo.external!.url!).catch(() => Alert.alert("Couldn't open link"))}
+            onPress={() => Linking.openURL(todo.external!.url!).catch(() => showAlert("Couldn't open link"))}
             accessibilityRole="link"
             className="mt-6 h-12 rounded-2xl bg-ink-50 flex-row items-center justify-center gap-2"
           >

@@ -42,7 +42,7 @@ export const MonthGrid = memo(function MonthGrid({ month, selected, today, marks
       <Animated.View key={month} entering={FadeIn.duration(180)} className="px-2">
         <View className="flex-row mb-1">
           {rows[0].map((key) => WEEKDAY_LETTER[keyToDate(key).getDay()]).map((l, i) => (
-            <Text key={i} className="flex-1 text-center text-[11px] font-semibold text-ink-300">
+            <Text key={i} className="flex-1 text-center text-11 font-semibold text-ink-300">
               {l}
             </Text>
           ))}
@@ -102,7 +102,7 @@ const DayCell = memo(function DayCell({ dateKey, inMonth, isToday, isSelected, m
       accessibilityState={{ selected: isSelected }}
     >
       <View className={`w-8 h-8 rounded-full items-center justify-center ${circle}`}>
-        <Text className={`text-[13px] ${text}`}>{day}</Text>
+        <Text className={`text-13 ${text}`}>{day}</Text>
       </View>
       <View className="flex-row gap-[3px] mt-[3px] h-1">
         {Array.from({ length: dots }, (_, i) => {

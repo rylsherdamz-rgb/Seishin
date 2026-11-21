@@ -218,7 +218,10 @@ export default function AgentScreen() {
                 </View>
               )}
               <TouchableOpacity
+                hitSlop={12}
                 onPress={() => removePendingAttachment(i)}
+                accessibilityRole="button"
+                accessibilityLabel="Remove attachment"
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-danger rounded-full items-center justify-center"
               >
                 <Feather name="x" size={10} color={T.white} />
@@ -237,6 +240,7 @@ export default function AgentScreen() {
         >
           {SUGGESTIONS.map((sg) => (
             <TouchableOpacity
+              hitSlop={2}
               key={sg.label}
               onPress={() => setInput(sg.action)}
               activeOpacity={0.7}
@@ -262,7 +266,7 @@ export default function AgentScreen() {
             <Feather name="plus" size={20} color={isProcessing ? T.ink200 : T.ink500} />
           </TouchableOpacity>
           <TextInput
-            className="flex-1 py-3 text-[15px] text-black"
+            className="flex-1 py-3 text-15 text-black"
             placeholder={isProcessing ? "Thinking…" : "Ask about your day…"}
             placeholderTextColor={T.ink400}
             value={input}

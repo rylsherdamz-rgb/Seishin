@@ -20,6 +20,7 @@ import {
   updateEntity, deleteEntity, deleteRelation,
 } from "./agent-memory";
 import { createLogger } from "@/utils/logger";
+import { addToolCallDeltas, finishToolCalls } from "@/utils/tool-call-deltas";
 
 const log = createLogger("agent");
 
@@ -834,7 +835,7 @@ async function streamResponse(
   );
 
   let fullContent = "";
-  const toolCallDeltas: { id?: string; name?: string; arguments?: string }[] = [];
+  const toolCallDeltas: Parameters<typeof addToolCallDeltas>[0] = [];
 
   for await (const chunk of stream) {
     if (currentAbort?.signal.aborted) break;
@@ -847,26 +848,10 @@ async function streamResponse(
       agentStore.updateAssistantMessage(msgId, fullContent);
     }
 
-    if (delta.tool_calls) {
-      for (const tc of delta.tool_calls) {
-        const idx = tc.index || 0;
-        if (!toolCallDeltas[idx]) toolCallDeltas[idx] = {};
-        if (tc.id) toolCallDeltas[idx].id = tc.id;
-        if (tc.function?.name) toolCallDeltas[idx].name = tc.function.name;
-        if (tc.function?.arguments) {
-          toolCallDeltas[idx].arguments = (toolCallDeltas[idx].arguments || "") + tc.function.arguments;
-        }
-      }
-    }
+    if (delta.tool_calls) addToolCallDeltas(toolCallDeltas, delta.tool_calls);
   }
 
-  const toolCalls = toolCallDeltas
-    .filter((t) => t.name && t.arguments)
-    .map((t) => ({
-      id: t.id!,
-      name: t.name!,
-      arguments: t.arguments!,
-    }));
+  const toolCalls = finishToolCalls(toolCallDeltas);
 
   if (toolCalls.length > 0) {
     agentStore.updateAssistantMessage(msgId, fullContent, toolCalls);

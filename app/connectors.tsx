@@ -145,7 +145,7 @@ function Action({ icon, label, onPress, flex }: { icon: IconName; label: string;
       className={`mt-3 h-11 rounded-xl bg-ink-50 flex-row items-center justify-center gap-2 px-3 ${flex ? "flex-1" : ""}`}
     >
       <Feather name={icon} size={15} color={C.black} />
-      <Text className="text-[13px] font-semibold text-black">{label}</Text>
+      <Text className="text-13 font-semibold text-black">{label}</Text>
     </TouchableOpacity>
   );
 }

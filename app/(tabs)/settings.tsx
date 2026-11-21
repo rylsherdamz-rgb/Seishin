@@ -1,289 +1,35 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { View, Text, ScrollView, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Platform } from "react-native";
-import { Sheet } from "@/components/ui/Sheet";
-
+import { useCallback, useEffect, useState } from "react";
+import { View, Text, ScrollView, Platform } from "react-native";
 import { router } from "expo-router";
-import * as DocumentPicker from "expo-document-picker";
+import * as Application from "expo-application";
 import { useSettingsStore } from "@/stores/settings-store";
-import {
-  getStorageSizes, clearAllStorage,
-  eventsStorage, agentStorage, ocrStorage, todosStorage, invitesStorage,
-} from "@/stores/mmkv";
-import { clearOcrHistory } from "@/services/ocr";
-import { factoryReset } from "@/services/factory-reset";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
-import { pickAlarmRingtone, applyAlarmRingtone } from "@/services/notification-service";
-import * as FileSystem from "expo-file-system/legacy";
 import { Card } from "@/components/ui/Card";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { Logo } from "@/components/Logo";
-import { Toggle } from "@/components/ui/Toggle";
-import { NativeAlarm } from "@/services/notify-core";
-import Feather from "@expo/vector-icons/Feather";
-import { fetchNimModels, fetchAllNimModels, cacheNimModels } from "@/services/nim-models";
-import { useColors } from "@/theme/ThemeProvider";
 import { AppearancePicker } from "@/components/AppearancePicker";
 import { DisplayControls } from "@/components/settings/DisplayControls";
-import { TierBadge } from "@/components/ui/TierBadge";
 import { BackupSection } from "@/components/BackupSection";
 import { WidgetsSection } from "@/components/settings/WidgetsSection";
-import { RemindersCheck } from "@/components/settings/RemindersCheck";
+import { AiSection } from "@/components/settings/AiSection";
+import { RemindersSection } from "@/components/settings/RemindersSection";
+import { StorageSection } from "@/components/settings/StorageSection";
+import { MenuRow, SectionHeader } from "@/components/settings/rows";
 
-const storageCategories = [
-  { label: "Calendar Events", key: "events" as const, storage: eventsStorage, icon: "calendar" as const },
-  { label: "Agent Memory", key: "agent" as const, storage: agentStorage, icon: "cpu" as const },
-  { label: "Scan History", key: "ocr" as const, storage: ocrStorage, icon: "camera" as const },
-  { label: "Tasks", key: "todos" as const, storage: todosStorage, icon: "check-square" as const },
-  { label: "Invites", key: "invites" as const, storage: invitesStorage, icon: "send" as const },
-];
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <Text className="text-[11px] font-extrabold text-ink-500 uppercase tracking-widest mb-2.5 mt-7 first:mt-0">
-      {title}
-    </Text>
-  );
-}
-
-function MenuRow({
-  icon, label, subtitle, right, onPress,
-}: {
-  icon: React.ComponentProps<typeof Feather>["name"];
-  label: string;
-  subtitle?: string;
-  right?: React.ReactNode;
-  onPress?: () => void;
-}) {
-  const T = useColors();
-  return (
-    <TouchableOpacity disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? "button" : undefined} className="flex-row items-center gap-3 min-h-[56px] px-4 border-b border-ink-75 active:opacity-60">
-      <View className="w-9 h-9 bg-white rounded-xl items-center justify-center">
-        <Feather name={icon} size={16} color={T.black} />
-      </View>
-      <View className="flex-1">
-        <Text className="text-[15px] font-semibold text-black">{label}</Text>
-        {subtitle && <Text className="text-xs text-ink-400 mt-0.5">{subtitle}</Text>}
-      </View>
-      {right || (onPress && <Feather name="chevron-right" size={16} color={T.ink150} />)}
-    </TouchableOpacity>
-  );
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
+/** "1.0.0 (5)": app version plus the build's versionCode, so a bug report names the exact APK. */
+const versionLabel = () => {
+  const v = Application.nativeApplicationVersion ?? "1.0.0";
+  const b = Application.nativeBuildVersion;
+  return b ? `v${v} (${b})` : `v${v}`;
+};
 
 export default function SettingsScreen() {
-  const T = useColors();
   const loadSettings = useSettingsStore((s) => s.loadSettings);
-  const apiKeys = useSettingsStore((s) => s.apiKeys);
-  const setApiKey = useSettingsStore((s) => s.setApiKey);
-  const nimEndpoint = useSettingsStore((s) => s.nimEndpoint);
-  const setNimEndpoint = useSettingsStore((s) => s.setNimEndpoint);
-  const nimModel = useSettingsStore((s) => s.nimModel);
-  const setNimModel = useSettingsStore((s) => s.setNimModel);
-  const modelPath = useSettingsStore((s) => s.modelPath);
-  const setModelPath = useSettingsStore((s) => s.setModelPath);
-  const alarmRingtoneUri = useSettingsStore((s) => s.alarmRingtoneUri);
-  const alarmRingtoneName = useSettingsStore((s) => s.alarmRingtoneName);
-  const setAlarmRingtone = useSettingsStore((s) => s.setAlarmRingtone);
-  const [sizes, setSizes] = useState<Record<string, number>>({});
-  const [nimKey, setNimKey] = useState("");
-  const [nimEp, setNimEp] = useState("");
-  const [nimMd, setNimMd] = useState("");
-  const [ggufPath, setGgufPath] = useState("");
-  const [showStorage, setShowStorage] = useState(false);
-  const [showAiConfig, setShowAiConfig] = useState(false);
-
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [models, setModels] = useState<string[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
-  const [modelSearch, setModelSearch] = useState("");
   const keyboardPadding = useKeyboardPadding();
-  const modelSnapPoints = useMemo(() => ["40%", "50%"], []);
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
+  const showNotice = useCallback((title: string, message: string) => setNotice({ title, message }), []);
 
-  const [ggufFileName, setGgufFileName] = useState("");
-  const [ggufCopying, setGgufCopying] = useState(false);
-  const [ggufCopyProgress, setGgufCopyProgress] = useState("");
-  const [ggufFileSize, setGgufFileSize] = useState(0);
-  const [ggufPicking, setGgufPicking] = useState(false);
-  const [modalConfig, setModalConfig] = useState<{ title: string; message: string } | null>(null);
-  // Native foreground service that keeps reminders working while the app is closed.
-  const [keepAlive, setKeepAliveState] = useState(true);
-  useEffect(() => {
-    NativeAlarm?.isKeepAliveEnabled?.().then(setKeepAliveState).catch(() => {});
-  }, []);
-  const toggleKeepAlive = (on: boolean) => {
-    setKeepAliveState(on);
-    NativeAlarm?.setKeepAlive?.(on);
-  };
-  const [confirmConfig, setConfirmConfig] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
-
-  useEffect(() => {
-    loadSettings();
-    setSizes(getStorageSizes());
-  }, []);
-
-  useEffect(() => {
-    setNimKey(apiKeys.nim);
-    setNimEp(nimEndpoint);
-    setNimMd(nimModel);
-    setGgufPath(modelPath || "");
-    if (modelPath) {
-      const parts = modelPath.split("/");
-      setGgufFileName(parts[parts.length - 1] || "");
-    }
-  }, [apiKeys.nim, nimEndpoint, nimModel, modelPath]);
-
-  const confirmClear = useCallback((title: string, onClear: () => void) => {
-    setConfirmConfig({
-      title: "Clear " + title,
-      message: "This action cannot be undone.",
-      onConfirm: () => { onClear(); setSizes(getStorageSizes()); },
-    });
-  }, [setConfirmConfig, setSizes]);
-
-  const confirmFactoryReset = useCallback(() => {
-    setConfirmConfig({
-      title: "Factory reset",
-      message: "Deletes all events, tasks, notes, messages, settings, connector sign-ins and scheduled reminders on this phone. Your Google, Todoist and Notion data is not touched. This can't be undone.",
-      onConfirm: async () => {
-        const res = await factoryReset();
-        setSizes(getStorageSizes());
-        setModalConfig(
-          res.ok
-            ? { title: "Done", message: "Everything on this phone has been cleared." }
-            : { title: "Partly done", message: `Data was cleared, but these steps failed: ${res.failed.join(", ")}. Restart the app and try again.` },
-        );
-      },
-    });
-  }, [setConfirmConfig, setModalConfig, setSizes]);
-
-  const chooseRingtone = useCallback(async () => {
-    try {
-      const result = await pickAlarmRingtone(alarmRingtoneUri);
-      // `null` => user cancelled; keep the current selection.
-      if (result === null) return;
-      setAlarmRingtone(result.uri, result.name);
-      applyAlarmRingtone(result.uri);
-    } catch {
-      setModalConfig({ title: "Ringtone", message: "Could not open the ringtone picker. Try again." });
-    }
-  }, [alarmRingtoneUri, setAlarmRingtone, setModalConfig]);
-
-  const resetRingtone = useCallback(() => {
-    setAlarmRingtone(null, "Default alarm sound");
-    applyAlarmRingtone(null);
-  }, [setAlarmRingtone]);
-
-  const saveNimConfig = useCallback(async () => {
-    setApiKey("nim", nimKey);
-    setNimEndpoint(nimEp);
-    setNimModel(nimMd);
-
-    // Auto-detect available models when a key is provided
-    if (nimKey) {
-      try {
-        const result = await fetchNimModels(nimEp || "https://integrate.api.nvidia.com/v1", nimKey);
-        cacheNimModels(result.models);
-        setModels(result.models);
-        if (result.largeModel && !nimMd.includes("70b") && !nimMd.includes("nemotron")) {
-          setNimMd(result.recommended);
-        }
-      } catch {
-        // Non-blocking — user can still use their configured model
-      }
-    }
-
-    setModalConfig({ title: "Saved", message: "NVIDIA NIM config updated. Switch to NIM mode in the Agent tab." });
-  }, [nimKey, nimEp, nimMd, setApiKey, setNimEndpoint, setNimModel, setModalConfig]);
-
-  const saveModelPath = useCallback(async () => {
-    if (!ggufPath) {
-      setModelPath(null);
-      setModalConfig({ title: "Saved", message: "Model path cleared." });
-      return;
-    }
-    setGgufCopying(true);
-    setGgufCopyProgress("Copying model file…");
-    try {
-      const docsDir = FileSystem.documentDirectory || "";
-      const modelDir = `${docsDir}Models/`;
-      const fileName = ggufFileName || `model-${Date.now()}.gguf`;
-      const dest = `${modelDir}${fileName}`;
-      await FileSystem.makeDirectoryAsync(modelDir, { intermediates: true });
-      await FileSystem.copyAsync({ from: ggufPath, to: dest });
-      setModelPath(dest);
-      setGgufPath(dest);
-      setModalConfig({ title: "Saved", message: `Model copied and ready. (${ggufFileName})` });
-    } catch (e) {
-      setModalConfig({ title: "Copy Failed", message: (e instanceof Error && e.message) || "Could not copy the model file. Try picking from a different location." });
-    } finally {
-      setGgufCopying(false);
-      setGgufCopyProgress("");
-    }
-  }, [ggufPath, ggufFileName, setModelPath, setGgufPath, setModalConfig, setGgufCopying, setGgufCopyProgress]);
-
-  const pickGgufFile = useCallback(async () => {
-    try {
-      setGgufPicking(true);
-      const result = await DocumentPicker.getDocumentAsync({
-        type: "*/*",
-        copyToCacheDirectory: false,
-      });
-      if (!result.canceled && result.assets?.length > 0) {
-        const asset = result.assets[0];
-        setGgufPath(asset.uri);
-        setGgufFileName(asset.name || "");
-        setGgufFileSize(asset.size ?? 0);
-      }
-    } catch (e) {
-      setModalConfig({ title: "Could not browse files", message: "The file picker did not respond. Try again." });
-    } finally {
-      setGgufPicking(false);
-    }
-  }, [setGgufPicking, setGgufPath, setGgufFileName, setGgufFileSize, setModalConfig]);
-
-  const openModelPicker = useCallback(async () => {
-    setShowModelPicker(true);
-    if (models.length > 0) return;
-    setLoadingModels(true);
-    try {
-      const baseUrl = (nimEp || "https://integrate.api.nvidia.com/v1").trim().replace(/\/+$/, "");
-      const key = nimKey || apiKeys.nim;
-      const modelIds = await fetchAllNimModels(baseUrl, key);
-      setModels(modelIds.sort());
-    } catch (e) {
-      setModalConfig({ title: "Could not load models", message: `Check your API key and endpoint, then try again.` });
-    } finally {
-      setLoadingModels(false);
-    }
-  }, [models, nimEp, nimKey, apiKeys, setShowModelPicker, setLoadingModels, setModels, setModalConfig]);
-
-  const filteredModels = useMemo(() => models.filter((m) => m.toLowerCase().includes(modelSearch.toLowerCase())), [models, modelSearch]);
-
-  const renderModelItem = useCallback(({ item }: { item: string }) => {
-    return (
-      <TouchableOpacity
-        onPress={() => { setNimMd(item); setShowModelPicker(false); setModelSearch(""); }}
-        className={`flex-row items-center gap-3 py-3 px-3 rounded-lg mb-1 ${
-          item === nimMd ? "bg-black" : "bg-ink-100"
-        }`}
-      >
-        <Feather name="cpu" size={14} color={item === nimMd ? T.white : T.ink300} />
-        <Text className={`text-sm flex-1 ${item === nimMd ? "text-white font-medium" : "text-black"}`} numberOfLines={1}>
-          {item}
-        </Text>
-        <TierBadge modelId={item} />
-        {item === nimMd && (
-          <Feather name="check" size={14} color={T.white} />
-        )}
-      </TouchableOpacity>
-    );
-  }, [nimMd, setNimMd, setShowModelPicker, setModelSearch]);
+  useEffect(() => { loadSettings(); }, [loadSettings]);
 
   return (
     <View className="flex-1 bg-white">
@@ -292,7 +38,7 @@ export default function SettingsScreen() {
           <View className="flex-row items-center gap-3 mb-6 pt-3">
             <Logo size={32} />
             <View>
-              <Text className="text-[30px] font-extrabold tracking-tightest text-black">Settings</Text>
+              <Text className="text-30 font-extrabold tracking-tightest text-black">Settings</Text>
               <Text className="text-sm text-ink-400">App configuration</Text>
             </View>
           </View>
@@ -307,173 +53,14 @@ export default function SettingsScreen() {
 
           <SectionHeader title="Quick Access" />
           <Card className="mb-4 p-0 overflow-hidden">
-            <MenuRow icon="link" label="Connectors" subtitle="Google Calendar, Drive, notifications" onPress={() => router.push("/connectors")} />
+            <MenuRow icon="link" label="Connectors" subtitle="Google Calendar, Todoist, Notion and feeds" onPress={() => router.push("/connectors")} />
             <MenuRow icon="zap" label="Smart capture" subtitle="Turn assignment photos into tasks + reminders" onPress={() => router.push("/capture")} />
             <MenuRow icon="check-square" label="Tasks" subtitle="Your task list and due dates" onPress={() => router.push("/todo")} />
             <MenuRow icon="send" label="Invites" subtitle="Invitation cards and P2P codes" onPress={() => router.push("/invites")} />
           </Card>
 
-          <SectionHeader title="AI Configuration" />
-          <TouchableOpacity onPress={() => setShowAiConfig(!showAiConfig)} activeOpacity={0.7}>
-            <Card variant="elevated" className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name="cpu" size={16} color={T.black} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-medium text-black">AI · on-device first</Text>
-                  <Text className="text-xs text-ink-400 mt-0.5" numberOfLines={2}>
-                    {modelPath ? `On-device: ${modelPath.split("/").pop()}` : "On-device: no model yet"}
-                    {apiKeys.nim ? " · NVIDIA NIM ready" : " · NVIDIA NIM optional"}
-                  </Text>
-                </View>
-              </View>
-              <Feather name={showAiConfig ? "chevron-up" : "chevron-down"} size={18} color={T.ink200} />
-            </Card>
-          </TouchableOpacity>
-
-          {showAiConfig && (
-            <Card className="mb-4">
-              <Text className="text-sm font-semibold text-black">On-device model</Text>
-              <Text className="text-xs text-ink-400 mt-0.5 mb-3">
-                A .gguf file that runs on this phone — offline and private. It can add and change your events, tasks and notes.
-              </Text>
-              <TouchableOpacity
-                onPress={pickGgufFile}
-                disabled={ggufPicking}
-                className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center gap-3 mb-2"
-              >
-                {ggufPicking ? (
-                  <ActivityIndicator size="small" color={T.ink300} />
-                ) : (
-                  <Feather name="folder" size={16} color={T.ink300} />
-                )}
-                <Text className={`text-sm flex-1 ${ggufFileName ? "text-black" : "text-ink-300"}`}>
-                  {ggufFileName || (ggufPicking ? "Reading large file…" : "Tap to select a .gguf file")}
-                </Text>
-                {!!ggufFileName && (
-                  <TouchableOpacity onPress={() => { setGgufPath(""); setGgufFileName(""); }}>
-                    <Feather name="x-circle" size={14} color={T.ink200} />
-                  </TouchableOpacity>
-                )}
-              </TouchableOpacity>
-              {ggufCopying && (
-                <View className="bg-ink-50 rounded-lg p-3 mb-2">
-                  <View className="flex-row items-center gap-2 mb-2">
-                    <ActivityIndicator size="small" color={T.ink500} />
-                    <Text className="text-xs text-ink-600 flex-1">
-                      Copying{ggufFileSize > 0 ? ` ${formatBytes(ggufFileSize)}` : ""}…
-                    </Text>
-                  </View>
-                  <View className="w-full bg-ink-200 rounded-full h-1.5 overflow-hidden">
-                    <View className="bg-black h-full rounded-full" style={{ width: "30%" }} />
-                  </View>
-                  <Text className="text-xs text-ink-400 mt-2">
-                    You can continue browsing Settings while this runs in the background.
-                  </Text>
-                </View>
-              )}
-              <TouchableOpacity onPress={saveModelPath} disabled={ggufCopying || !ggufPath} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
-                <Text className="text-white text-sm font-semibold">Save</Text>
-              </TouchableOpacity>
-
-              <View className="h-px bg-ink-100 my-4" />
-
-              <Text className="text-sm font-semibold text-black">NVIDIA NIM · optional cloud</Text>
-              <Text className="text-xs text-ink-400 mt-0.5 mb-3">
-                Bigger models over the internet with every tool. Only used when you pick NVIDIA NIM in the agent.
-              </Text>
-              <Text className="text-xs font-semibold text-ink-400 mb-2">NVIDIA NIM API Key</Text>
-              <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
-                placeholder="Enter your NVIDIA NIM key..."
-                placeholderTextColor={T.ink200}
-                value={nimKey}
-                onChangeText={setNimKey}
-                autoCapitalize="none"
-                autoCorrect={false}
-                secureTextEntry
-              />
-              <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">NIM Endpoint</Text>
-              <TextInput
-                className="h-11 bg-white border border-ink-200 rounded-lg px-4 text-sm text-black mb-2"
-                placeholder="https://integrate.api.nvidia.com/v1"
-                placeholderTextColor={T.ink200}
-                value={nimEp}
-                onChangeText={setNimEp}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Model</Text>
-              <TouchableOpacity
-                onPress={openModelPicker}
-                className="h-11 bg-white border border-ink-200 rounded-lg px-4 flex-row items-center justify-between mb-2"
-              >
-                <Text className={`text-sm flex-1 ${nimMd ? "text-black" : "text-ink-300"}`} numberOfLines={1}>
-                  {nimMd || "Select a model..."}
-                </Text>
-                {!!nimMd && <TierBadge modelId={nimMd} className="mr-2" />}
-                <Feather name="chevron-down" size={16} color={T.ink200} />
-              </TouchableOpacity>
-              <Text className="text-xs font-semibold text-ink-400 mb-2 mt-3">Quick Models</Text>
-              <ScrollView horizontal bounces className="mb-2" showsHorizontalScrollIndicator={false}>
-                {[
-                  { id: "meta/llama-3.2-1b-instruct", label: "Llama 1B", desc: "Fastest" },
-                  { id: "meta/llama-3.2-3b-instruct", label: "Llama 3B", desc: "Balanced" },
-                  { id: "mistralai/mistral-7b-instruct-v0.3", label: "Mistral 7B", desc: "Smart" },
-                  { id: "nvidia/llama-3.1-nemotron-70b-instruct", label: "Nemotron 70B", desc: "Best" },
-                ].map((m) => (
-                  <TouchableOpacity
-                    key={m.id}
-                    onPress={() => setNimMd(m.id)}
-                    className={`px-3 py-2 mr-2 rounded-xl border ${
-                      nimMd === m.id ? "bg-black border-black" : "bg-white border-ink-200"
-                    }`}
-                  >
-                    <Text className={`text-xs font-medium ${nimMd === m.id ? "text-white" : "text-black"}`}>{m.label}</Text>
-                    <Text className={`text-[10px] mt-0.5 ${nimMd === m.id ? "text-white/70" : "text-ink-400"}`}>{m.desc}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <TouchableOpacity onPress={saveNimConfig} className="bg-black h-9 px-5 rounded-lg items-center justify-center self-end">
-                <Text className="text-white text-sm font-semibold">Save</Text>
-              </TouchableOpacity>
-
-            </Card>
-          )}
-
-          <SectionHeader title="Reminders" />
-          <RemindersCheck />
-          {Platform.OS === "android" ? (
-            <Card className="mt-3 p-0 overflow-hidden">
-              {NativeAlarm?.setKeepAlive ? (
-                <MenuRow
-                  icon="zap"
-                  label="Run in background"
-                  subtitle="Starts with your phone so reminders and alarms ring even when Seishin is closed"
-                  right={<Toggle value={keepAlive} onValueChange={toggleKeepAlive} />}
-                />
-              ) : null}
-              <MenuRow
-                icon="music"
-                label="Alarm Ringtone"
-                subtitle={alarmRingtoneName}
-                onPress={chooseRingtone}
-                right={
-                  alarmRingtoneUri ? (
-                    <TouchableOpacity
-                      onPress={resetRingtone}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      className="px-2.5 py-1 rounded-lg bg-ink-100"
-                    >
-                      <Text className="text-xs text-ink-500 font-medium">Reset</Text>
-                    </TouchableOpacity>
-                  ) : undefined
-                }
-              />
-            </Card>
-          ) : null}
+          <AiSection onNotice={showNotice} />
+          <RemindersSection onNotice={showNotice} />
 
           {Platform.OS === "android" ? <SectionHeader title="Home screen widgets" /> : null}
           <WidgetsSection />
@@ -481,52 +68,7 @@ export default function SettingsScreen() {
           <SectionHeader title="Backup & restore" />
           <BackupSection />
 
-          <SectionHeader title="Storage" />
-          <TouchableOpacity onPress={() => setShowStorage(!showStorage)} activeOpacity={0.7}>
-            <Card variant="elevated" className="flex-row items-center justify-between mb-3">
-              <View className="flex-row items-center gap-3 flex-1">
-                <View className="w-10 h-10 bg-ink-100 rounded-full items-center justify-center">
-                  <Feather name="hard-drive" size={16} color={T.black} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-medium text-black">Data Storage</Text>
-                  <Text className="text-xs text-ink-400 mt-0.5">Manage cached data per category</Text>
-                </View>
-              </View>
-              <Feather name={showStorage ? "chevron-up" : "chevron-down"} size={18} color={T.ink200} />
-            </Card>
-          </TouchableOpacity>
-
-          {showStorage && (
-            <Card className="mb-4 p-0 overflow-hidden">
-              {storageCategories.map(({ label, key, storage, icon }) => (
-                <View key={key} className="flex-row items-center gap-3 py-3 px-4 border-b border-ink-100 last:border-b-0">
-                  <View className="w-8 h-8 bg-ink-100 rounded-lg items-center justify-center">
-                    <Feather name={icon} size={12} color={T.ink500} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm text-black">{label}</Text>
-                    <Text className="text-xs text-ink-300">{sizes[key] ?? 0} items</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => confirmClear(label, () => storage.clearAll())}
-                    className="px-3 py-1.5 rounded-lg bg-ink-100"
-                  >
-                    <Text className="text-xs text-ink-500 font-medium">Clear</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </Card>
-          )}
-
-          <TouchableOpacity
-            onPress={confirmFactoryReset}
-            accessibilityRole="button"
-            className="flex-row items-center justify-center gap-2 h-12 mb-4 rounded-2xl border border-danger"
-          >
-            <Feather name="alert-triangle" size={14} color={T.danger} />
-            <Text className="text-sm font-semibold text-danger">Factory reset — delete everything</Text>
-          </TouchableOpacity>
+          <StorageSection onNotice={showNotice} />
 
           <SectionHeader title="About" />
           <Card variant="elevated">
@@ -534,7 +76,7 @@ export default function SettingsScreen() {
               <Logo size={44} />
               <View className="flex-1">
                 <Text className="text-lg font-semibold text-black">Seishin</Text>
-                <Text className="text-xs text-ink-400">v1.0.0</Text>
+                <Text className="text-xs text-ink-400">{versionLabel()}</Text>
                 <Text className="text-xs text-ink-300 mt-1">Serverless life manager</Text>
               </View>
             </View>
@@ -542,64 +84,7 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-        <Sheet
-          open={showModelPicker}
-          onClose={() => setShowModelPicker(false)}
-          snapPoints={modelSnapPoints}
-          contentStyle={{ flex: 1, paddingHorizontal: 20, paddingTop: 0, paddingBottom: 40 }}
-        >
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-semibold tracking-tightest text-black">Select Model</Text>
-              <TouchableOpacity onPress={() => setShowModelPicker(false)} className="w-8 h-8 bg-ink-100 rounded-full items-center justify-center">
-                <Feather name="x" size={16} color={T.ink500} />
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              className="h-12 bg-ink-50 rounded-xl px-4 text-sm text-black mb-4"
-              placeholder="Search models..."
-              placeholderTextColor={T.ink300}
-              value={modelSearch}
-              onChangeText={setModelSearch}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {loadingModels ? (
-              <View className="flex-1 items-center justify-center">
-                <ActivityIndicator size="small" color={T.black} />
-                <Text className="text-sm text-ink-400 mt-3">Loading models...</Text>
-              </View>
-            ) : filteredModels.length === 0 ? (
-              <View className="flex-1 items-center justify-center">
-                <Feather name="search" size={24} color={T.ink200} />
-                <Text className="text-sm text-ink-300 mt-2">{models.length === 0 ? "No models found" : "No matches"}</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filteredModels}
-                keyExtractor={(item) => item}
-                showsVerticalScrollIndicator={false}
-                removeClippedSubviews
-                maxToRenderPerBatch={20}
-                windowSize={10}
-                renderItem={renderModelItem}
-              />
-            )}
-        </Sheet>
-      <AlertDialog
-        visible={modalConfig !== null}
-        onClose={() => setModalConfig(null)}
-        title={modalConfig?.title}
-        message={modalConfig?.message}
-      />
-      <AlertDialog
-        visible={confirmConfig !== null}
-        onClose={() => setConfirmConfig(null)}
-        title={confirmConfig?.title}
-        message={confirmConfig?.message}
-        confirmLabel="Clear"
-        confirmDestructive
-        onConfirm={() => { confirmConfig?.onConfirm(); setConfirmConfig(null); }}
-      />
+      <AlertDialog visible={notice !== null} onClose={() => setNotice(null)} title={notice?.title} message={notice?.message} />
     </View>
   );
 }

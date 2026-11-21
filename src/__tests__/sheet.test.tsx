@@ -1,13 +1,13 @@
 import { createRef } from "react";
 import { Text } from "react-native";
 import { create, act } from "react-test-renderer";
+import { Sheet, type SheetHandle } from "@/components/ui/Sheet";
 
 const render = (el: React.ReactElement) => {
   let r!: ReturnType<typeof create>;
   act(() => { r = create(el); });
   return { rerender: (next: React.ReactElement) => act(() => r.update(next)) };
 };
-import { Sheet, type SheetHandle } from "@/components/ui/Sheet";
 
 const mockPresent = jest.fn();
 let mockDismissed: (() => void) | null = null;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
+
 import { launchCameraAsync, launchImageLibraryAsync } from "expo-image-picker";
 import { useCalendarStore, type Recurrence } from "@/stores/calendar-store";
 import type { NoteAttachment } from "@/stores/notes-store";
@@ -9,6 +9,7 @@ import { dateKey } from "@/utils/recurrence";
 import { loadEventDraft, saveEventDraft, clearEventDraft } from "@/utils/drafts";
 import { COPY, LIMITS } from "@/constants/copy";
 import { atMinutes, buildRecurrence, recurrenceToState, type RepeatMode } from "./calendar-utils";
+import { showAlert } from "@/components/ui/dialog";
 
 export interface EventPrefill {
   /** Set when editing an existing event. */
@@ -123,7 +124,7 @@ export function useEventForm(prefill: EventPrefill) {
       ? updateEvent(editingId, changes)
       : addEvent({ id: uid("manual-evt"), ...changes, source: "manual" });
     if (!ok) {
-      Alert.alert(COPY.errors.saveFailedTitle, COPY.errors.saveEventFailed);
+      showAlert(COPY.errors.saveFailedTitle, COPY.errors.saveEventFailed);
       return false;
     }
     if (!editingId) clearEventDraft();
@@ -137,7 +138,7 @@ export function useEventForm(prefill: EventPrefill) {
       const res = await picker({ mediaTypes: ["images"], quality: 0.8 });
       return res.canceled ? null : res.assets[0] ?? null;
     } catch {
-      Alert.alert(COPY.errors.pickerUnavailableTitle, COPY.errors.pickerUnavailable);
+      showAlert(COPY.errors.pickerUnavailableTitle, COPY.errors.pickerUnavailable);
       return null;
     }
   }, []);
@@ -161,7 +162,7 @@ export function useEventForm(prefill: EventPrefill) {
       if (!text) throw new Error("no text");
       setNotes((prev) => (prev ? `${prev}\n\n${text}` : text).slice(0, LIMITS.notes));
     } catch {
-      Alert.alert(COPY.errors.scanFailedTitle, COPY.errors.scanFailed);
+      showAlert(COPY.errors.scanFailedTitle, COPY.errors.scanFailed);
     } finally {
       setOcrBusy(false);
     }

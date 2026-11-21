@@ -20,6 +20,7 @@ import { useAutoSync } from "@/hooks/useAutoSync";
 // Defines the background sync task at module load (required by the OS scheduler).
 import "@/services/background-sync";
 import { ThemeProvider, ThemeScope, useTheme } from "@/theme/ThemeProvider";
+import { DialogHost } from "@/components/ui/dialog";
 
 ExpoSplashScreen.preventAutoHideAsync();
 
@@ -133,6 +134,7 @@ function AppShell() {
             <ThemeScope theme="light">
               <AlarmOverlay />
             </ThemeScope>
+            <DialogHost />
           </SafeAreaView>
         </SafeAreaProvider>
         </Host>

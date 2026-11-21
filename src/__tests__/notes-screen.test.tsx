@@ -1,6 +1,12 @@
 import React from "react";
 import { create, act } from "react-test-renderer";
 
+import NotesScreen from "../../app/(tabs)/notes";
+import { useNotesStore } from "@/stores/notes-store";
+import { notesStorage } from "@/stores/mmkv";
+import { useInboxStore } from "@/stores/inbox-store";
+import { Text } from "react-native";
+
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   getPermissionsAsync: jest.fn(async () => ({ granted: true })),
@@ -48,12 +54,6 @@ jest.mock("@expo/vector-icons/Feather", () => {
       ReactMod.createElement(Text, props, "·"),
   };
 });
-
-import NotesScreen from "../../app/(tabs)/notes";
-import { useNotesStore } from "@/stores/notes-store";
-import { notesStorage } from "@/stores/mmkv";
-import { useInboxStore } from "@/stores/inbox-store";
-import { Text } from "react-native";
 
 function seedData() {
   const now = new Date().toISOString();

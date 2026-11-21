@@ -74,6 +74,7 @@ export function EventFormSheet({ prefill, onClose }: EventFormSheetProps) {
             </TouchableOpacity>
             <Text className="text-base font-bold text-black">{f.editingId ? COPY.form.editTitle : COPY.form.newTitle}</Text>
             <TouchableOpacity
+              hitSlop={2}
               onPress={submit}
               disabled={!canSave}
               accessibilityRole="button"
@@ -119,7 +120,7 @@ export function EventFormSheet({ prefill, onClose }: EventFormSheetProps) {
                   <FieldCard className="flex-1" icon="flag" label={COPY.form.ends} value={formatClock(atMinutes(key, f.endMin))} onPress={() => setPicker("end")} />
                 </View>
                 {f.endsNextDay && (
-                  <Text className="text-[11px] font-semibold text-ink-400 mt-2 ml-1">{COPY.form.endsNextDay}</Text>
+                  <Text className="text-11 font-semibold text-ink-400 mt-2 ml-1">{COPY.form.endsNextDay}</Text>
                 )}
                 <FieldLabel>{COPY.form.duration}</FieldLabel>
                 <PillRow

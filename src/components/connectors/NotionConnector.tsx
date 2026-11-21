@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { View, Text, Alert } from "react-native";
+import { View, Text } from "react-native";
 import { notionState, type NotionState } from "@/services/connectors/state";
 import { setToken, deleteToken } from "@/services/connectors/secrets";
 import { setupNotion, syncNotion } from "@/services/connectors/notion";
 import { DangerLink, Field, PrimaryButton, ReminderChips, StatusLine, Steps } from "./shared";
+import { showAlert } from "@/components/ui/dialog";
 
 /** A Notion task database ↔ Seishin tasks, via an internal integration secret. */
 export function NotionConnector() {
@@ -22,7 +23,7 @@ export function NotionConnector() {
       await syncNotion();
       setState(notionState.get());
     } catch (e) {
-      Alert.alert("Couldn't connect", e instanceof Error ? e.message : "Check the secret and the database link.");
+      showAlert("Couldn't connect", e instanceof Error ? e.message : "Check the secret and the database link.");
     } finally {
       setBusy(false);
     }
@@ -36,7 +37,7 @@ export function NotionConnector() {
   };
 
   const disconnect = () =>
-    Alert.alert("Disconnect Notion?", "Imported tasks stay in Seishin but stop syncing. Nothing is deleted in Notion.", [
+    showAlert("Disconnect Notion?", "Imported tasks stay in Seishin but stop syncing. Nothing is deleted in Notion.", [
       { text: "Cancel", style: "cancel" },
       { text: "Disconnect", style: "destructive", onPress: async () => { await deleteToken("notion"); setState(notionState.set({ enabled: false })); } },
     ]);

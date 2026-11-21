@@ -1,11 +1,11 @@
-jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
-const mockSchedule = jest.fn(async (..._a: unknown[]) => 0);
-jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: (...a: unknown[]) => mockSchedule(...a), cancelTaskReminders: jest.fn(async () => {}) }));
-
 import { saveCapture } from "@/components/capture/save-capture";
 import { useTodoStore } from "@/stores/todo-store";
 import { useNotesStore } from "@/stores/notes-store";
 import { useCalendarStore } from "@/stores/calendar-store";
+
+jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
+const mockSchedule = jest.fn(async (..._a: unknown[]) => 0);
+jest.mock("@/services/task-reminders", () => ({ scheduleTaskReminders: (...a: unknown[]) => mockSchedule(...a), cancelTaskReminders: jest.fn(async () => {}) }));
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 

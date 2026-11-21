@@ -1,3 +1,10 @@
+import {
+  extractVideoId,
+  formatTimestamp,
+  parseXmlTranscript,
+  buildSummaryText,
+} from "../services/youtube-summary";
+
 jest.mock("expo-file-system", () => ({
   cacheDirectory: "/mock-cache/",
   documentDirectory: "/mock-documents/",
@@ -55,13 +62,6 @@ jest.mock("@/services/local-llama", () => ({
 }));
 
 jest.mock("expo-file-system/expo-file-system", () => ({}), { virtual: true });
-
-import {
-  extractVideoId,
-  formatTimestamp,
-  parseXmlTranscript,
-  buildSummaryText,
-} from "../services/youtube-summary";
 
 describe("extractVideoId", () => {
   it("extracts from youtube.com/watch?v=", () => {

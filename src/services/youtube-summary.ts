@@ -241,7 +241,6 @@ export async function downloadThumbnail(videoInfo: VideoInfo): Promise<string | 
     const ext = videoInfo.thumbnailUrl.match(/\.(jpg|jpeg|png|webp)/i)?.[1] || "jpg";
     const result = await File.downloadFileAsync(videoInfo.thumbnailUrl, new File(Paths.cache, `yt-thumb-${videoInfo.videoId}.${ext}`));
     return result.uri || null;
-    return result.uri;
   } catch {
     return null;
   }

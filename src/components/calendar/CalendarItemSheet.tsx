@@ -1,9 +1,10 @@
-import { Alert } from "react-native";
+
 import { ItemSheet } from "@/components/ItemSheet";
 import { useCalendarStore } from "@/stores/calendar-store";
 import { useTodoStore } from "@/stores/todo-store";
 import { COPY } from "@/constants/copy";
 import type { CalendarItem } from "./calendar-utils";
+import { showAlert } from "@/components/ui/dialog";
 
 interface Props {
   item: CalendarItem;
@@ -18,12 +19,12 @@ export function CalendarItemSheet({ item, onClose, onEdit }: Props) {
   const deleteTodo = useTodoStore((s) => s.deleteTodo);
 
   const remove = (ok: boolean) => {
-    if (!ok) Alert.alert(COPY.errors.saveFailedTitle, COPY.errors.deleteFailed);
+    if (!ok) showAlert(COPY.errors.saveFailedTitle, COPY.errors.deleteFailed);
   };
 
   // Synced from the phone's calendar: changes here would be undone next sync.
   const readOnly = () =>
-    Alert.alert(
+    showAlert(
       item.source === "feed" ? "From a subscribed calendar" : "From your phone calendar",
       item.source === "feed"
         ? "This event comes from a calendar feed (e.g. your school's). It updates automatically; manage the feed in Connectors."

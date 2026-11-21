@@ -1,7 +1,7 @@
-jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 import { buildBackup, parseBackup, mergeById, noteIsNewer, countBackup } from "@/services/backup";
 import type { CalendarEvent } from "@/stores/calendar-store";
 import type { Note } from "@/stores/notes-store";
+jest.mock("@/services/notification-service", () => ({ scheduleEventReminder: jest.fn(async () => {}), cancelEventReminder: jest.fn() }));
 
 const ev = (id: string, source: CalendarEvent["source"] = "manual"): CalendarEvent => ({ id, title: id, startDate: "2026-10-20T09:00:00.000Z", endDate: "2026-10-20T10:00:00.000Z", source });
 const note = (id: string, updatedAt: string): Note => ({ id, title: id, body: "", tags: [], pinned: false, attachments: [], createdAt: updatedAt, updatedAt });

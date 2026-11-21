@@ -97,7 +97,7 @@ function HourRow({ hour, onPress }: { hour: number; onPress: (half: boolean) => 
       className="flex-row active:bg-ink-25"
       style={{ position: "absolute", top: hour * HOUR_H + 6, left: 0, right: 0, height: HOUR_H }}
     >
-      <Text className="text-[10px] font-medium text-ink-300 text-right pr-2" style={{ width: GUTTER, marginTop: -6 }}>
+      <Text className="text-10 font-medium text-ink-300 text-right pr-2" style={{ width: GUTTER, marginTop: -6 }}>
         {hour === 0 ? "" : hourLabel(hour)}
       </Text>
       <View className="flex-1 border-t border-ink-75" />
@@ -122,16 +122,16 @@ function EventBlock({ placed, width, past, onPress }: { placed: PlacedEvent; wid
       {/* Tint over a solid page-coloured base, so the now line behind it stays hidden. */}
       <View pointerEvents="none" className="absolute inset-0 bg-accent/15" />
       <View className={compact ? "flex-row items-center gap-1.5 flex-1" : "pt-1"}>
-        <Text className="text-[13px] font-semibold text-black" numberOfLines={compact ? 1 : 2}>
+        <Text className="text-13 font-semibold text-black" numberOfLines={compact ? 1 : 2}>
           {item.title}
         </Text>
-        <Text className="text-[11px] text-ink-500" numberOfLines={1}>
+        <Text className="text-11 text-ink-500" numberOfLines={1}>
           {item.time}
           {!compact && item.endTime ? ` – ${item.endTime}` : ""}
           {!compact && cols === 1 ? ` · ${formatDuration(end - start)}` : ""}
         </Text>
         {!compact && height > 80 && item.notes ? (
-          <Text className="text-[11px] text-ink-400 mt-1" numberOfLines={Math.floor((height - 50) / 15)}>
+          <Text className="text-11 text-ink-400 mt-1" numberOfLines={Math.floor((height - 50) / 15)}>
             {item.notes}
           </Text>
         ) : null}
@@ -157,7 +157,7 @@ function UntimedBand({ items, onOpen, onToggleTodo }: { items: CalendarItem[]; o
   const C = useColors();
   return (
     <View className="px-4 pb-2 border-b border-ink-75">
-      <Text className="text-[10px] font-bold tracking-widest text-ink-300 mb-1.5">{COPY.calendar.allDayAndTasks}</Text>
+      <Text className="text-10 font-bold tracking-widest text-ink-300 mb-1.5">{COPY.calendar.allDayAndTasks}</Text>
       <View className="flex-row flex-wrap gap-1.5">
         {items.map((it) =>
           it.type === "todo" ? (

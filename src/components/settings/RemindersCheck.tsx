@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, Alert, AppState, Linking, Platform } from "react-native";
+import { View, Text, TouchableOpacity, AppState, Linking, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import Feather from "@expo/vector-icons/Feather";
 import { useColors } from "@/theme/ThemeProvider";
 import { ensureEventChannels, ensureNotificationPermission, NativeAlarm, REMINDER_CHANNEL, type AlarmAccess } from "@/services/notify-core";
+import { showAlert } from "@/components/ui/dialog";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
 
@@ -18,7 +19,7 @@ export function RemindersCheck() {
 
   const test = async () => {
     if (!(await ensureNotificationPermission())) {
-      Alert.alert("Notifications are off", "Turn on notifications for Seishin, or reminders can't show.", [
+      showAlert("Notifications are off", "Turn on notifications for Seishin, or reminders can't show.", [
         { text: "Cancel", style: "cancel" },
         { text: "Open settings", onPress: () => Linking.openSettings() },
       ]);
@@ -87,7 +88,7 @@ function Row({ C, icon, label, sub, onPress }: { C: ReturnType<typeof useColors>
         <Feather name={icon} size={16} color={C.black} />
       </View>
       <View className="flex-1">
-        <Text className="text-[15px] font-semibold text-black">{label}</Text>
+        <Text className="text-15 font-semibold text-black">{label}</Text>
         <Text className="text-xs mt-0.5 text-ink-500">{sub}</Text>
       </View>
       <Feather name="chevron-right" size={16} color={C.ink300} />

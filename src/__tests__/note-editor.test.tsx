@@ -2,6 +2,9 @@ import React from "react";
 import { create, act } from "react-test-renderer";
 import { TextInput, TouchableOpacity } from "react-native";
 
+import NoteEditorScreen from "../../app/note";
+import { useNotesStore } from "@/stores/notes-store";
+
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   getPermissionsAsync: jest.fn(async () => ({ granted: true })),
@@ -91,9 +94,6 @@ jest.mock("@expo/vector-icons/Feather", () => {
       ReactMod.createElement(Text, props, "·"),
   };
 });
-
-import NoteEditorScreen from "../../app/note";
-import { useNotesStore } from "@/stores/notes-store";
 
 function findBodyInput(tree: ReturnType<typeof create>) {
   const body = tree.root.findAllByType(TextInput).find((i) => i.props.accessibilityLabel === "Note");

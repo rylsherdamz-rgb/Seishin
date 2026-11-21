@@ -6,9 +6,9 @@ import { useColors } from "@/theme/ThemeProvider";
 import { COPY, LIMITS } from "@/constants/copy";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { formatClock, atMinutes, formatDuration, nextSlotMinutes, parseQuickAdd, relativeDayLabel, type QuickParse } from "./calendar-utils";
+import type { CreateKind } from "./actions";
 
 type IconName = React.ComponentProps<typeof Feather>["name"];
-import type { CreateKind } from "./actions";
 export type { CreateKind };
 
 export const TEMPLATES: { title: string; icon: IconName; minutes: number }[] = [
@@ -60,7 +60,7 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
         <View className="flex-row items-center gap-2 pl-4 pr-1.5 h-14 rounded-2xl bg-ink-50 border border-ink-100">
           <Feather name="zap" size={16} color={C.accent} />
           <TextInput
-            className="flex-1 text-[15px] text-black"
+            className="flex-1 text-15 text-black"
             placeholder={kind === "event" ? COPY.create.quickEventPlaceholder : COPY.create.quickTaskPlaceholder}
             maxLength={LIMITS.title}
             accessibilityLabel={kind === "event" ? COPY.create.quickEventPlaceholder : COPY.create.quickTaskPlaceholder}
@@ -85,6 +85,7 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
         <View className="flex-row items-center gap-2 mt-2.5">
           {(["event", "todo"] as const).map((k) => (
             <TouchableOpacity
+              hitSlop={6}
               key={k}
               onPress={() => setKind(k)}
               accessibilityRole="radio"
@@ -107,10 +108,11 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
           <Tile icon="maximize" label={COPY.create.tiles.scan.label} hint={COPY.create.tiles.scan.hint} onPress={() => done(onScan)} />
         </View>
 
-        <Text className="text-[11px] font-bold tracking-widest text-ink-300 mt-6 mb-2">{COPY.create.quickBlocks}</Text>
+        <Text className="text-11 font-bold tracking-widest text-ink-300 mt-6 mb-2">{COPY.create.quickBlocks}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {TEMPLATES.map((t) => (
             <TouchableOpacity
+              hitSlop={2}
               key={t.title}
               onPress={() => done(() => onTemplate(t.title, t.minutes))}
               accessibilityRole="button"
@@ -119,8 +121,8 @@ export function CreateSheet({ date, onClose, onQuickAdd, onNewEvent, onTemplate,
               className="flex-row items-center gap-2 pl-3 pr-3.5 h-10 rounded-full border border-ink-150 bg-white"
             >
               <Feather name={t.icon} size={14} color={C.accent} />
-              <Text className="text-[13px] font-semibold text-black">{t.title}</Text>
-              <Text className="text-[11px] text-ink-300">{formatDuration(t.minutes)}</Text>
+              <Text className="text-13 font-semibold text-black">{t.title}</Text>
+              <Text className="text-11 text-ink-300">{formatDuration(t.minutes)}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -133,7 +135,7 @@ function ParsePreview({ kind, parsed }: { kind: CreateKind; parsed: QuickParse }
   const time = kind === "event" ? ` · ${formatClock(atMinutes(parsed.date, start))}` : "";
   const dur = kind === "event" && parsed.duration ? ` · ${formatDuration(parsed.duration)}` : "";
   return (
-    <Text className="flex-1 text-right text-[11px] text-ink-400" numberOfLines={1}>
+    <Text className="flex-1 text-right text-11 text-ink-400" numberOfLines={1}>
       {relativeDayLabel(parsed.date)}{time}{dur}
     </Text>
   );
@@ -153,8 +155,8 @@ function Tile({ icon, label, hint, onPress, primary }: { icon: IconName; label: 
         <Feather name={icon} size={18} color={primary ? C.onAccent : C.black} />
       </View>
       <View className="flex-1">
-        <Text className={`text-[15px] font-bold ${primary ? "text-accent-on" : "text-black"}`}>{label}</Text>
-        <Text className={`text-[11px] ${primary ? "text-accent-on opacity-75" : "text-ink-400"}`}>{hint}</Text>
+        <Text className={`text-15 font-bold ${primary ? "text-accent-on" : "text-black"}`}>{label}</Text>
+        <Text className={`text-11 ${primary ? "text-accent-on opacity-75" : "text-ink-400"}`}>{hint}</Text>
       </View>
     </TouchableOpacity>
   );

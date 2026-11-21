@@ -87,17 +87,18 @@ const AgendaCard = memo(function AgendaCard({ item, past, onOpen, onToggleTodo }
           className={`w-[22px] h-[22px] rounded-full border-2 items-center justify-center ${item.completed ? "bg-accent border-accent" : "border-ink-300"}`}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: !!item.completed }}
+          accessibilityLabel={item.title}
         >
           {item.completed && <Feather name="check" size={13} color={C.onAccent} />}
         </TouchableOpacity>
         <View className="flex-1">
-          <Text className={`text-[15px] ${item.completed ? "line-through text-ink-300" : "text-black font-medium"}`} numberOfLines={2}>
+          <Text className={`text-15 ${item.completed ? "line-through text-ink-300" : "text-black font-medium"}`} numberOfLines={2}>
             {item.title}
           </Text>
         </View>
         {item.priority === "high" && !item.completed ? (
           <View className="px-2 py-0.5 rounded-full bg-danger-soft">
-            <Text className="text-[10px] font-bold text-danger">{COPY.calendar.priorityHigh}</Text>
+            <Text className="text-10 font-bold text-danger">{COPY.calendar.priorityHigh}</Text>
           </View>
         ) : null}
       </TouchableOpacity>
@@ -116,19 +117,19 @@ const AgendaCard = memo(function AgendaCard({ item, past, onOpen, onToggleTodo }
       className={`flex-row gap-3 mb-2 ${past ? "opacity-55" : ""}`}
     >
       <View className="w-[68px] pt-3 items-end">
-        <Text className="text-[13px] font-semibold text-black" numberOfLines={1} adjustsFontSizeToFit>{item.allDay ? COPY.calendar.allDay : item.time}</Text>
-        {!item.allDay && dur ? <Text className="text-[11px] text-ink-300 mt-0.5">{formatDuration(dur)}</Text> : null}
+        <Text className="text-13 font-semibold text-black" numberOfLines={1} adjustsFontSizeToFit>{item.allDay ? COPY.calendar.allDay : item.time}</Text>
+        {!item.allDay && dur ? <Text className="text-11 text-ink-300 mt-0.5">{formatDuration(dur)}</Text> : null}
       </View>
       <View className="flex-1 flex-row rounded-2xl bg-accent/10 overflow-hidden">
         <View className="w-1 bg-accent" />
         <View className="flex-1 px-3 py-2.5">
-          <Text className="text-[15px] font-semibold text-black" numberOfLines={2}>{item.title}</Text>
+          <Text className="text-15 font-semibold text-black" numberOfLines={2}>{item.title}</Text>
           {item.notes || item.description ? (
             <Text className="text-xs text-ink-500 mt-0.5" numberOfLines={1}>{item.notes || item.description}</Text>
           ) : null}
           <View className="flex-row items-center gap-2.5 mt-1.5">
             {!item.allDay && item.endTime ? (
-              <Text className="text-[11px] text-ink-400">{item.time} – {item.endTime}</Text>
+              <Text className="text-11 text-ink-400">{item.time} – {item.endTime}</Text>
             ) : null}
             <Feather name={SOURCE_ICONS[item.source ?? ""] ?? "calendar"} size={11} color={C.ink300} />
             {item.recurrence ? <Feather name="repeat" size={11} color={C.ink300} /> : null}

@@ -22,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm run test:ci
       # Dates are stored in UTC but shown by local day; catch day-shift bugs east of UTC.
       - run: npm test -- --ci

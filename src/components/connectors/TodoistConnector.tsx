@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { View, Text, Alert } from "react-native";
+import { View, Text } from "react-native";
 import { todoistState, type TodoistState } from "@/services/connectors/state";
 import { setToken, deleteToken } from "@/services/connectors/secrets";
 import { syncTodoist, verifyTodoist } from "@/services/connectors/todoist";
 import { DangerLink, Field, PrimaryButton, ReminderChips, StatusLine, Steps } from "./shared";
+import { showAlert } from "@/components/ui/dialog";
 
 /** Two-way Todoist tasks via a personal API token. */
 export function TodoistConnector() {
@@ -20,9 +21,9 @@ export function TodoistConnector() {
       setTokenInput("");
       await syncTodoist();
       setState(todoistState.get());
-      Alert.alert("Todoist connected", `${count} open task${count === 1 ? "" : "s"} found and synced.`);
+      showAlert("Todoist connected", `${count} open task${count === 1 ? "" : "s"} found and synced.`);
     } catch (e) {
-      Alert.alert("Couldn't connect", e instanceof Error ? e.message : "Check the token and try again.");
+      showAlert("Couldn't connect", e instanceof Error ? e.message : "Check the token and try again.");
     } finally {
       setBusy(false);
     }
@@ -36,7 +37,7 @@ export function TodoistConnector() {
   };
 
   const disconnect = () =>
-    Alert.alert("Disconnect Todoist?", "Imported tasks stay in Seishin but stop syncing. Nothing is deleted in Todoist.", [
+    showAlert("Disconnect Todoist?", "Imported tasks stay in Seishin but stop syncing. Nothing is deleted in Todoist.", [
       { text: "Cancel", style: "cancel" },
       { text: "Disconnect", style: "destructive", onPress: async () => { await deleteToken("todoist"); setState(todoistState.set({ enabled: false })); } },
     ]);

@@ -29,8 +29,7 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
-      ],
-      "versionCode": 1
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Alert } from "react-native";
+import { View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { router, useLocalSearchParams } from "expo-router";
 
@@ -20,6 +20,7 @@ import { EventFormSheet } from "@/components/calendar/EventFormSheet";
 import type { EventPrefill } from "@/components/calendar/useEventForm";
 import { useCalendarData, useToday } from "@/components/calendar/useCalendarData";
 import { useSyncRefresh } from "@/hooks/useSyncRefresh";
+import { showAlert } from "@/components/ui/dialog";
 
 /** Default start for a new event on `key`: next half-hour today, else 9 AM. */
 function defaultStart(key: string, today: string): Date {
@@ -76,7 +77,7 @@ export default function CalendarScreen() {
 
   const quickAdd = useCallback((kind: CreateKind, p: QuickParse) => {
     if (!quickCreate(kind, p, today)) {
-      Alert.alert(COPY.errors.saveFailedTitle, kind === "todo" ? COPY.errors.saveTaskFailed : COPY.errors.saveEventFailed);
+      showAlert(COPY.errors.saveFailedTitle, kind === "todo" ? COPY.errors.saveTaskFailed : COPY.errors.saveEventFailed);
       return;
     }
     select(p.date);

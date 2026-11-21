@@ -44,7 +44,7 @@ export function SegmentedControl<T extends string>({
             }}
           >
             <Text
-              className={`text-[13px] font-bold ${active ? "text-black" : "text-ink-500"}`}
+              className={`text-13 font-bold ${active ? "text-black" : "text-ink-500"}`}
             >
               {option.label}
             </Text>

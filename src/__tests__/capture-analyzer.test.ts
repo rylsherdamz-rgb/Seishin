@@ -1,6 +1,6 @@
-jest.mock("@/services/ai-complete", () => ({ completeText: jest.fn(async () => null) }));
 import { analyzeHeuristic, parseDue, extractItems, parseAiAnalysis, analyzeCapture } from "@/services/capture-analyzer";
 import { completeText } from "@/services/ai-complete";
+jest.mock("@/services/ai-complete", () => ({ completeText: jest.fn(async () => null) }));
 
 // Thu, Oct 8 2026, 10:00 local
 const NOW = new Date(2026, 9, 8, 10, 0);

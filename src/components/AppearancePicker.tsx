@@ -48,7 +48,7 @@ export function AppearancePicker() {
                   {active && <Feather name="check" size={14} color={id === "mono" ? C.white : dark ? "#0b0b0b" : "#ffffff"} />}
                 </View>
               </View>
-              <Text className={`text-[11px] ${active ? "font-bold text-black" : "text-ink-400"}`}>{a.name}</Text>
+              <Text className={`text-11 ${active ? "font-bold text-black" : "text-ink-400"}`}>{a.name}</Text>
             </TouchableOpacity>
           );
         })}

@@ -40,7 +40,7 @@ const TaskItem = memo(function TaskItem({ row, onToggle }: { row: TaskRow; onTog
         </View>
       </TouchableOpacity>
       <View className="flex-1 py-2">
-        <Text className={`text-[15px] ${todo.completed ? "line-through text-ink-400" : "text-black"}`} numberOfLines={2}>
+        <Text className={`text-15 ${todo.completed ? "line-through text-ink-400" : "text-black"}`} numberOfLines={2}>
           {todo.title}
         </Text>
         {sub ? <Text className={`text-xs mt-0.5 ${row.overdue ? "text-danger" : "text-ink-500"}`} numberOfLines={1}>{sub}</Text> : null}
@@ -90,6 +90,7 @@ export default function TodoScreen() {
     return (
       <View className="flex-row items-center justify-between px-4 pt-5 pb-1">
         <TouchableOpacity
+          hitSlop={6}
           disabled={!completed}
           onPress={() => setShowCompleted((v) => !v)}
           accessibilityRole={completed ? "button" : "header"}
