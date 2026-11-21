@@ -21,20 +21,11 @@ object Ringer {
 
   @Synchronized fun start(ctx: Context) {
     stop()
-    val uri = AlarmStore.soundUri(ctx)?.let(Uri::parse)
-      ?: RingtoneManager.getActualDefaultRingtoneUri(ctx, RingtoneManager.TYPE_ALARM)
+    val fallback = RingtoneManager.getActualDefaultRingtoneUri(ctx, RingtoneManager.TYPE_ALARM)
       ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-    try {
-      player = MediaPlayer().apply {
-        setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-        setDataSource(ctx, uri)
-        isLooping = true
-        prepare()
-        start()
-      }
-    } catch (e: Exception) {
-      player = null
-    }
+    val picked = AlarmStore.soundUri(ctx)?.let(Uri::parse)
+    // A picked sound can disappear (file deleted, SD card removed): fall back rather than ring silent.
+    player = listOfNotNull(picked, fallback).distinct().firstNotNullOfOrNull { play(ctx, it) }
     vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
       (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
     } else {
@@ -44,6 +35,21 @@ object Ringer {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
     else @Suppress("DEPRECATION") vibrator?.vibrate(pattern, 0)
     handler.postDelayed(autoStop, 60_000)
+  }
+
+  private fun play(ctx: Context, uri: Uri): MediaPlayer? {
+    val mp = MediaPlayer()
+    return try {
+      mp.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+      mp.setDataSource(ctx, uri)
+      mp.isLooping = true
+      mp.prepare()
+      mp.start()
+      mp
+    } catch (e: Exception) {
+      mp.release()
+      null
+    }
   }
 
   @Synchronized fun stop() {

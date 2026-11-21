@@ -32,7 +32,6 @@ class KeepAliveService : Service() {
 
     /** Set by the React module: when the app is on screen, its own overlay rings instead. */
     @Volatile var appInForeground = false
-    @Volatile private var running = false
 
     fun ringIntent(ctx: Context, a: Alarm): Intent =
       Intent(ctx, KeepAliveService::class.java).setAction(ACTION_RING).putExtra("alarm", a.toJson().toString())
@@ -46,14 +45,10 @@ class KeepAliveService : Service() {
     }
 
     fun stop(ctx: Context) { ctx.stopService(Intent(ctx, KeepAliveService::class.java)) }
-  }
 
-  override fun onBind(intent: Intent?): IBinder? = null
-
-  override fun onCreate() {
-    super.onCreate()
-    val nm = getSystemService(NotificationManager::class.java)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    fun ensureChannels(ctx: Context) {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+      val nm = ctx.getSystemService(NotificationManager::class.java)
       nm.createNotificationChannel(NotificationChannel(KEEP_CHANNEL, "Background reminders", NotificationManager.IMPORTANCE_MIN).apply {
         description = "Keeps reminders and sync on time while Seishin is closed"
         setShowBadge(false)
@@ -64,6 +59,44 @@ class KeepAliveService : Service() {
         lockscreenVisibility = Notification.VISIBILITY_PUBLIC
       })
     }
+
+    /** Snooze/Dismiss buttons. The service goes foreground on start, so start it as one (O+). */
+    private fun actionPending(ctx: Context, action: String, a: Alarm, code: Int): PendingIntent {
+      val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+      val i = actionIntent(ctx, action, a)
+      return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) PendingIntent.getForegroundService(ctx, a.id.hashCode() + code, i, flags)
+      else PendingIntent.getService(ctx, a.id.hashCode() + code, i, flags)
+    }
+
+    /** The ringing notification with its full-screen alarm. Also used by AlarmReceiver when the service can't start. */
+    fun postRing(ctx: Context, a: Alarm) {
+      ensureChannels(ctx)
+      val full = PendingIntent.getActivity(
+        ctx, a.id.hashCode(), AlarmActivity.intent(ctx, a),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+      )
+      val n = NotificationCompat.Builder(ctx, RING_CHANNEL)
+        .setSmallIcon(R.drawable.notification_icon)
+        .setContentTitle(a.title)
+        .setContentText(a.body)
+        .setCategory(NotificationCompat.CATEGORY_ALARM)
+        .setPriority(NotificationCompat.PRIORITY_MAX)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setOngoing(true)
+        .setFullScreenIntent(full, true)
+        .setContentIntent(full)
+        .addAction(0, "Snooze 1 min", actionPending(ctx, ACTION_SNOOZE, a, 1))
+        .addAction(0, "Dismiss", actionPending(ctx, ACTION_DISMISS, a, 2))
+        .build()
+      ctx.getSystemService(NotificationManager::class.java).notify(a.id.hashCode(), n)
+    }
+  }
+
+  override fun onBind(intent: Intent?): IBinder? = null
+
+  override fun onCreate() {
+    super.onCreate()
+    ensureChannels(this)
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -85,8 +118,8 @@ class KeepAliveService : Service() {
     return START_STICKY
   }
 
+  /** Called on every start: each startForegroundService() must be answered with startForeground(). */
   private fun goForeground() {
-    if (running) return
     val open = PendingIntent.getActivity(
       this, 0, packageManager.getLaunchIntentForPackage(packageName) ?: Intent(),
       PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -102,7 +135,6 @@ class KeepAliveService : Service() {
       .build()
     val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
     ServiceCompat.startForeground(this, KEEP_ID, n, type)
-    running = true
   }
 
   private fun ring(a: Alarm) {
@@ -113,38 +145,12 @@ class KeepAliveService : Service() {
     }
     if (appInForeground) return
     Ringer.start(this)
-    val full = PendingIntent.getActivity(
-      this, a.id.hashCode(), AlarmActivity.intent(this, a),
-      PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-    )
-    fun svc(action: String, code: Int) = PendingIntent.getService(
-      this, a.id.hashCode() + code, actionIntent(this, action, a),
-      PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-    )
-    val n = NotificationCompat.Builder(this, RING_CHANNEL)
-      .setSmallIcon(R.drawable.notification_icon)
-      .setContentTitle(a.title)
-      .setContentText(a.body)
-      .setCategory(NotificationCompat.CATEGORY_ALARM)
-      .setPriority(NotificationCompat.PRIORITY_MAX)
-      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-      .setOngoing(true)
-      .setFullScreenIntent(full, true)
-      .setContentIntent(full)
-      .addAction(0, "Snooze 1 min", svc(ACTION_SNOOZE, 1))
-      .addAction(0, "Dismiss", svc(ACTION_DISMISS, 2))
-      .build()
-    getSystemService(NotificationManager::class.java).notify(a.id.hashCode(), n)
+    postRing(this, a)
   }
 
   private fun finishRing(a: Alarm) {
     Ringer.stop()
     getSystemService(NotificationManager::class.java).cancel(a.id.hashCode())
     sendBroadcast(Intent(AlarmActivity.ACTION_CLOSE).setPackage(packageName))
-  }
-
-  override fun onDestroy() {
-    running = false
-    super.onDestroy()
   }
 }

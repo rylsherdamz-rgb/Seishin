@@ -1,12 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Platform, AppState, AppStateStatus } from "react-native";
 import * as Notifications from "expo-notifications";
-/** Shape of a posted notification, as parsed for event suggestions. */
-export interface NotificationData {
-  id: string; title: string; text: string; bigText?: string; subText?: string;
-  appName: string; packageName: string; postTime: number;
-}
-import { useInboxStore, InboxItem } from "@/stores/inbox-store";
+import { useInboxStore } from "@/stores/inbox-store";
 import { useAlarmStore } from "@/stores/alarm-store";
 import type { CalendarEvent } from "@/stores/calendar-store";
 import { NativeAlarm, ensureNotificationPermission, ensureEventChannels } from "./notify-core";
@@ -14,6 +9,12 @@ import { refreshEventAlarms } from "./event-alarms";
 import { createLogger } from "@/utils/logger";
 
 const log = createLogger("notifications");
+
+/** Shape of a posted notification, as parsed for event suggestions. */
+export interface NotificationData {
+  id: string; title: string; text: string; bigText?: string; subText?: string;
+  appName: string; packageName: string; postTime: number;
+}
 
 /** Start looping the alarm sound while the foreground overlay is visible. */
 export function startAlarmRinging(): void {
@@ -81,7 +82,6 @@ export { scheduleEventReminder, cancelEventReminder } from "./event-alarms";
 export const ensureAlarmChannel = ensureEventChannels;
 
 export function useNotifications() {
-  const { addItem } = useInboxStore();
   const responseListenerRef = useRef<Notifications.EventSubscription | null>(null);
   const appState = useRef(AppState.currentState);
 
@@ -107,7 +107,7 @@ export function useNotifications() {
         return;
       }
       if (data?.type !== "event-reminder" && data?.type !== "todo-reminder" && data?.type !== "task-nag") return;
-      addItem({
+      useInboxStore.getState().addItem({
         id: `own-${notification.request.identifier || Date.now()}`,
         type: "notification",
         title: notification.request.content.title || "Reminder",

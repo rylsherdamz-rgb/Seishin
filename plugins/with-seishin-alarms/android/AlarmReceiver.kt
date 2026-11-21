@@ -13,6 +13,14 @@ class AlarmReceiver : BroadcastReceiver() {
     AlarmStore.remove(ctx, id)
     // Too late to be useful (phone was off for hours): skip rather than ring stale.
     if (System.currentTimeMillis() - alarm.fireAtMs > 30 * 60_000) return
-    ContextCompat.startForegroundService(ctx, KeepAliveService.ringIntent(ctx, alarm))
+    try {
+      ContextCompat.startForegroundService(ctx, KeepAliveService.ringIntent(ctx, alarm))
+    } catch (e: Exception) {
+      // Android 12+ refuses a background service start unless the alarm was exact
+      // (no "Alarms & reminders" access → inexact fallback). Ring from here instead
+      // of losing the alarm: the notification's full-screen intent shows AlarmActivity.
+      Ringer.start(ctx.applicationContext)
+      KeepAliveService.postRing(ctx, alarm)
+    }
   }
 }
